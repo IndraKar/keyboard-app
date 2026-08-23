@@ -19,7 +19,7 @@ progress, and a reason to come back daily.
 | **Returning Player** | Took lessons years ago, rusty | Placement/assessment, refreshers on theory & technique, faster ramp |
 | **Self-taught Improviser** | Plays by ear, weak on theory/reading | Chord progressions, theory, sight-reading, ear training |
 | **Classical Track Student** | Wants repertoire and reading fluency | Public-domain classical pieces, hands-separate practice, grading |
-| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MIDI/MusicXML) and Learn My Song (F-06, MP3/audio) |
+| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MIDI/MusicXML, free) and Learn My Song (F-06, MP3/audio, **premium**) |
 | **Genre Learner** | Wants pop/jazz/blues comping, not classical | Genre-focused learning paths, chord-progression lessons |
 
 ## 1.3 Platforms & shared codebase
@@ -33,11 +33,18 @@ thin, platform-specific implementations behind a common interface.
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
 
-A **Main Menu** screen (screen map §3.5) is the primary entry point into every
-training session type below — Ear Training (both drill types), Sight Reading (both
-clefs), Chord Progression Trainer, and Learn My Song — rather than those being buried
-under a generic "Practice" label. It is not a separate feature so much as the
-organizing surface for all of F-02a, F-02b, and F-06.
+A **Main Menu** screen (screen map §3.5) is the primary entry point into training, and
+V1 keeps it to exactly four selections rather than a longer practice-tool list:
+
+1. **Ear Training** (F-02a)
+2. **Sight Reading** (F-02b)
+3. **Repeat** (F-02c)
+4. **Learn My Song** (F-06) — **Premium**
+
+Chord-progression practice and free/warm-up play are not separate Main Menu entries
+in V1: chord progressions are delivered through path content and the Library (F-01,
+F-04) rather than a standalone practice tool, and open-ended free play is cut for
+launch simplicity. This can be revisited post-V1 if users ask for it.
 
 ### F-01 Structured learning content
 - 25–50 original learning exercises (technique, theory, rhythm, hand independence)
@@ -101,16 +108,40 @@ same `grading-engine` used elsewhere in the app. Session summary shows accuracy 
 interval/quality, feeding the same per-skill Progress Analytics breakdown as other
 lesson types (PRD F-03).
 
+**Show Note Names.** A toggle, available wherever a keyboard is shown on screen (Ear
+Training first, reusable anywhere else a keyboard renders), that labels every key with
+its note name. It's an assist for beginners, not a separate mode — a session with it
+on still earns points and still counts toward unlocking harder lessons, so a beginner
+can treat Ear Training as an approachable, rewarded activity from day one rather than
+something to avoid until they're "ready." It's one user-level setting (not
+reconfigured per session), so it applies consistently across every screen that shows a
+keyboard.
+
 ### F-02b Sight Reading
 Short notated passages the user reads and plays in real time, graded by the same
 `grading-engine` as F-02 (this mode does expect a MIDI keyboard, unlike ear training).
-- **Clef selector**: Treble, Bass, or Grand Staff (both clefs, hands together) — set
-  before starting, since left-hand/bass-clef reading is a distinct skill most beginner
-  content should isolate before combining.
+- **No manual setup screen** — tapping Sight Reading from the Main Menu launches
+  straight into a passage. Clef is picked for the user, randomly, **treble or bass**,
+  every time the tile is tapped, so the two get roughly even practice over time without
+  the user having to remember to switch. Difficulty is likewise not manually chosen —
+  it tracks the user's current path level automatically.
 - Passages are curated content (not procedurally generated, unlike F-02a), difficulty-
   tagged, and pulled into the Beginner/Intermediate/Advanced paths as well as offered
   as standalone drills from the Main Menu.
 - Grading covers note accuracy and rhythm/timing, consistent with F-02.
+
+### F-02c Repeat
+A call-and-response memory drill: the system plays a short note sequence, then the
+user must play it back correctly on their MIDI keyboard (this mode requires one, like
+Sight Reading — there's no meaningful reduced mode for "play back what you heard").
+- **Difficulty tier**: Basic, Intermediate, or Advanced, chosen before starting.
+- Each correct round extends the sequence by one note and the drill continues; a
+  round is graded via the same `grading-engine` note/timing matching used everywhere
+  else. The session ends on the first incorrect repeat-back, and its score is how many
+  rounds were survived plus the longest correct sequence.
+- **Playback tempo increases automatically as the sequence grows**, at a rate set by
+  the chosen difficulty tier (Advanced ramps faster than Basic) — this is what makes
+  the drill get harder over a single session, not just across sessions.
 
 ### F-03 Gamification & progress
 - XP awarded per completed lesson/exercise/song, weighted by difficulty and accuracy.
@@ -141,7 +172,14 @@ Short notated passages the user reads and plays in real time, graded by the same
 - Because this is a *symbolic* input format (MIDI/MusicXML), analysis is
   deterministic, not estimated — this is the higher-confidence path relative to F-06.
 
-### F-06 Audio-file upload & analysis ("Learn My Song")
+### F-06 Audio-file upload & analysis ("Learn My Song") — Premium
+This is V1's one paid feature — everything else in this document (all learning paths,
+Ear Training, Sight Reading, Repeat, the Library) is free. Reaching this from the Main
+Menu without an active entitlement shows a paywall/upsell screen instead of the upload
+flow (see `entitlements` in the DB schema, §4.2 — already modeled as a stubbed table
+this feature now activates). **DECISION NEEDED:** the pricing mechanic itself (one-time
+unlock vs. subscription, and price) is still open; only the "this specific feature is
+gated, the rest of the app isn't" call has been made.
 - User uploads an audio recording, typically an MP3, of a song they want to learn.
 - System runs tempo/BPM detection and best-effort chord/note transcription (as
   before), then offers **three ways to learn the song**, all built on top of that one
@@ -200,10 +238,9 @@ Short notated passages the user reads and plays in real time, graded by the same
 - Live/synchronous teacher-led lessons or video calls.
 - Instruments other than keyboard/piano (no guitar, no vocal).
 - Marketplace/third-party content submission.
-- Monetization/subscription billing mechanics — **DECISION NEEDED:** confirm whether
-  V1 ships free, paid-up-front, or with a subscription paywall, since this affects the
-  architecture's auth/entitlements layer. The architecture doc assumes a stubbed
-  entitlements table that can support any of these later without a schema rewrite.
+- The specific billing mechanic behind F-06's premium gate — **DECISION NEEDED:**
+  one-time unlock vs. subscription, and price. That Learn My Song specifically is
+  V1's paid feature, and everything else ships free, is now decided (PRD F-06).
 - Full generalized audio-to-score transcription for dense/polyphonic recordings —
   F-06 is explicitly "best-effort" for V1, not a competitor to specialized transcription
   software.

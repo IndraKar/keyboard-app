@@ -70,20 +70,24 @@ upload → processing → result shape.
 ## 3.5 Tab: Practice — Main Menu
 
 The Practice tab's home screen *is* the app's **Main Menu**: a single hub screen with
-one tile per training session type, so nothing is buried under a generic label. Tiles:
+exactly **four** tiles — nothing longer, nothing buried under a generic label:
 
-- **Ear Training** → Drill Setup (below)
-- **Sight Reading** → clef selector (below)
-- **Chord Progression Trainer** → pick/roll a progression, play along with adjustable
-  tempo and a "show me the chord" hint toggle
-- **Learn My Song** → the MP3/audio upload flow (§3.8a)
-- **Warm Up** → auto-picks a couple of recently-practiced exercises, no setup needed
-- **Free Play** → metronome-only, no grading target
+1. **Ear Training** → Drill Setup (below)
+2. **Sight Reading** → launches directly into a passage (below) — no setup screen
+3. **Repeat** → Difficulty Setup (below)
+4. **Learn My Song** *(Premium badge if not entitled)* → paywall screen if not
+   entitled, otherwise the MP3/audio upload flow (§3.8a)
 
-Each tile opens straight into that mode's setup step (no extra menu layer), and each
-mode returns to this Main Menu on exit rather than dead-ending. This is also linked
-from the Home dashboard, not just reachable via the tab bar, since it's the app's most
-frequently used surface after "Continue."
+Chord-progression practice, "Warm Up," and "Free Play" are intentionally not tiles
+here in V1 (PRD §1.4) — chord progressions live in path content and the Library
+instead. Each tile that has one opens straight into its setup step (no extra menu
+layer), and every mode returns to this Main Menu on exit rather than dead-ending. This
+screen is also linked from the Home dashboard, not just reachable via the tab bar,
+since it's the app's most frequently used surface after "Continue."
+
+A **Show Note Names** toggle (PRD F-02a) sits in this screen's header, not per-tile —
+it's one setting that applies to every keyboard shown anywhere in the app, so it's set
+once from the hub rather than re-toggled per mode.
 
 - **Ear Training** — see PRD F-02a for the full spec. Flow:
   1. **Drill Setup** — choose *Note Intervals* or *Chord Progressions*.
@@ -94,20 +98,30 @@ frequently used surface after "Continue."
   2. **Drill Screen** — large "play stimulus" control (with a repeat/"play again"
      affordance), multiple-choice answer buttons sized to the selected quality
      pool/interval set, immediate correct/incorrect feedback per round, running
-     accuracy visible throughout.
+     accuracy visible throughout. Keyboard visualization (if shown) respects the
+     Show Note Names setting.
   3. **Session Summary** — same family as the Lesson Player's summary screen: overall
      accuracy, breakdown per interval/quality, XP earned, retry-with-same-config vs.
      change config.
-- **Sight Reading** — see PRD F-02b. Flow:
-  1. **Clef Setup** — Treble / Bass / Grand Staff selector, plus difficulty filter.
-  2. **Sight Reading Screen** — curated passage rendered via the `notation` package,
+- **Sight Reading** — see PRD F-02b. No setup screen — tapping the tile immediately
+  opens a passage with a randomly chosen clef badge (Treble or Bass) at the top and
+  difficulty auto-matched to the user's current path level. Flow:
+  1. **Sight Reading Screen** — curated passage rendered via the `notation` package,
      live MIDI grading overlay (this mode requires a MIDI keyboard, unlike Ear
      Training), sight-read-once by default with an optional practice-first toggle.
-  3. **Session Summary** — note accuracy and rhythm/timing breakdown, same family as
+  2. **Session Summary** — note accuracy and rhythm/timing breakdown, same family as
      above.
-- **Practice Screen** (shared surface used by Chord Progression Trainer, Warm Up, and
-  Library song practice) — metronome, loop-region selector, speed control, live
-  grading overlay.
+- **Repeat** — see PRD F-02c. Flow:
+  1. **Difficulty Setup** — Basic / Intermediate / Advanced tier selector; a one-line
+     explainer that tempo speeds up automatically as the sequence grows.
+  2. **Repeat Screen** — the app plays a growing note sequence, then the keyboard
+     visualization goes into "your turn" state and waits for the matching MIDI input;
+     a progress readout shows current sequence length and tempo. Ends on the first
+     miss.
+  3. **Session Summary** — rounds survived, longest sequence, XP earned, retry.
+- **Practice Screen** (shared surface reused by Sight Reading, Repeat, and Library
+  song practice) — metronome, loop-region selector, speed control, live grading
+  overlay.
 
 ## 3.6 Tab: Library
 
@@ -139,8 +153,12 @@ frequently used surface after "Continue."
 
 ## 3.8a Learn My Song flow (modal stack, entered from the Main Menu, Home, or Library)
 
-See PRD F-06 for the underlying analysis/labeling requirements.
+See PRD F-06 for the underlying analysis/labeling requirements — this is V1's one
+premium feature.
 
+0. **Paywall** (only shown when the user has no active entitlement) — what the
+   feature does, upgrade CTA. Declining returns to wherever the user came from; an
+   entitled user skips straight to step 1.
 1. **Upload** — pick an audio file (typically MP3).
 2. **Processing** — job-queued server-side analysis (tempo detection + best-effort
    transcription via `services/transcription`); shows a clear "this can take a
@@ -179,8 +197,9 @@ strip)
 
 ## 3.10 Tab: Profile
 
-- Account info, subscription/entitlement state (schema supports this even if V1 is
-  free — see PRD §1.6 open decision).
+- Account info, subscription/entitlement state — gates Learn My Song (PRD F-06); the
+  exact billing mechanic is still a PRD §1.6 open decision, but this screen surfaces
+  whatever entitlement state exists.
 - MIDI device management (paired devices, latency calibration).
 - Notification preferences (daily reminder, streak-risk nudge).
 - Links out to Achievements / Streaks / Progress Analytics (§3.9).
@@ -190,15 +209,15 @@ strip)
 
 Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Account Creation
 
-Tabs: Home · Learn (Path Selector, Skill Tree) · Practice/Main Menu (Chord Trainer,
-Ear Training [Drill Setup, Drill Screen], Sight Reading [Clef Setup, Sight Reading
-Screen], Warm Up, Free Play) · Library (Search/Filter, Item Detail) · Profile
+Tabs: Home · Learn (Path Selector, Skill Tree) · Practice/Main Menu (Ear Training
+[Drill Setup, Drill Screen], Sight Reading Screen, Repeat [Difficulty Setup, Repeat
+Screen]) · Library (Search/Filter, Item Detail) · Profile
 
 Shared surfaces: Lesson Player · Session Summary · Practice Screen
 
 Upload flows: Learn My Music (Upload, Processing, Tutorial Overview, Tutorial Player) ·
-Learn My Song (Upload, Processing, Mode Select, Sheet Music / Synthesia-style /
-Auto-Play, Estimated Transcription panel)
+Learn My Song (Paywall, Upload, Processing, Mode Select, Sheet Music / Synthesia-style
+/ Auto-Play, Estimated Transcription panel)
 
 Progress: Achievements · Streaks · Progress Analytics
 

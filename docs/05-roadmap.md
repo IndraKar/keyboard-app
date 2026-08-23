@@ -58,10 +58,11 @@ MIDI-integration milestone lands.
 - Visual learning path (skill tree) screen with lock/unlock logic.
 - Lesson Player shell supporting theory and ear-training lesson types (no MIDI grading
   yet — multiple-choice/tap-based interaction).
-- **Main Menu screen** (screen map §3.5, the Practice tab's home): tiles for Ear
-  Training, Sight Reading, Chord Progression Trainer, Learn My Song, Warm Up, Free
-  Play — wired to whatever's built so far and stubbed for the rest, so the hub exists
-  from early on rather than being bolted on later.
+- **Main Menu screen** (screen map §3.5, the Practice tab's home): exactly four tiles
+  — Ear Training, Sight Reading, Repeat, Learn My Song — wired to whatever's built so
+  far and stubbed for the rest, so the hub exists from early on rather than being
+  bolted on later. Includes the header-level Show Note Names toggle (`users.
+  show_note_names`, §4.2) even before every screen that could honor it exists yet.
 - Ear Training drill engine (PRD F-02a, `ear_training_drills` §4.9): Drill Setup screen
   (interval vs. chord-progression mode, 2–8 note stepper, Difficulty 1–5 slider,
   major/minor/augmented/diminished quality multi-select), stimulus generation via the
@@ -87,10 +88,15 @@ rhythm/timing feedback.
   results.
 - Exercise lesson type (§4.4) fully working: play-along with real-time feedback and
   Session Summary.
-- Sight Reading (PRD F-02b, `sight_reading_passages` §4.4a): Clef Setup screen
-  (Treble / Bass / Grand Staff), Sight Reading Screen rendering a passage via the
-  `notation` package with live grading, Session Summary — this mode needs a MIDI
-  keyboard so it lands here rather than M2.
+- Sight Reading (PRD F-02b, `sight_reading_passages` §4.4a): no-setup launch straight
+  from the Main Menu tile into a passage with a randomly chosen Treble/Bass clef and
+  auto-matched difficulty, Sight Reading Screen rendering it via the `notation`
+  package with live grading, Session Summary — this mode needs a MIDI keyboard so it
+  lands here rather than M2.
+- Repeat (PRD F-02c, `repeat_drills`/`repeat_sessions`/`repeat_rounds` §4.9a):
+  Difficulty Setup (Basic/Intermediate/Advanced), the growing-sequence Repeat Screen
+  with per-round `grading-engine` checks and automatic tempo ramp-up, Session Summary
+  — also MIDI-only, so it lands here alongside Sight Reading and Exercises.
 **Exit criteria:** a real MIDI keyboard, connected on each platform, drives correct
 hit/miss/early/late feedback on a simple exercise, with latency that feels responsive
 (architecture §2.6 budget).
@@ -144,21 +150,26 @@ Tutorial Player flow (screen map §3.7) including hands-separate mode, loop sele
 **Exit criteria:** a user can upload a real-world MIDI or MusicXML file and get a
 working, gradable tutorial with an honest difficulty rating.
 
-## M8 — Learn My Song (audio upload & analysis)
+## M8 — Learn My Song (audio upload & analysis, Premium)
 **Size:** L
-**Goal:** F-06 end-to-end, all three learn modes.
+**Goal:** F-06 end-to-end, all three learn modes, entitlement-gated.
 **Deliverables:** `services/transcription` (basic-pitch + librosa); job-queue wiring
 from `services/api`; `estimated_chord_labels` table and manual-correction interaction
-(§4.11); Upload → Processing → Mode Select flow (screen map §3.8a) with all three
-modes working off the one transcription — Sheet Music (via the `notation` package,
-gated by `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
+(§4.11); the `entitlements` check (§4.2) in front of the upload endpoint and the Main
+Menu tile — a non-entitled user sees the Paywall screen (screen map §3.8a step 0)
+instead of Upload; Upload → Processing → Mode Select flow with all three modes working
+off the one transcription — Sheet Music (via the `notation` package, gated by
+`generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
 falling-notes surface and `grading-engine` from M3/M7), and Auto-Play (synthesized
 piano playback with pause/scrub) — plus the persistent "Estimated" labeling
-requirement from the PRD enforced in the UI (not just a one-time toast).
+requirement from the PRD enforced in the UI (not just a one-time toast). The actual
+billing/purchase flow behind the entitlement is out of this milestone's scope until
+PRD §1.6's pricing-mechanic decision lands — M8 can ship gated on a manually-granted
+`entitlements` row for beta testers if the billing integration isn't ready yet.
 **Exit criteria:** a user can upload an MP3 and get tempo-detected, loopable,
 speed-adjustable playback in all three modes, with best-effort chord/note output that
-is
-unambiguously marked as an estimate throughout the UI.
+is unambiguously marked as an estimate throughout the UI, and a non-entitled user is
+correctly blocked at the Paywall.
 
 ## M9 — Polish, accessibility, QA
 **Size:** M

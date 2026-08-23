@@ -45,6 +45,11 @@ erDiagram
     EAR_TRAINING_DRILLS ||--o{ EAR_TRAINING_SESSIONS : "played as"
     USERS ||--o{ EAR_TRAINING_SESSIONS : plays
     EAR_TRAINING_SESSIONS ||--o{ EAR_TRAINING_ROUNDS : contains
+
+    USERS ||--o{ REPEAT_SESSIONS : plays
+    REPEAT_SESSIONS ||--o{ REPEAT_ROUNDS : contains
+
+    USERS ||--o{ ENTITLEMENTS : has
 ```
 
 ## 4.2 Identity & account
@@ -52,11 +57,16 @@ erDiagram
 **`users`**
 `id`, `email`, `display_name`, `auth_provider`, `created_at`, `last_active_at`,
 `onboarding_completed_at`, `initial_goal` (enum: play_songs / theory_reading /
-classical / improvise), `is_guest` (bool).
+classical / improvise), `is_guest` (bool), `show_note_names` (bool, default false —
+the Main Menu's global keyboard-label toggle from PRD F-02a; one setting, read by
+every screen that renders a keyboard, not reconfigured per session).
 
-**`entitlements`** *(schema present in V1 even if unused pending PRD §1.6 monetization
-decision)*
+**`entitlements`**
 `id`, `user_id → users`, `plan` (enum: free / trial / paid), `starts_at`, `expires_at`.
+Gates PRD F-06 (Learn My Song is V1's only feature this checks — see
+`generated_tutorials` §4.11 for exactly where); the specific paid plan mechanic is
+still open (PRD §1.6), but the table and the check against it are both now live rather
+than stubbed.
 
 **`midi_devices`**
 `id`, `user_id → users`, `device_name`, `transport` (usb / bluetooth), `last_connected_at`,
@@ -104,7 +114,11 @@ not procedurally generated.
 `songs`), `clef` (enum: treble / bass / grand_staff), `musicxml_asset_id →
 media_assets`, `midi_reference_asset_id → media_assets` (expected note/timing
 sequence for grading, same role as `exercises.midi_reference_asset_id`),
-`measure_count`, `difficulty` (1–10).
+`measure_count`, `difficulty` (1–10). The Main Menu's Sight Reading tile (screen map
+§3.5) queries `WHERE clef IN ('treble', 'bass') AND difficulty ≈ <user's current path
+level>` and picks one at random — `grand_staff` passages exist in this table for
+curated path content but aren't in that quick-launch pool, since PRD F-02b only
+randomizes between the two single-clef options.
 
 ### 4.5 Chord progressions
 
@@ -191,15 +205,45 @@ the `core-theory` package, not pre-authored content), `correct_answer` (for
 interval-chain rounds, the ordered list of interval names between consecutive notes),
 `user_answer`, `is_correct`, `response_time_ms`.
 
+### 4.9a Repeat drills
+
+Supports PRD F-02c. This mode always requires a MIDI keyboard (there's no self-graded
+reduced mode, unlike ear training), so a session is graded round-by-round against
+live MIDI input via the `grading-engine`, same as Sight Reading and Exercises.
+
+**`repeat_drills`**
+`id`, `lesson_id → lessons` (nullable, same curated-vs-ad-hoc pattern as
+`ear_training_drills`), `difficulty_tier` (enum: basic / intermediate / advanced),
+`starting_tempo_bpm`, `tempo_ramp_bpm_per_round` (how much playback speeds up each
+time the sequence grows by a note — set per tier, so Advanced ramps faster than
+Basic per PRD F-02c).
+
+**`repeat_sessions`**
+`id`, `user_id → users`, `drill_id → repeat_drills`, `started_at`, `ended_at`,
+`rounds_survived`, `longest_sequence_length`, `ended_reason` (enum: missed_note /
+wrong_timing / quit). No `accuracy` column here unlike `ear_training_sessions` —
+a Repeat session doesn't have a fixed round count to score a percentage against, it
+just ends on the first miss, so `rounds_survived` is the score.
+
+**`repeat_rounds`**
+`id`, `session_id → repeat_sessions`, `round_index`, `sequence` (jsonb — the full
+note sequence played this round, one note longer than the previous round),
+`tempo_bpm`, `note_events` (jsonb, same per-note hit/miss/early/late shape as
+`attempts.note_events` — this is what the live MIDI input was graded against),
+`passed` (bool).
+
 ## 4.10 Gamification
 
 **`xp_events`**
 `id`, `user_id → users`, `attempt_id → attempts` (nullable),
 `ear_training_session_id → ear_training_sessions` (nullable — set instead of
-`attempt_id` for §4.9 sessions), `source` (enum: lesson_complete / daily_challenge /
-achievement / streak_bonus / ear_training_session_complete), `amount`, `created_at`.
-XP totals are always `sum(xp_events.amount)` server-side — never a client-writable
-counter (per architecture §2.7).
+`attempt_id` for §4.9 sessions), `repeat_session_id → repeat_sessions` (nullable —
+set instead of `attempt_id` for §4.9a sessions; a session with `show_note_names` on
+still generates one of these per PRD F-02a — the toggle changes nothing about how XP
+is earned), `source` (enum: lesson_complete / daily_challenge / achievement /
+streak_bonus / ear_training_session_complete / repeat_session_complete), `amount`,
+`created_at`. XP totals are always `sum(xp_events.amount)` server-side — never a
+client-writable counter (per architecture §2.7).
 
 **`user_level`**
 `user_id → users` (PK), `current_level`, `current_xp_into_level`, `total_xp`
@@ -232,6 +276,11 @@ schema supports either, but it changes how `daily_challenges` vs.
 `attempt_id → attempts`.
 
 ## 4.11 Learn My Music & Learn My Song
+
+`upload_type = audio` (Learn My Song, PRD F-06) is V1's one entitlement-gated flow:
+the API checks `entitlements` (§4.2) for the requesting user before accepting an
+audio upload or serving a `generated_tutorials` row sourced from one. `upload_type`
+`midi`/`musicxml` (Learn My Music, F-05) has no such check — it's free.
 
 **`user_uploads`**
 `id`, `user_id → users`, `upload_type` (enum: midi / musicxml / audio),
