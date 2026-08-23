@@ -113,23 +113,41 @@ Tapping Ear Training, Sight-Reading, or Playback & Repeat opens that category's 
 **Tier Ladder** screen before any drill/practice screen — this is what replaced the
 old cross-category "Learn tab" skill tree, scoped to one category at a time:
 
-- A vertical list/ladder of tiers (`category_tiers`, DB §4.9b), lowest first.
-  Unlocked tiers show their lessons (tap a lesson → Lesson Player, §3.4); the next
+- A vertical ladder of **exactly four tiers** (`category_tiers`, DB §4.9b), lowest
+  first — the same shape in every category: tier 1 free/pre-unlocked, tiers 2–3 free
+  XP purchases, tier 4 premium. Unlocked tiers show their lessons (tap a lesson → Lesson Player, §3.4); the next
   locked tier shows its **XP cost** and an **Unlock** button — enabled when the
   user's spendable balance covers it, disabled with the shortfall shown otherwise
   (e.g. "Need 35 more XP"); tiers further out are visible but collapsed/greyed, so
   the user can see what they're saving toward without it cluttering the immediate
   decision.
-- A tier gated by Premium (`required_plan = premium`) shows a lock + a **Premium**
-  badge instead of an XP cost once the user has enough XP to otherwise afford it —
-  distinguishing "you can't afford this yet" from "this needs Keyvoria Plus" is
-  important, since they call for different next actions.
+- **Tier 4** (`required_plan = premium`) shows a lock + a **Premium** badge rather
+  than a plain XP cost — distinguishing "you can't afford this yet" from "this needs
+  Keyvoria Plus" is important, since they call for different next actions. Its
+  upsell copy names both halves of what the subscription buys: the bonus tier *and*
+  the 61-key keyboard its content is written for.
 - Tapping **Unlock** on an affordable tier is a confirmation step (spending XP is
   permanent, per PRD F-03), not a silent action — a brief "Tier unlocked!" moment
   with the reveal of its lessons follows confirmation.
 - For **Ear Training** and **Playback & Repeat's Repeat drill**, an unlocked tier's
   procedurally-generated drill leads into that category's own setup screen (below)
   rather than a fixed lesson list, since those configure at play time.
+
+### 3.5.1a The on-screen keyboard (shared surface, present in every category)
+
+A single keyboard component renders at the bottom of **every** play surface — Ear
+Training's drill screen, Sight-Reading, the Repeat drill, the Lesson Player, and the
+Practice Screen. It is not a per-mode fallback; it's the default instrument, and the
+screens are laid out around it rather than reflowing when no hardware is present.
+
+- **Range is entitlement-driven, not screen-driven**: 2 octaves on Free, 61 keys on
+  Keyvoria Plus (PRD F-02, §1.4). The same component, one range prop.
+- **Show Note Names** (§3.5) applies to it on every screen identically.
+- When real MIDI hardware is connected, the on-screen keyboard stays visible and
+  mirrors incoming notes as a visualization; the user can still tap it. Input from
+  either source enters the same `grading-engine`, so no screen has two grading paths.
+- No screen shows a "connect a MIDI keyboard to continue" gate. The only
+  MIDI-specific UI is an optional status chip indicating hardware is connected.
 
 ### 3.5.2 Ear Training
 
@@ -142,8 +160,9 @@ See PRD F-02a. From the Tier Ladder, the procedurally-generated drill opens:
 2. **Drill Screen** — large "play stimulus" control (with a repeat/"play again"
    affordance), multiple-choice answer buttons sized to the selected quality
    pool/interval set, immediate correct/incorrect feedback per round, running
-   accuracy visible throughout. Keyboard visualization (if shown) respects the Show
-   Note Names setting.
+   accuracy visible throughout. The shared on-screen keyboard (§3.5.1a) sits below
+   as a reference instrument the user can tap to compare against the stimulus,
+   respecting the Show Note Names setting.
 3. **Session Summary** (§3.4) — overall accuracy, breakdown per interval/quality, XP
    earned, retry-with-same-config vs. change config.
 
@@ -153,8 +172,10 @@ See PRD F-02b. No setup screen — tapping into an unlocked Sight-Reading tier
 immediately opens a passage from that tier with a randomly chosen clef badge (Treble
 or Bass) at the top.
 1. **Sight-Reading Screen** — curated passage rendered via the `notation` package,
-   live MIDI grading overlay (this mode requires a MIDI keyboard, unlike Ear
-   Training), sight-read-once by default with an optional practice-first toggle.
+   with the shared on-screen keyboard (§3.5.1a) directly below the staff and a live
+   grading overlay above it. The user plays the passage by tapping that keyboard or
+   on connected hardware — either works. Sight-read-once by default with an optional
+   practice-first toggle.
 2. **Session Summary** (§3.4) — note accuracy and rhythm/timing breakdown.
 
 ### 3.5.4 Playback & Repeat
@@ -166,16 +187,17 @@ drill:
 1. **Difficulty Setup** — Basic / Intermediate / Advanced tier selector for the
    drill's own internal difficulty; a one-line explainer that tempo speeds up
    automatically as the sequence grows.
-2. **Repeat Screen** — the app plays a growing note sequence, then the keyboard
-   visualization goes into "your turn" state and waits for the matching MIDI input;
-   a progress readout shows current sequence length and tempo. Ends on the first
-   miss.
+2. **Repeat Screen** — the app plays a growing note sequence, then the shared
+   on-screen keyboard (§3.5.1a) goes into "your turn" state and waits for the
+   matching input, tapped on screen or played on hardware; a progress readout shows
+   current sequence length and tempo. Ends on the first miss.
 3. **Session Summary** (§3.4) — rounds survived, longest sequence, XP earned, retry.
 
 ### 3.5.5 Practice Screen
 
 Shared surface reused by Sight-Reading, the Repeat drill, and Library song practice —
-metronome, loop-region selector, speed control, live grading overlay.
+metronome, loop-region selector, speed control, live grading overlay, and the shared
+on-screen keyboard (§3.5.1a).
 
 ## 3.6 Tab: Library
 

@@ -95,9 +95,12 @@ rhythm/timing feedback.
   transports behind the shared interface (architecture §2.3).
 - MIDI Setup onboarding screen + Profile MIDI device management, incl. latency
   calibration.
-- On-screen keyboard component (the no-MIDI input surface from F-02's reduced mode):
-  reads `entitlements.plan` to render 2 octaves (free) or 61 keys (premium) — see PRD
-  §1.4's Free vs. Premium table and DB schema §4.2. Real MIDI input through the `midi`
+- **On-screen keyboard component** — shared infrastructure, not a per-mode fallback.
+  It renders on *every* play surface built from here on (Exercises, Sight-Reading,
+  the Repeat drill, Ear Training, the Practice Screen), emits the same note events
+  the `midi` package does, and reads `entitlements.plan` to render 2 octaves (free)
+  or 61 keys (premium) — see PRD §1.4 and DB schema §4.2. Build it *before* the
+  lesson types below, since they all mount it. Real MIDI input through the `midi`
   package is never range-limited, at any tier.
 - `grading-engine` package (architecture §2.5), unit-tested against recorded MIDI
   event fixtures independent of any device.
@@ -108,17 +111,22 @@ rhythm/timing feedback.
 - Sight-Reading (PRD F-02b, `sight_reading_passages` §4.4a): no-setup launch straight
   from an unlocked Sight-Reading tier into a passage with a randomly chosen
   Treble/Bass clef, Sight-Reading Screen rendering it via the `notation` package with
-  live grading, Session Summary — this mode needs a MIDI keyboard so it lands here
-  rather than M2. Tier-1 passages reachable and playable by the exit criteria below;
-  the Tier Ladder purchase flow for tiers beyond 1 is still M5.
+  live grading, Session Summary — it lands here rather than M2 because it needs live
+  input, which means both the `grading-engine` and the on-screen keyboard above, not
+  because it needs hardware. Tier-1 passages reachable and playable by the exit
+  criteria below; the Tier Ladder purchase flow for tiers beyond 1 is still M5.
 - The Repeat drill within Playback & Repeat (PRD F-02c,
   `repeat_drills`/`repeat_sessions`/`repeat_rounds` §4.9a): Difficulty Setup
   (Basic/Intermediate/Advanced), the growing-sequence Repeat Screen with per-round
-  `grading-engine` checks and automatic tempo ramp-up, Session Summary — also
-  MIDI-only, so it lands here alongside Sight-Reading and Exercises.
-**Exit criteria:** a real MIDI keyboard, connected on each platform, drives correct
-hit/miss/early/late feedback on a simple exercise, with latency that feels responsive
-(architecture §2.6 budget).
+  `grading-engine` checks and automatic tempo ramp-up, Session Summary — same
+  live-input dependency, so it lands here alongside Sight-Reading and Exercises.
+**Exit criteria:** two passes, one per input surface. (1) A real MIDI keyboard,
+connected on each platform, drives correct hit/miss/early/late feedback on a simple
+exercise, with latency that feels responsive (architecture §2.6 budget). (2) **With
+no hardware connected at all**, the same exercise, a Sight-Reading passage, and a
+Repeat round are each completable end to end by tapping the 2-octave on-screen
+keyboard, graded by the same engine — this is the free-user path and it must work
+before M4 authors content against it.
 
 ## M4 — Content production
 **Size:** L (mostly content-authoring effort, not engineering)
@@ -140,16 +148,21 @@ into actual numbers per tier, tuned by whoever's authoring the content.
   generated (not authored per-item), this is a smaller task — setting each tier's
   `difficulty_level` range and XP cost (`category_tiers`, §4.9b) rather than
   authoring individual lessons.
-- The highest tier or two in each of the three categories set
-  `required_plan = premium` (PRD F-03/§1.4), and — where a tier's content genuinely
-  needs more than 2 octaves — is authored assuming the 61-key range, consistent with
-  free-tier content staying within 2 octaves wherever musically reasonable (PRD F-02).
+- **Four tiers per category, no exceptions** (PRD §1.4, DB §4.9b): tier 1 at
+  `xp_cost = 0`, tiers 2–3 `required_plan = free` on a rising cost curve, tier 4
+  `required_plan = premium` at the highest cost.
+- **The 2-octave rule is a hard authoring constraint for tiers 1–3** in all three
+  categories — every passage, exercise, song arrangement, and generated sequence in
+  those tiers must be playable within 2 octaves, verified by the content linter, not
+  by reviewer judgement. Tier 4 is the only place content may span the full 61 keys,
+  which is what makes the premium tier and the premium keyboard one coherent offer.
 - Genre tags (Pop/Rock, Jazz-basics, etc. — confirm which 2+ per PRD F-01's
   `DECISION NEEDED`) applied to Playback & Repeat / Library content.
 **Exit criteria:** every category's tier ladder is playable start-to-finish with real
 content and real XP costs, not placeholders; a content-linting CI check (schema
 validation on the `content/` directory, including "every lesson has a valid
-`tier_id`") passes.
+`tier_id`", "every category has exactly tiers 1–4 with only tier 4 premium", and
+"every tier 1–3 item fits within 2 octaves") passes.
 
 ## M5 — The XP economy
 **Size:** L — this is Keyvoria's primary progression system (PRD F-03), not a

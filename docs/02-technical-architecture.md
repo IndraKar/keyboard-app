@@ -94,7 +94,8 @@ keyvoria/
 ├── packages/
 │   ├── core-theory/             # Pure TS: music theory primitives (scales, chords,
 │   │                             #   intervals, key detection) — no I/O
-│   ├── grading-engine/          # Pure TS: compares live MIDI input stream against
+│   ├── grading-engine/          # Pure TS: compares a live note-event stream (from
+│   │                             #   MIDI hardware OR the on-screen keyboard) against
 │   │                             #   an expected note/timing sequence → accuracy score
 │   ├── gamification/            # Pure TS: XP-earning curve, the per-category tier-
 │   │                             #   unlock economy (validates an unlock purchase
@@ -108,7 +109,10 @@ keyvoria/
 │   ├── audio-engine/            # Common playback/looping/speed-change interface;
 │   │                             #   platform impls
 │   ├── notation/                # Sheet-music rendering (OSMD-in-WebView, see §2.4)
-│   ├── ui/                      # NativeWind component library, shared across app
+│   ├── ui/                      # NativeWind component library, shared across app —
+│   │                             #   includes the on-screen keyboard (range driven by
+│   │                             #   entitlements.plan), mounted by every play screen
+│   │                             #   in every category, emitting midi-shaped events
 │   └── analysis/                # Difficulty scoring, MIDI/MusicXML parsing/segmenting
 │                                 #   (shared by "Learn My Music" client + server paths)
 ├── content/                     # Authored lesson/song content: JSON + MusicXML,
@@ -169,7 +173,8 @@ data model (not a render tree) is needed.
 
 ```mermaid
 flowchart LR
-    MIDIkbd["MIDI keyboard"] -->|MIDI events| Transport["midi package<br/>(platform transport)"]
+    MIDIkbd["MIDI keyboard<br/>(optional hardware)"] -->|MIDI events| Transport["midi package<br/>(platform transport)"]
+    OnScreen["On-screen keyboard<br/>(2 oct free / 61 keys premium)"] -->|same note events| Grading
     Transport --> Grading["grading-engine<br/>(pure TS)"]
     Expected["Expected note/timing<br/>sequence (lesson/song data)"] --> Grading
     Grading -->|per-note result stream| UI["Practice/Lesson screen<br/>(visual feedback)"]
@@ -185,6 +190,22 @@ session accuracy score. It is deterministic and platform-agnostic so it can also
 server-side for "Learn My Music" performance grading if a session needs re-verification
 (e.g. leaderboard/achievement integrity checks later), and is unit-testable without any
 device.
+
+**Two input surfaces, one pipeline.** The engine takes a note-event stream, not a
+"MIDI stream" — it does not know or care where events came from. The **on-screen
+keyboard is shared UI infrastructure**, not an Ear-Training-specific widget: one
+component, mounted by every play surface in every category (PRD F-02, screen map
+§3.5.1a), emitting the same `{ pitch, velocity, timestamp, type }` events the `midi`
+package emits. Two consequences worth designing for up front:
+
+- **Range is a prop, not a fork.** The component reads `entitlements.plan` for its
+  key range (2 octaves / 61 keys). No category has its own keyboard variant, so the
+  free-vs-premium range change is a single value, not a per-screen branch.
+- **Tolerance is a grading parameter, not a second engine.** On-screen input carries
+  touch latency and no real velocity, so the engine accepts a tolerance profile per
+  input source (wider timing windows, velocity checks skipped for `on_screen`). The
+  matching logic itself is identical — one code path, one set of tests, with the
+  source recorded on `attempts` / `repeat_rounds` (DB §4.8, §4.9a).
 
 ## 2.6 Backend
 

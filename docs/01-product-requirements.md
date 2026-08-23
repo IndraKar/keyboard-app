@@ -57,15 +57,21 @@ launch simplicity, revisitable post-V1.
 
 | | Free | Premium (Keyvoria Plus) |
 |---|---|---|
-| On-screen keyboard | **2 octaves** | **61 keys** (5 octaves) |
-| Ear Training / Sight-Reading / Playback & Repeat | All beginner–intermediate tiers, XP-unlocked (F-03) | + the most advanced tier(s) in each category, some of which need the 61-key range to even be playable |
+| On-screen keyboard | **2 octaves**, available in *every* category | **61 keys** (5 octaves), everywhere |
+| Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
 | Learn My Music (F-05) | Locked (paywall) | Unlocked — Keyvoria's primary premium feature |
+
+**The tier rule is fixed and uniform:** every tiered category has exactly **four
+tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start; tiers
+2 and 3 are XP purchases). **Tier 4 is always the premium tier** — it requires an
+active Keyvoria Plus subscription *and* its XP cost. There is no per-category
+variation in where the paywall falls, which keeps the offer explainable in one
+sentence: *tiers 1–3 free, tier 4 plus the 61-key keyboard for $9.95/month.*
 
 The billing mechanic is a **$9.95/month subscription** — this closes the billing
 `DECISION NEEDED` an earlier draft left open. What's still genuinely open: exact
-per-tier XP costs (F-03) and exactly which advanced tiers require the 61-key range
-vs. simply being paywalled outright, both of which need content-production input to
-answer for real, not an invented number here.
+per-tier XP costs (F-03), which needs content-production input to answer for real
+rather than an invented number here.
 
 ### F-01 Structured learning content
 Content is organized **by category**, not by a level spanning all of them — each
@@ -105,17 +111,26 @@ reframed as tags rather than paths.
   and timing (early/late, with configurable tolerance).
 - Visual feedback synced to input: falling-notes or on-staff highlighting, per-note
   hit/miss/early/late indicators, live accuracy meter.
-- Works without a MIDI keyboard in a reduced mode (on-screen keyboard, self-graded)
-  for theory/ear-training/sight-reading content that doesn't require live playing.
-  The on-screen keyboard's range is tiered — **2 octaves free, 61 keys (5 octaves)
-  premium** — but this only affects users relying on it as their input surface. A
+- **A MIDI keyboard is never required to use any part of Keyvoria.** The on-screen
+  keyboard is a first-class input surface, present in **every** category — Ear
+  Training, Sight-Reading, and Playback & Repeat alike — not a fallback bolted onto
+  the modes that happen to allow it. An earlier draft treated Sight-Reading and the
+  Repeat drill as MIDI-only with "no meaningful reduced mode"; that restriction is
+  **retired**. Tapping keys on screen produces the same note-on/note-off event stream
+  that hardware does, feeds the same shared `grading-engine`, and earns the same XP.
+- The only honest caveat: real hardware gives **more precise timing** (physical key
+  travel and velocity beat touch latency), so timing tolerances are slightly wider
+  for on-screen input, and velocity-sensitive grading is skipped there. Note accuracy,
+  chord accuracy, and note-order grading are identical either way.
+- The on-screen keyboard's range is tiered — **2 octaves free, 61 keys (5 octaves)
+  premium** — and this only affects users relying on it as their input surface. A
   connected real MIDI keyboard is never range-limited by the app regardless of tier;
   the cap exists because the on-screen keyboard *is* the instrument for a free user
   with no hardware, not because the app restricts hardware you already own. The
-  free-tier curriculum (Ear Training and Sight-Reading's non-advanced tiers, and
-  Playback & Repeat's exercises/songs below the advanced tier) is deliberately
-  authored to fit within 2 octaves wherever musically reasonable, so the free
-  keyboard cap is rarely the thing standing between a free user and a lesson.
+  entire free-tier curriculum — **tiers 1–3 in all three categories** — is authored
+  to fit within 2 octaves, so a free user with no hardware can complete every free
+  tier end to end. Tier 4 is where content is deliberately written beyond that range,
+  which is why the 61-key keyboard and tier 4 ship together in the same subscription.
 
 ### F-02a Ear Training: intervals & chord-quality drills
 A configurable ear-training drill, launched from the Main Menu (screen map §3.5),
@@ -143,10 +158,13 @@ cross-category path. Two drill types, both configured before the session starts:
   length and voicing complexity.
 
 Mechanics common to both: each round plays the stimulus (repeatable via a "play
-again" control) and presents multiple-choice answers; the session is self-graded (no
-MIDI keyboard required, per F-02's reduced mode) — a stretch goal, not V1, is letting
-the user instead play back what they heard on a connected MIDI keyboard, graded by the
-same `grading-engine` used elsewhere in the app. Session summary shows accuracy per
+again" control) and presents multiple-choice answers; the session is self-graded, so
+no keyboard of any kind is strictly needed to answer — a stretch goal, not V1, is
+letting the user instead *play back* what they heard, on the on-screen keyboard or
+connected hardware, graded by the same `grading-engine` used elsewhere in the app.
+The 2-octave on-screen keyboard is still present on this screen in V1 as a reference
+instrument (the user can tap notes to compare against the stimulus, with Show Note
+Names applying as everywhere else). Session summary shows accuracy per
 interval/quality, feeding the same per-skill Progress Analytics breakdown as other
 lesson types (PRD F-03).
 
@@ -161,7 +179,11 @@ keyboard.
 
 ### F-02b Sight-Reading
 Short notated passages the user reads and plays in real time, graded by the same
-`grading-engine` as F-02 (this mode does expect a MIDI keyboard, unlike ear training).
+`grading-engine` as F-02. **Playable with either input surface** — a connected MIDI
+keyboard or the on-screen keyboard (2 octaves free / 61 keys premium), which sits
+directly below the staff on this screen. Tiers 1–3 passages are written to stay
+within the 2-octave range so a free user with no hardware can read and play every
+one of them.
 - **No manual setup screen** — tapping Sight-Reading from the Main Menu launches
   straight into a passage. Clef is picked for the user, randomly, **treble or bass**,
   every time the tile is tapped, so the two get roughly even practice over time without
@@ -178,9 +200,11 @@ classical pieces, original songs) — the throughline is "hear something, play i
 whether that's a generated note sequence or a real piece of music.
 
 **Repeat drill** (the procedurally-generated half): a call-and-response memory drill —
-the system plays a short note sequence, then the user must play it back correctly on
-their MIDI keyboard (this mode requires one, like Sight-Reading — there's no
-meaningful reduced mode for "play back what you heard").
+the system plays a short note sequence, then the user must play it back correctly —
+on a connected MIDI keyboard **or** on the on-screen keyboard shown at the bottom of
+the drill screen. Tapping the sequence back on screen is a fully supported way to
+play this drill, not a degraded mode; generated sequences stay within 2 octaves for
+tiers 1–3 so the free keyboard is always sufficient.
 - **Difficulty tier**: Basic, Intermediate, or Advanced, chosen before starting —
   distinct from this category's XP-unlocked content tiers; this selector picks the
   drill's own internal difficulty once the Repeat drill itself is unlocked.
@@ -225,11 +249,13 @@ because it makes XP cosmetic. Instead:
   real decision about where to invest. A flat or trivial cost curve would collapse
   this back into cosmetic points; that's the failure mode this is explicitly
   designed to avoid.
-- **Premium sits on top of XP, not instead of it.** The most advanced tier(s) in
-  each of the three categories are gated behind Keyvoria Plus *in addition to* their
-  XP cost — a free user can save XP indefinitely and still not reach hardcore
-  content without upgrading. Some of that gate is a direct business decision; some of
-  it is a natural consequence of those tiers needing the 61-key keyboard (§1.4).
+- **Four tiers per category; tier 4 is premium.** Every tiered category has exactly
+  four tiers. Tier 1 is free and pre-unlocked (0 XP). Tiers 2 and 3 are free-tier XP
+  purchases. **Tier 4 — the bonus tier — is gated behind Keyvoria Plus *in addition
+  to* its XP cost**, so a free user can save XP indefinitely and still not reach
+  hardcore content without upgrading. That gate isn't arbitrary: tier 4 content is
+  authored beyond the 2-octave range, so it genuinely needs the 61-key keyboard that
+  the same subscription unlocks (§1.4).
   Learn My Music (F-05) doesn't participate in this tier/XP-unlock system at all —
   it's gated purely by the Premium subscription, since it's user-generated content
   with no authored difficulty ladder to unlock.
@@ -330,8 +356,8 @@ V1 merges them into one feature, one Main Menu entry, entirely behind Keyvoria P
 - Full generalized audio-to-score transcription for dense/polyphonic recordings —
   F-05's MP3 path is explicitly "best-effort" for V1, not a competitor to specialized
   transcription software.
-- Exact per-tier XP costs and exactly which advanced tiers are premium-only because
-  they need the 61-key range vs. simply paywalled outright (F-03, §1.4) — the
-  mechanism is fully specified; the numbers need content-production input to set for
-  real. Billing itself is resolved: **Keyvoria Plus, $9.95/month** (§1.4) — no longer
-  an open decision.
+- Exact per-tier XP costs for tiers 2–4 (F-03, §1.4) — the mechanism is fully
+  specified; the numbers need content-production input to set for real. The two
+  things this bullet used to also leave open are now resolved: **which tiers are
+  premium** (always and only tier 4, §1.4) and **billing** (Keyvoria Plus,
+  $9.95/month).

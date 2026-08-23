@@ -67,11 +67,12 @@ every screen that renders a keyboard, not reconfigured per session).
 Keyvoria Plus subscription, $9.95/month per PRD §1.4), `starts_at`, `expires_at`.
 Gates three things: F-05 Learn My Music in full (see `generated_tutorials` §4.11 for
 exactly where that check happens — every upload type now, not just audio), the
-on-screen keyboard's key range (the app-shell component that renders it reads `plan`
-at mount — `plan = free` → 2 octaves, otherwise → 61 keys, not a value stored
-per-user elsewhere), and `category_tiers.required_plan = premium` tiers within Ear
-Training/Sight-Reading/Playback & Repeat (§4.9b) — a free user can hold any amount of
-unspent XP and still can't purchase one of these without an active `paid` plan.
+on-screen keyboard's key range (the shared component reads `plan` at mount —
+`plan = free` → 2 octaves, otherwise → 61 keys, not a value stored per-user
+elsewhere; note this gates *range only*, never the keyboard's presence, which is
+unconditional on every play screen per PRD F-02), and every category's **tier 4**
+(`category_tiers.required_plan = premium`, §4.9b) — a free user can hold any amount
+of unspent XP and still can't purchase tier 4 without an active `paid` plan.
 
 **`midi_devices`**
 `id`, `user_id → users`, `device_name`, `transport` (usb / bluetooth), `last_connected_at`,
@@ -167,7 +168,9 @@ Unique on `(user_id, lesson_id)` and `(user_id, generated_tutorial_id)`.
 `accuracy_notes` (0–100), `accuracy_rhythm` (0–100), `accuracy_timing` (0–100),
 `overall_score` (0–100), `note_events` (jsonb — the per-note hit/miss/early/late
 detail from the grading engine, kept for the Progress Analytics breakdown and for
-potential replay/review UI later).
+potential replay/review UI later), `input_source` (enum: midi_hardware / on_screen —
+every lesson type is playable with either surface, per PRD F-02, and the two grade
+under different timing tolerances, so the attempt records which one produced it).
 
 ## 4.9 Ear training drills
 
@@ -216,10 +219,11 @@ interval-chain rounds, the ordered list of interval names between consecutive no
 Supports PRD F-02c's procedurally-generated half of the Playback & Repeat category
 (the authored half — exercises, chord progressions, songs — uses the ordinary
 `exercises`/`chord_progression_lessons`/`songs` tables above, all linked into this
-category's tiers via `lessons.tier_id`). This mode always requires a MIDI keyboard
-(there's no self-graded reduced mode, unlike ear training), so a session is graded
-round-by-round against live MIDI input via the `grading-engine`, same as Sight
-Reading and Exercises.
+category's tiers via `lessons.tier_id`). A session is graded round-by-round via the
+`grading-engine`, same as Sight-Reading and Exercises — against **live input from
+either source**, hardware MIDI or the on-screen keyboard (PRD F-02), which is why
+`repeat_rounds.note_events` below carries an input-source discriminator rather than
+assuming hardware.
 
 **`repeat_drills`**
 `id`, `lesson_id → lessons` (nullable, same curated-vs-ad-hoc pattern as
@@ -240,7 +244,10 @@ just ends on the first miss, so `rounds_survived` is the score.
 `id`, `session_id → repeat_sessions`, `round_index`, `sequence` (jsonb — the full
 note sequence played this round, one note longer than the previous round),
 `tempo_bpm`, `note_events` (jsonb, same per-note hit/miss/early/late shape as
-`attempts.note_events` — this is what the live MIDI input was graded against),
+`attempts.note_events` — this is what the live input was graded against),
+`input_source` (enum: midi_hardware / on_screen — recorded per round because
+on-screen input is graded with wider timing tolerances and no velocity, per PRD
+F-02; keeping it here means analytics can compare the two without guessing),
 `passed` (bool).
 
 ### 4.9b The XP economy: category tiers & unlock purchases
@@ -253,14 +260,26 @@ to) as a gamification one.
 **`category_tiers`**
 `id`, `category` (enum: ear_training / sight_reading / playback_repeat — exactly
 Keyvoria's three tiered categories; Learn My Music has no tier ladder, it's gated
-purely by `entitlements`, §4.11), `tier_number` (int — ordering within its category;
-tier 1 is free and already unlocked for every user with no purchase needed),
-`title`, `description`, `xp_cost` (int; 0 for every category's tier 1),
-`required_plan` (enum: free / premium — the tiers where `required_plan = premium`
-are what PRD F-03 calls "premium sits on top of XP, not instead of it": still costs
-`xp_cost` XP *and* requires an active Keyvoria Plus entitlement, typically only the
-top tier or two per category). Unique on `(category, tier_number)`. Every curated
-`lessons` row (§4.3) belongs to exactly one of these via `lessons.tier_id`.
+purely by `entitlements`, §4.11), `tier_number` (int, **1–4** — every category has
+exactly four tiers, per PRD §1.4), `title`, `description`, `xp_cost` (int),
+`required_plan` (enum: free / premium). Unique on `(category, tier_number)`. Every
+curated `lessons` row (§4.3) belongs to exactly one of these via `lessons.tier_id`.
+
+The tier rule is uniform across all three categories, and seed data must satisfy it
+(worth a CHECK constraint or a seed-validation test, since the whole pricing story
+depends on it holding):
+
+| `tier_number` | `xp_cost` | `required_plan` | Unlocked how |
+|---|---|---|---|
+| 1 | `0` | `free` | Pre-unlocked for every user; no purchase row needed |
+| 2 | > 0 | `free` | XP purchase |
+| 3 | > 0 (more than tier 2) | `free` | XP purchase |
+| 4 | > 0 (most expensive) | `premium` | XP purchase **and** active Keyvoria Plus |
+
+Tier 4 is what PRD F-03 calls "premium sits on top of XP, not instead of it": it
+still costs `xp_cost` XP *and* requires the entitlement. It's also the only tier
+whose content may exceed the 2-octave range, which is why it pairs with the 61-key
+keyboard the same subscription unlocks.
 
 **`user_category_unlocks`**
 `id`, `user_id → users`, `tier_id → category_tiers`, `xp_spent` (int — a snapshot of
