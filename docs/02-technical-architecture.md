@@ -7,23 +7,41 @@ and Web**, via Expo's web target (React Native Web under the hood), styled with
 NativeWind (Tailwind syntax over React Native) for one component/styling system across
 all three platforms.
 
+**iOS, Android, and desktop web are three first-class outputs of this one codebase
+from Milestone 1 onward — not a mobile app that web gets bolted onto later.** There is
+no separate web codebase, no separate web team workflow, and no point in the roadmap
+where web trails mobile in capability: the same Expo Router screens, the same
+`packages/*` business logic, and the same component library render all three targets.
+`apps/app` is the entire product on every platform — desktop web included. It is
+explicitly **not** a landing page: log in from a browser and you get the real Keyvoria
+learning experience (Main Menu, Lesson Player, Ear Training, Sight Reading, Repeat,
+Learn My Music/Song, Progress Analytics — everything), laid out for a desktop viewport
+rather than simplified or reduced. See "Responsive layout" below for how one codebase
+serves a touch phone screen and a mouse-and-keyboard desktop browser without forking
+the UI.
+
 Why this over "Next.js web app + separate React Native app":
 - The product *is* an interactive app (practice screens, real-time MIDI feedback,
   gamified navigation), not a content/marketing site — there's little upside to a
   server-rendered web framework here, and duplicating navigation/screens/state across
   two codebases doubles the maintenance cost of exactly the surface area that changes
-  most often (lesson player, practice screen).
+  most often (lesson player, practice screen), while also making feature parity
+  between mobile and web a constant, effortful commitment rather than automatic.
 - Expo Router gives one file-based navigation tree that compiles to native screens on
   iOS/Android and routes on web.
 - ~90%+ code sharing is realistic for UI, navigation, state, and all business logic;
   the ~10% that must diverge (MIDI transport, low-level audio, file system access) is
   isolated behind package interfaces (§2.3) with a platform-specific implementation
-  swapped in per target.
+  swapped in per target — this is the only place platform ever forks.
 
-Trade-off accepted: web won't get Next.js's SEO/SSR benefits. That's fine — this is an
-authenticated app experience, not a marketing surface. If a marketing/landing site is
-wanted later, it can be a *separate* lightweight Next.js site — out of scope for the
-app itself.
+Trade-off accepted: web won't get Next.js's SEO/SSR benefits. That's an acceptable,
+deliberate trade for an authenticated learning product where nothing meaningful needs
+to be indexed by search engines — the alternative (a separate web stack) is what would
+actually risk web becoming the neglected, catch-up platform the product brief warns
+against. If a public marketing/landing page is wanted later, it is a *separate*,
+unauthenticated, lightweight site (e.g. a small Next.js site) that exists purely to
+market the product and send visitors to sign up — it is not "the website," and it is
+out of scope for the app itself.
 
 **DECISION NEEDED:** confirm this direction rather than a Flutter-based alternative.
 Flutter would give comparable cross-platform reach and arguably stronger native-feel
@@ -31,12 +49,39 @@ performance, but the team's existing codebase (this repo) and stated skills are
 TypeScript/React, so Expo/RN is the lower-risk default; call this out explicitly for
 sign-off since it's the single highest-leverage decision in this document.
 
+### 2.1a Responsive layout: one codebase, two shapes
+
+The same components serve a 390px phone and a 1440px desktop browser by branching on
+viewport, not by forking screens:
+
+- **Breakpoints:** `< 768px` → mobile layout (bottom tab bar, single-column stacked
+  content, per screen map §3.1); `≥ 1024px` → desktop layout (left navigation rail
+  replaces the bottom tab bar, multi-column/wider layouts where a screen has room);
+  `768–1024px` (tablet/narrow-desktop) gets the desktop chrome at reduced density
+  rather than a third distinct layout, to keep the breakpoint count manageable.
+- **Mechanism:** `useWindowDimensions` (React Native's cross-platform viewport hook)
+  drives layout branches inside shared components — a `<PracticeScreenLayout>`
+  component, for example, renders notation-over-keyboard stacked on mobile and
+  notation-beside-keyboard side-by-side on desktop, from one component, one prop tree,
+  not two implementations. NativeWind's responsive utility classes handle the smaller,
+  purely-visual adjustments (spacing, font scale) without needing a JS branch at all.
+- **Desktop gets real desktop affordances, not just more space:** hover states on
+  interactive elements (tiles, library cards), keyboard shortcuts for the
+  MIDI-heavy practice screens (space to pause, arrow keys to scrub), and layouts that
+  use horizontal room deliberately (e.g. the Learning Path skill tree spreads wider
+  rather than staying phone-narrow with empty margins). These are additive
+  desktop-specific behaviors layered onto the same components, gated by platform
+  checks, not a different app.
+- This is designed in from Milestone 1 (the empty Home dashboard shell already
+  branches on breakpoint before any real screen is built), specifically so no team
+  builds "the mobile version" first and retrofits desktop later.
+
 ## 2.2 Monorepo layout
 
 Turborepo + pnpm workspaces.
 
 ```
-keypath/
+keyvoria/
 ├── apps/
 │   └── app/                     # Expo app — iOS, Android, Web (single codebase)
 │       ├── app/                 # Expo Router screens (see screen-map doc)
@@ -171,14 +216,39 @@ flowchart TB
 
 ## 2.7 Offline & sync model
 
+The same account, signed into a phone and a desktop browser, is the same state — that
+is the whole point of a shared backend rather than two platform-specific ones. What
+that covers concretely, all keyed off one `user_id` in Postgres (§4, database schema):
+
+- **XP, level, streaks** (`xp_events`/`user_level`/`streaks`) — earned on one device,
+  visible immediately on the other next time it's online.
+- **Unlocked lessons & path progress** (`user_progress`, `path_units.unlock_rule`
+  evaluated against it) — start a path unit on mobile on the train, finish it on
+  desktop at a real keyboard, same progress record either way.
+- **Entitlements/subscription state** (`entitlements`) — buy premium on one device,
+  the 61-key on-screen keyboard and Learn My Song unlock everywhere, immediately,
+  since the check is a live read against Postgres, not a per-device flag.
+- **Uploaded music** (`user_uploads` in Supabase Storage, `generated_tutorials` in
+  Postgres) — upload an MP3 or MIDI file from either platform, it's in "My Uploads"
+  on both, because the file itself lives in cloud object storage, not on-device.
+
+None of the above needs a special sync protocol — it's simply server-authoritative
+data read fresh (or from a short-lived cache) whenever a screen needs it, the same as
+any other multi-device web/app product. The part that *does* need explicit offline
+handling is narrower:
+
 - Lesson/song *content* (MusicXML, MIDI reference, metadata) is downloaded on demand
   and cached in on-device SQLite + file storage (`expo-sqlite` / `op-sqlite`) so
-  practice works offline once a unit is downloaded.
-- *Progress* (attempts, XP events, streak state) is written locally first (optimistic)
+  practice works offline once a unit is downloaded. This cache is per-device and is
+  not itself "synced" — it's a local performance/offline copy of server data.
+- *In-session attempt data* (individual note events, in-progress XP events, streak
+  state changes) is written locally first (optimistic) while offline or mid-session,
   and synced to Postgres via a delta-sync endpoint when connectivity returns. XP/streak
   are recomputed server-side as the source of truth; client-local values are a
   best-effort projection that reconciles on sync (last-write-wins is not sufficient for
   XP — server sums authoritative XP events, never trusts a client-provided total).
+  This is what makes "offline on the subway, online again at the desk" work without
+  losing or double-counting a practice session.
 
 ## 2.8 Key third-party building blocks (V1 shortlist)
 
@@ -190,7 +260,7 @@ flowchart TB
 | MIDI file parsing | `@tonejs/midi` | pure JS |
 | Web MIDI | Web MIDI API (native browser) | Chrome/Edge support is solid; Safari is the gap — flag as a known web-platform limitation, not fixable by us |
 | Native MIDI | Custom Expo native module (CoreMIDI / android.media.midi) | §2.3 |
-| Audio synthesis/playback | Tone.js (web), native audio module (native) | pitch-preserving time-stretch needed for 25/50/75% speed — evaluate `soundtouch`-based approach |
+| Audio synthesis/playback | Tone.js (web), native audio module (native) | pitch-preserving time-stretch needed for the 0.25×–2× speed range — evaluate `soundtouch`-based approach |
 | Audio→MIDI transcription | `basic-pitch` (Python) | best-effort, always labeled estimated per F-06 |
 | Tempo/beat detection | `librosa` | |
 | Backend | Fastify + tRPC | |

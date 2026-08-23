@@ -2,8 +2,9 @@
 
 ## 3.1 Navigation model
 
-Bottom tab bar (mobile) / left rail (web, wide viewport) with 5 primary destinations,
-built on Expo Router so the same route tree drives all platforms:
+Five primary destinations, built on Expo Router so the same route tree drives every
+platform — iOS, Android, and desktop web are all the full product (architecture
+§2.1), not a mobile app with a companion site:
 
 ```mermaid
 flowchart LR
@@ -15,6 +16,15 @@ flowchart LR
         Profile["Profile"]
     end
 ```
+
+**Chrome is responsive, not platform-specific** (architecture §2.1a): below the
+1024px breakpoint this renders as a bottom tab bar (phone-width mobile and narrow
+browser windows alike); at 1024px and up it becomes a left navigation rail, and
+individual screens pick up desktop-only layout — e.g. the Learning Path skill tree and
+Practice Screen use the extra horizontal room rather than staying phone-narrow with
+empty margins either side. The same account, the same XP/progress/entitlements/
+uploads, and the same screen inventory below apply on every platform (architecture
+§2.7) — what changes with viewport width is layout, never which features exist.
 
 Onboarding and the MIDI setup flow sit outside the tab bar (full-screen, linear).
 Upload flows (Learn My Music, Learn My Song) are entered from Home/Library/Practice

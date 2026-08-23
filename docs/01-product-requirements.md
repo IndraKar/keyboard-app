@@ -2,7 +2,7 @@
 
 ## 1.1 Vision
 
-**KEYFORGE** — *Forge Your Musical Mastery.*
+**KEYVORIA** — *Forge Your Musical Mastery.*
 
 A single, polished app that takes someone from "never touched a keyboard" to
 confidently playing real songs, reading music, and improvising over chord changes,

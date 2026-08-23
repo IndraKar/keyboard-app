@@ -1,8 +1,8 @@
-# KEYFORGE — Planning Set
+# KEYVORIA — Planning Set
 
 **Forge Your Musical Mastery.**
 
-This directory contains the Milestone 0 planning deliverables for **KEYFORGE**, the
+This directory contains the Milestone 0 planning deliverables for **KEYVORIA**, the
 keyboard-learning app. No application code has been written yet — this is the
 requirements, architecture, and roadmap package for review and approval before
 implementation begins.

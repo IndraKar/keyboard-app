@@ -33,19 +33,25 @@ personalization). **No application code is written until this milestone is appro
 
 ## M1 — Foundations
 **Size:** M
-**Goal:** a running, empty shell across all three platforms, on the real architecture.
+**Goal:** a running, empty shell across all three platforms, on the real architecture
+— deliberately including desktop web as a full target from day one, not deferred.
 **Deliverables:**
 - Remove the unrelated Netlify portfolio starter content currently in this repo;
   scaffold the Turborepo monorepo layout from architecture §2.2.
-- Expo app boots on iOS simulator, Android emulator, and web, sharing one navigation
-  shell (empty tab bar per screen map §3.1).
+- Expo app boots on iOS simulator, Android emulator, **and a desktop browser window**,
+  sharing one navigation shell that already branches on the responsive breakpoint from
+  architecture §2.1a (empty bottom tab bar under 1024px, empty left rail at or above
+  it) — the responsive mechanism is proven on the very first screen, not retrofitted
+  once mobile screens already exist.
 - `services/api` skeleton (Fastify + tRPC) deployed to a dev environment; Supabase
   project provisioned (Postgres + Auth + Storage).
 - Base schema migrations for `users`, `entitlements`, `midi_devices` (§4.2) and auth
-  wired end-to-end (sign up/sign in from the app).
+  wired end-to-end (sign up/sign in from the app, same account usable from any
+  platform immediately).
 - CI: typecheck, lint, unit tests, and a build check for all three targets on every PR.
 **Exit criteria:** a fresh install can create an account and see an empty dashboard on
-all three platforms; CI green on main.
+all three platforms, in both the mobile and desktop chrome layout; signing into the
+same account from a second platform shows the same account state; CI green on main.
 
 ## M2 — Core learning engine (non-MIDI content first)
 **Size:** L
@@ -184,9 +190,16 @@ correctly blocked at the Paywall.
 screen-reader chrome), offline-mode QA (content caching + delta sync per architecture
 §2.7), performance/latency profiling of the MIDI grading loop on real devices, visual
 design pass across all screens for the "modern, motivating, musical" bar from the
-original brief.
+original brief, desktop-breakpoint QA (architecture §2.1a — left-rail chrome, wider
+Learning Path/Practice Screen layouts, hover states and keyboard shortcuts all
+actually exercised, not just the mobile layout at a wider window), and explicit
+**cross-device sync QA**: earn XP/complete a lesson/upload a file on one platform,
+confirm it's correctly reflected on a second platform within a normal refresh —
+covering all four items in architecture §2.7's sync list (XP & streaks, unlocked
+lessons/path progress, entitlements, uploaded music), not just progress.
 **Exit criteria:** no P0/P1 bugs open; latency budget met on representative iOS/Android
-hardware and major web browsers; accessibility checklist signed off.
+hardware and major web browsers; accessibility checklist signed off; cross-device sync
+verified for all four synced data categories.
 
 ## M10 — Beta launch prep
 **Size:** S–M
