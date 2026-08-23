@@ -30,7 +30,10 @@ upload → processing → result shape.
    probes (uses the on-screen keyboard if no MIDI device yet) to place the user past
    absolute-beginner content if warranted.
 4. **MIDI setup** — detect/pair a MIDI keyboard; explicit "I don't have one yet, use
-   on-screen keyboard" fallback that doesn't dead-end the flow.
+   on-screen keyboard" fallback that doesn't dead-end the flow. A free-tier user
+   choosing the fallback sees a 2-octave on-screen keyboard (PRD §1.4's Free vs.
+   Premium table); this isn't a paywall moment during onboarding, just how the
+   keyboard renders — the upgrade CTA lives in Profile/paywall screens, not here.
 5. **Account creation** — email/social sign-in (needed to persist progress across
    devices); guest mode allowed with a clear "progress stays on this device only"
    notice, upgradeable to an account later without losing local progress.
@@ -146,7 +149,7 @@ once from the hub rather than re-toggled per mode.
 4. **Tutorial Player** — same Lesson-Player-family surface, plus:
    - Hands: Both / Left only / Right only toggle.
    - Section loop selector (auto-segmented, user-adjustable boundaries).
-   - Speed control: 25% / 50% / 75% / 100%.
+   - Speed control: 0.25×–2×, continuous picker (YouTube-style), pitch-preserved.
    - Performance grading against the uploaded score, same feedback model as F-02.
 5. Saved into **Library → "My Uploads"** for repeat practice; also surfaces on Home
    "Continue" if in progress.
@@ -169,8 +172,8 @@ premium feature.
      package); low-confidence passages are visibly flagged rather than rendered as
      if certain.
    - **Synthesia-style** — falling-notes/piano-roll practice: hands-separate toggle,
-     section loop selector, 25/50/75/100% speed control, performance grading against
-     the transcription — the same surface family as F-05's Tutorial Player.
+     section loop selector, 0.25×–2× speed control, performance grading against the
+     transcription — the same surface family as F-05's Tutorial Player.
    - **Auto-Play** — the app plays the transcribed performance through a synthesized
      piano with play / pause / scrub controls (pause at any moment); note highlighting
      on the visual keyboard runs alongside, reusing mode 2's rendering.
@@ -197,9 +200,10 @@ strip)
 
 ## 3.10 Tab: Profile
 
-- Account info, subscription/entitlement state — gates Learn My Song (PRD F-06); the
+- Account info, subscription/entitlement state — gates Learn My Song (PRD F-06) and
+  the on-screen keyboard's range (2 octaves free / 61 keys premium, PRD §1.4); the
   exact billing mechanic is still a PRD §1.6 open decision, but this screen surfaces
-  whatever entitlement state exists.
+  whatever entitlement state exists, and is where the upgrade CTA lives.
 - MIDI device management (paired devices, latency calibration).
 - Notification preferences (daily reminder, streak-risk nudge).
 - Links out to Achievements / Streaks / Progress Analytics (§3.9).

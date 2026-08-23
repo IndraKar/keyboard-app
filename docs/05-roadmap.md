@@ -82,6 +82,10 @@ rhythm/timing feedback.
   transports behind the shared interface (architecture §2.3).
 - MIDI Setup onboarding screen + Profile MIDI device management, incl. latency
   calibration.
+- On-screen keyboard component (the no-MIDI input surface from F-02's reduced mode):
+  reads `entitlements.plan` to render 2 octaves (free) or 61 keys (premium) — see PRD
+  §1.4's Free vs. Premium table and DB schema §4.2. Real MIDI input through the `midi`
+  package is never range-limited, at any tier.
 - `grading-engine` package (architecture §2.5), unit-tested against recorded MIDI
   event fixtures independent of any device.
 - `notation` package (OSMD-in-WebView) with live cursor/highlight driven by grading
@@ -146,7 +150,8 @@ tag, genre, duration, and completion status.
 auto-segmentation for MIDI/MusicXML input; `user_uploads` / `generated_tutorials` /
 `tutorial_sections` tables (§4.11); Upload → Processing → Tutorial Overview →
 Tutorial Player flow (screen map §3.7) including hands-separate mode, loop selector,
-25/50/75/100% speed control, and performance grading reusing `grading-engine` from M3.
+0.25×–2× continuous speed control, and performance grading reusing `grading-engine`
+from M3.
 **Exit criteria:** a user can upload a real-world MIDI or MusicXML file and get a
 working, gradable tutorial with an honest difficulty rating.
 
@@ -161,7 +166,8 @@ instead of Upload; Upload → Processing → Mode Select flow with all three mod
 off the one transcription — Sheet Music (via the `notation` package, gated by
 `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
 falling-notes surface and `grading-engine` from M3/M7), and Auto-Play (synthesized
-piano playback with pause/scrub) — plus the persistent "Estimated" labeling
+piano playback with pause/scrub); 0.25×–2× continuous speed control across all three
+modes — plus the persistent "Estimated" labeling
 requirement from the PRD enforced in the UI (not just a one-time toast). The actual
 billing/purchase flow behind the entitlement is out of this milestone's scope until
 PRD §1.6's pricing-mechanic decision lands — M8 can ship gated on a manually-granted

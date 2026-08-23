@@ -46,6 +46,18 @@ in V1: chord progressions are delivered through path content and the Library (F-
 F-04) rather than a standalone practice tool, and open-ended free play is cut for
 launch simplicity. This can be revisited post-V1 if users ask for it.
 
+**Free vs. Premium.** Two things are gated in V1; everything else — all paths, Ear
+Training, Sight Reading, Repeat, Learn My Music, the Library, XP/achievements/streaks
+— is free, unrestricted.
+
+| | Free | Premium |
+|---|---|---|
+| On-screen keyboard | **2 octaves** | **61 keys** (5 octaves) |
+| Learn My Song (F-06) | Locked (paywall) | Unlocked |
+
+Both gates are decided; the billing mechanic behind them (one-time unlock vs.
+subscription, price) is still the open **DECISION NEEDED** from §1.6.
+
 ### F-01 Structured learning content
 - 25–50 original learning exercises (technique, theory, rhythm, hand independence)
   spanning beginner → advanced.
@@ -74,6 +86,11 @@ launch simplicity. This can be revisited post-V1 if users ask for it.
   hit/miss/early/late indicators, live accuracy meter.
 - Works without a MIDI keyboard in a reduced mode (on-screen keyboard, self-graded)
   for theory/ear-training/sight-reading content that doesn't require live playing.
+  The on-screen keyboard's range is tiered — **2 octaves free, 61 keys (5 octaves)
+  premium** — but this only affects users relying on it as their input surface. A
+  connected real MIDI keyboard is never range-limited by the app regardless of tier;
+  the cap exists because the on-screen keyboard *is* the instrument for a free user
+  with no hardware, not because the app restricts hardware you already own.
 
 ### F-02a Ear Training: intervals & chord-quality drills
 A configurable ear-training drill, launched from the Main Menu (screen map §3.5) and
@@ -168,17 +185,19 @@ Sight Reading — there's no meaningful reduced mode for "play back what you hea
   - Section looping (auto-segmented by phrase/measure, user-adjustable loop points).
   - Performance grading against the uploaded score using the same MIDI-feedback
     engine as F-02.
-  - Adjustable playback/practice speed: 25%, 50%, 75%, 100% (pitch-preserved).
+  - Adjustable playback/practice speed, **0.25×–2× continuous** (YouTube-style
+    picker, not fixed presets), pitch-preserved throughout the range.
 - Because this is a *symbolic* input format (MIDI/MusicXML), analysis is
   deterministic, not estimated — this is the higher-confidence path relative to F-06.
 
 ### F-06 Audio-file upload & analysis ("Learn My Song") — Premium
-This is V1's one paid feature — everything else in this document (all learning paths,
-Ear Training, Sight Reading, Repeat, the Library) is free. Reaching this from the Main
+This and the 61-key on-screen keyboard (F-02, §1.4's Free vs. Premium table) are V1's
+two paid features — everything else in this document (all learning paths, Ear
+Training, Sight Reading, Repeat, the Library) is free. Reaching this from the Main
 Menu without an active entitlement shows a paywall/upsell screen instead of the upload
 flow (see `entitlements` in the DB schema, §4.2 — already modeled as a stubbed table
 this feature now activates). **DECISION NEEDED:** the pricing mechanic itself (one-time
-unlock vs. subscription, and price) is still open; only the "this specific feature is
+unlock vs. subscription, and price) is still open; only the "these two things are
 gated, the rest of the app isn't" call has been made.
 - User uploads an audio recording, typically an MP3, of a song they want to learn.
 - System runs tempo/BPM detection and best-effort chord/note transcription (as
@@ -188,14 +207,14 @@ gated, the rest of the app isn't" call has been made.
      staff, via the `notation` package) for users who want to read it.
   2. **Synthesia-style** — falling-notes/piano-roll practice, the same visual paradigm
      and controls as F-05's Tutorial Player (hands-separate, section looping,
-     25/50/75/100% speed, performance grading against the transcription).
+     0.25×–2× speed, performance grading against the transcription).
   3. **Auto-Play** — the app plays the transcribed performance back through a
      synthesized piano, with play/pause/scrub controls so the user can pause at any
      moment and listen/follow along at their own pace; note highlighting on the
      visual keyboard is shown alongside since the same rendering pipeline as mode 2
      already drives it.
-  Section looping, tempo-adjusted playback, and speed control (25/50/75/100%) are
-  available in all three modes, not just Auto-Play.
+  Section looping, tempo-adjusted playback, and 0.25×–2× speed control are available
+  in all three modes, not just Auto-Play.
 - **All transcription output must be clearly and persistently labeled as an estimate**
   (e.g. "Estimated — audio transcription is approximate" badge/banner, not a one-time
   toast) since audio-to-MIDI transcription accuracy varies significantly by recording
@@ -238,9 +257,10 @@ gated, the rest of the app isn't" call has been made.
 - Live/synchronous teacher-led lessons or video calls.
 - Instruments other than keyboard/piano (no guitar, no vocal).
 - Marketplace/third-party content submission.
-- The specific billing mechanic behind F-06's premium gate — **DECISION NEEDED:**
-  one-time unlock vs. subscription, and price. That Learn My Song specifically is
-  V1's paid feature, and everything else ships free, is now decided (PRD F-06).
+- The specific billing mechanic behind the premium gate — **DECISION NEEDED:**
+  one-time unlock vs. subscription, and price. That Learn My Song and the 61-key
+  on-screen keyboard specifically are V1's two paid features, and everything else
+  ships free, is now decided (§1.4's Free vs. Premium table, PRD F-06).
 - Full generalized audio-to-score transcription for dense/polyphonic recordings —
   F-06 is explicitly "best-effort" for V1, not a competitor to specialized transcription
   software.

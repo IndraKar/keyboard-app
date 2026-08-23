@@ -63,10 +63,12 @@ every screen that renders a keyboard, not reconfigured per session).
 
 **`entitlements`**
 `id`, `user_id → users`, `plan` (enum: free / trial / paid), `starts_at`, `expires_at`.
-Gates PRD F-06 (Learn My Song is V1's only feature this checks — see
-`generated_tutorials` §4.11 for exactly where); the specific paid plan mechanic is
-still open (PRD §1.6), but the table and the check against it are both now live rather
-than stubbed.
+Gates the two things in PRD §1.4's Free vs. Premium table: F-06 Learn My Song (see
+`generated_tutorials` §4.11 for exactly where that check happens), and the on-screen
+keyboard's key range — the app-shell component that renders it reads `plan` at mount
+(`plan = free` → 2 octaves, otherwise → 61 keys), not a value stored per-user
+elsewhere. The specific paid plan mechanic is still open (PRD §1.6), but the table and
+both checks against it are now live rather than stubbed.
 
 **`midi_devices`**
 `id`, `user_id → users`, `device_name`, `transport` (usb / bluetooth), `last_connected_at`,
