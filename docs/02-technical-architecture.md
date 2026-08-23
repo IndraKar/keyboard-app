@@ -73,9 +73,9 @@ viewport, not by forking screens:
   rather than staying phone-narrow with empty margins). These are additive
   desktop-specific behaviors layered onto the same components, gated by platform
   checks, not a different app.
-- This is designed in from Milestone 1 (the empty Home dashboard shell already
-  branches on breakpoint before any real screen is built), specifically so no team
-  builds "the mobile version" first and retrofits desktop later.
+- This is designed in from Milestone 1 (the empty navigation shell already branches
+  on breakpoint before any real screen is built), specifically so no team builds "the
+  mobile version" first and retrofits desktop later.
 
 ## 2.2 Monorepo layout
 
@@ -195,7 +195,7 @@ device.
 "MIDI stream" — it does not know or care where events came from. The **on-screen
 keyboard is shared UI infrastructure**, not an Ear-Training-specific widget: one
 component, mounted by every play surface in every category (PRD F-02, screen map
-§3.5.1a), emitting the same `{ pitch, velocity, timestamp, type }` events the `midi`
+§3.3.1a), emitting the same `{ pitch, velocity, timestamp, type }` events the `midi`
 package emits. Two consequences worth designing for up front:
 
 - **Range is a prop, not a fork.** The component reads `entitlements.plan` for its
@@ -239,6 +239,50 @@ flowchart TB
     App -->|offline-first| LocalDB[("SQLite on-device")]
     LocalDB <-->|delta sync| API
 ```
+
+## 2.6a Billing & subscription lifecycle
+
+Keyvoria Plus is one $9.95/month subscription sold on three storefronts, and the
+storefronts are not equivalent — this is the main reason billing gets its own section
+rather than being a detail of the API.
+
+**Server-side entitlement, store-side billing.** The app never decides what a user is
+entitled to; `entitlements` (DB §4.2) does, written only by our backend in response to
+provider webhooks. This is what lets someone subscribe on an iPhone and immediately
+have tier 4 and the 61-key keyboard in a desktop browser (§2.7), and it is why a
+client claiming "I just subscribed" triggers a refetch rather than a grant.
+
+**Recommendation: RevenueCat in front of the three providers**, rather than
+integrating StoreKit, Play Billing, and Stripe separately. It normalizes the three
+into one webhook shape and one entitlement concept, which is disproportionately
+valuable here because the *cross-platform* case is the norm for this product, not an
+edge case. The alternative — three integrations and our own reconciliation — is
+weeks of work whose only output is parity with a service that costs little at V1
+volume. `DECISION NEEDED` at implementation time, but this is the default.
+
+**Cancellation is asymmetric and the UI must not hide it** (PRD F-07, screen map
+§3.8.1):
+
+| Platform | Who owns the subscription | Cancel path |
+|---|---|---|
+| Web | Us, via Stripe | Backend sets `cancel_at_period_end`; in-app, immediate UI update |
+| iOS | Apple | **No server-side cancel exists.** Deep-link to the system Manage Subscriptions sheet |
+| Android | Google | Same: deep-link to the Play subscription centre |
+
+Two consequences worth designing for now rather than discovering later:
+
+- **Cancelling is a flag, not a downgrade.** `cancel_at_period_end = true` leaves
+  `entitlements.plan = paid` until `current_period_end`, when the provider webhook
+  (backed by a scheduled sweep, since webhooks can be missed) downgrades it. Never
+  revoke access at the moment of the cancel request — the user paid for that period.
+- **Store review rules apply to the copy, not just the code.** Apple requires that
+  subscription terms, price, and renewal be stated at the point of purchase, and it
+  will reject a build whose cancel affordance misleads about where cancellation
+  happens. The honest deep-link is also the compliant one.
+
+**Refunds and disputes are out of scope for V1's UI** — they route to Apple/Google/
+Stripe support rather than an in-app flow, which is the norm for a product this size
+and avoids building a refund-adjudication surface for a single price point.
 
 ## 2.7 Offline & sync model
 

@@ -47,8 +47,9 @@ personalization). **No application code is written until this milestone is appro
   wired end-to-end (sign up/sign in from the app, same account usable from any
   platform immediately).
 - CI: typecheck, lint, unit tests, and a build check for all three targets on every PR.
-**Exit criteria:** a fresh install can create an account and see an empty dashboard on
-all three platforms, in both the mobile and desktop chrome layout; signing into the
+**Exit criteria:** a fresh install can create an account and see the empty three-tab
+shell (Main Menu / Library / Profile) on all three platforms, in both the mobile and
+desktop chrome layout; signing into the
 same account from a second platform shows the same account state; CI green on main.
 
 ## M2 — Core learning engine (non-MIDI content first)
@@ -62,12 +63,14 @@ milestone lands.
   and ingestion pipeline from the git-based `content/` directory. Every seeded lesson
   carries a `tier_id`; tier 1 in each category is unlocked by default for every user
   (no purchase flow needed yet — that's M5).
-- **Main Menu screen** (screen map §3.5): exactly four tiles — Ear Training,
-  Sight-Reading, Playback & Repeat, Learn My Music — wired to whatever's built so far
-  and stubbed for the rest, so the hub exists from early on rather than being bolted
-  on later. Includes the header-level Show Note Names toggle (`users.
-  show_note_names`, §4.2) even before every screen that could honor it exists yet.
-- **Category Tier Ladder screen** (screen map §3.5.1), shared shape across the three
+- **Main Menu screen — the app's home route** (screen map §3.3): exactly four tiles —
+  Ear Training, Sight-Reading, Playback & Repeat, Learn My Music — wired to whatever's
+  built so far and stubbed for the rest. Launch lands here directly; there is no
+  dashboard route in front of it, and onboarding exits to it. Includes the
+  header-level Show Note Names toggle (`users.show_note_names`, §4.2) and the
+  spendable-XP readout (a static render until M5 makes the number spendable), plus the
+  Continue / Daily Challenge momentum strip once those exist.
+- **Category Tier Ladder screen** (screen map §3.3.1), shared shape across the three
   tiered categories: shows tier 1's lessons unlocked, later tiers visible but locked
   with their XP cost displayed (the *Unlock* button itself — the actual purchase
   transaction — lands in M5; this milestone only needs the read-only ladder view and
@@ -78,13 +81,20 @@ milestone lands.
   (interval vs. chord-progression mode, 2–8 note stepper, Difficulty 1–5 slider,
   major/minor/augmented/diminished quality multi-select), stimulus generation via the
   `core-theory` package, Drill Screen with multiple-choice grading and session summary.
+- **`practice_intervals` recording starts here** (§4.10a), as soon as the first
+  session type exists. It is a small piece of work with a hard ordering constraint:
+  practice hours can only be counted from the moment the app starts writing them, so
+  deferring this to the milestone that *displays* the number would ship a Profile
+  reading "0 hours" for every existing user. The Profile UI comes later; the data
+  collection cannot.
 - A handful (3–5) of placeholder lessons per tier per category to validate the
   pipeline, not full V1 content volume (that's M4).
 **Exit criteria:** a user can open any of the three tiered categories from the Main
 Menu, see that category's Tier Ladder with tier 1 unlocked and later tiers visibly
 locked with a cost, complete a tier-1 theory/ear-training lesson with progress
 persisted (`user_progress`, §4.8), and reach every implemented category from the
-Main Menu.
+Main Menu — which is also the screen the app opens on, from a cold start and from
+onboarding alike.
 
 ## M3 — MIDI integration
 **Size:** XL — highest technical risk in the roadmap; start early, expect iteration.
@@ -177,13 +187,20 @@ each category's free tier 1 actually reachable for the first time.
 - `xp_events` / `user_category_unlocks` / `user_level` / `streaks` / `achievements` /
   `user_achievements` / `daily_challenges` / `daily_challenge_progress` tables
   (§4.9b/§4.10).
-- The **Unlock** button on each category's Tier Ladder screen (§3.5.1) goes live:
+- The **Unlock** button on each category's Tier Ladder screen (§3.3.1) goes live:
   enabled/disabled based on live balance, a confirmation step before spending
   (spending is permanent per PRD F-03), and the "Tier unlocked!" reveal moment.
-- Home dashboard's XP balance display and Recommended-next card (screen map §3.3)
+- The Main Menu header's spendable-XP display and Profile's Recommended-next-unlock
+  card (screen map §3.3, §3.8)
   go live, reading real balance and real tier-cost data instead of placeholders.
-- Progress Analytics' per-category XP balance/spend view (screen map §3.8) goes live
+- Progress Analytics' per-category XP balance/spend view (screen map §3.6) goes live
   alongside the per-skill accuracy mastery bars.
+- **Profile tab as the user overview** (PRD F-07, screen map §3.8): total XP earned
+  (lifetime, distinct from spendable), total hours practiced (`user_stats` §4.10a,
+  reading the intervals recorded since M2), current streak, per-category tier
+  summaries, and the recommended-next-unlock card. The subscription-management
+  section of this screen is stubbed here and completed in M7, since it depends on
+  billing existing.
 **Exit criteria:** completing lessons/exercises/drills awards correct XP; a user can
 spend accumulated XP to unlock a tier-2+ lesson in any of the three tiered
 categories and immediately access it; attempting to unlock a `required_plan =
@@ -195,7 +212,7 @@ fire correctly; Progress Analytics reflects real balance, spend, and accuracy da
 **Size:** S
 **Goal:** F-04.
 **Deliverables:** Postgres full-text search (§4.12) over lessons/songs/tags; Library
-tab search/filter UI and Item Detail screens (screen map §3.6), including the
+tab search/filter UI and Item Detail screens (screen map §3.5), including the
 category and tier/unlock-status filters and the "Unlock in [Category]" prompt on a
 locked item's Item Detail.
 **Exit criteria:** all M4 content is discoverable and filterable by category,
@@ -219,9 +236,9 @@ three practice modes.
   interaction for MP3 uploads.
 - The `entitlements` check (§4.2) in front of the upload endpoint and the Main Menu
   tile for **every** upload type — a non-entitled user sees the Paywall screen
-  (screen map §3.7 step 0) instead of Upload, regardless of what format they're
+  (screen map §3.6 step 0) instead of Upload, regardless of what format they're
   about to pick.
-- Upload → Processing → Mode Select flow (screen map §3.7) with all three modes
+- Upload → Processing → Mode Select flow (screen map §3.6) with all three modes
   working off one analysis pass — Sheet Music (via the `notation` package, gated by
   `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
   falling-notes surface and `grading-engine` from M3), and Auto-Play (synthesized
@@ -230,13 +247,21 @@ three practice modes.
 - The persistent **Estimated** banner on MP3-sourced tutorials only (`is_estimated`,
   §4.11) — MIDI/MusicXML-sourced tutorials show no such banner, since PRD F-05 is
   explicit that format determines confidence, not entitlement.
-- The actual **billing/purchase flow** behind the entitlement (the $9.95/month
-  subscription itself, via whatever payment provider) is scoped here too, now that
-  PRD §1.4 has settled the price — this milestone can ship against a
-  manually-granted `entitlements` row for beta testers if billing integration
-  lags behind the rest.
-**Exit criteria:** a non-entitled user is correctly blocked at the Paywall for both
-upload formats; an entitled user can upload a real-world MIDI/MusicXML file and get a
+- The full **subscription lifecycle**, not just the purchase (architecture §2.6a,
+  DB §4.10b): buy at $9.95/month on all three storefronts, provider webhooks driving
+  `subscriptions` and `entitlements`, and **cancellation** — Stripe cancelled in-app,
+  Apple/Google deep-linked to their own management surfaces, with
+  `cancel_at_period_end` preserving access to the end of the paid period and a
+  scheduled sweep catching missed webhooks. Cancelling must be reachable in one tap
+  from the Profile tab (PRD F-07). This milestone can ship its *upload* features
+  against a manually-granted `entitlements` row for beta testers if the billing
+  integration lags, but it cannot ship to real users without the cancel path — an
+  app that can only be subscribed to is not shippable to either store.
+**Exit criteria:** a subscription can be purchased, seen from a *different* platform
+than it was bought on, cancelled, and confirmed to retain access until period end and
+to relock tier 4 / the 61-key keyboard / Learn My Music only after it — with XP,
+tier 1-3 unlocks, progress and uploaded files all intact afterwards; a non-entitled
+user is correctly blocked at the Paywall for both upload formats; an entitled user can upload a real-world MIDI/MusicXML file and get a
 working, gradable, non-estimated tutorial; an entitled user can upload an MP3 and get
 tempo-detected, loopable, speed-adjustable playback in all three modes with
 best-effort output unambiguously marked as an estimate throughout the UI.

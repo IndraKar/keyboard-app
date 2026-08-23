@@ -36,10 +36,12 @@ thin, platform-specific implementations behind a common interface.
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
 
-A **Main Menu** screen (screen map §3.5 — this now absorbs what an earlier draft
-called the separate "Learn tab," since the four categories below *are* the
-curriculum) is the primary entry point, and V1 keeps it to exactly Keyvoria's four
-major learning categories:
+**The Main Menu is Keyvoria's home screen** (screen map §3.3) — the app opens directly
+onto it, so a user's first interaction is choosing a program rather than reading a
+dashboard. It absorbs both what an earlier draft called the separate "Learn tab"
+(since the four categories below *are* the curriculum) and that draft's Home/Dashboard
+tab, which sat in front of it and delayed the choice. V1 keeps it to exactly
+Keyvoria's four major learning categories:
 
 1. **Ear Training** (F-02a)
 2. **Sight-Reading** (F-02b)
@@ -133,7 +135,7 @@ reframed as tags rather than paths.
   which is why the 61-key keyboard and tier 4 ship together in the same subscription.
 
 ### F-02a Ear Training: intervals & chord-quality drills
-A configurable ear-training drill, launched from the Main Menu (screen map §3.5),
+A configurable ear-training drill, launched from the Main Menu (screen map §3.3),
 with its own XP-unlocked tier ladder (F-03) rather than being a fixed stop on a
 cross-category path. Two drill types, both configured before the session starts:
 
@@ -274,7 +276,7 @@ because it makes XP cosmetic. Instead:
 - Progress tracking: both per-skill accuracy mastery (e.g. "chord voicings,"
   "sight-reading," "left hand independence" — *how good* the user is) and per-category
   XP balance/spend and unlocked-tier state (*how far* they've progressed) — these
-  answer different questions and both show on Progress Analytics (screen map §3.8).
+  answer different questions and both show on Progress Analytics (screen map §3.6).
 
 ### F-04 Library
 - Searchable/filterable catalog of all lessons, exercises, chord progressions, and
@@ -326,6 +328,50 @@ V1 merges them into one feature, one Main Menu entry, entirely behind Keyvoria P
   pre-unlock an early tier or two in the relevant category, instead of always
   starting every category at tier 1.
 - MIDI keyboard setup/pairing walkthrough, with a no-MIDI fallback path.
+
+### F-07 Profile: overview, stats & subscription management
+Keyvoria's third and last tab (screen map §3.8), and the only surface that reports on
+the user rather than giving them something to do. It merges what an earlier draft
+split between a Home/Dashboard tab and a thin settings-style Profile tab.
+
+**Overview stats.** Three headline numbers, shown as equals:
+- **Total XP earned** — lifetime XP, every point ever earned, which only rises.
+  Deliberately distinct from the spendable balance on the Main Menu: this is "how much
+  have I done," not "what can I afford." Both appear, labelled so the difference is
+  legible (F-03).
+- **Total hours practiced** — cumulative *active* practice time across every category.
+  "Active" means time inside a session actually playing or answering, not time with
+  the app open; a session idle past a timeout stops accruing (DB §4.10a). A number
+  that inflates while the user makes tea is worse than no number.
+- **Current streak**, with freeze status.
+
+Below: per-category XP-spent and current tier, practice-time breakdown by category, a
+recent-activity heatmap, achievements, and the recommended-next-unlock card (moved
+here from the retired dashboard — it reports on progress, so it belongs with stats).
+
+**Subscription management.** Its own section on Profile, one tap from the tab bar,
+never buried under Settings — cancelling must not be harder to find than subscribing
+was. For a subscriber it shows plan, price, renewal date, and a **Cancel
+Subscription** action:
+- **Access runs to the end of the paid period.** Cancelling never revokes Plus
+  mid-cycle; the screen then reads "Plus until 14 March" with a **Resume** action for
+  the remainder of that window.
+- **The confirmation states both halves plainly.** What lapses at period end: tier 4
+  relocks in all three categories, the on-screen keyboard returns to 2 octaves, and
+  Learn My Music uploads become inaccessible. What does *not*: **XP, unlocked tiers
+  1–3, progress, streaks and achievements are untouched, and uploaded files are
+  retained rather than deleted** — resubscribing restores access instead of starting
+  over. Users hesitate to cancel when they can't tell which it is, and being straight
+  about it is both the honest version and the one that brings them back.
+- **One confirmation step, no retention gauntlet.** A single "here's what you lose"
+  screen is information; a chain of them is a dark pattern.
+- **Where cancellation happens differs by store** (architecture §2.6a): web (Stripe)
+  cancels in-app; iOS and Android subscriptions are owned by Apple/Google and can only
+  be cancelled through their own subscription-management surfaces, so the button
+  deep-links there, labelled so the handoff isn't a surprise. Entitlement is server-side, so a
+  subscription bought on one platform is *visible* everywhere; when the user is on a
+  platform other than the one they bought on, this section says where to cancel rather
+  than offering a button that cannot work.
 
 ## 1.5 Non-functional requirements
 

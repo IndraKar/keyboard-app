@@ -2,21 +2,29 @@
 
 ## 3.1 Navigation model
 
-**Four** primary destinations, built on Expo Router so the same route tree drives
+**Three** primary destinations, built on Expo Router so the same route tree drives
 every platform — iOS, Android, and desktop web are all the full product (architecture
-§2.1), not a mobile app with a companion site. An earlier draft had a separate "Learn"
-tab (paths + skill tree) alongside a "Practice" tab (the Main Menu); those are now the
-same thing, since Keyvoria's four categories (PRD §1.4) *are* the curriculum — there
-is no longer a second, parallel "browse the curriculum" surface to keep in sync with
-the Main Menu:
+§2.1), not a mobile app with a companion site.
+
+**The Main Menu is the app's home.** Launching Keyvoria lands on the Main Menu, not on
+a dashboard — the first thing a user sees is the choice of which of the four programs
+to work on (PRD §1.4). This replaces an earlier draft's separate Home/Dashboard tab,
+which sat in front of the Main Menu and delayed that choice behind a screen of
+summary cards. Two consolidations follow from it:
+
+- The old **Home/Dashboard tab is gone as a destination**. Its momentum features
+  (Continue, Daily Challenge) move onto the Main Menu itself, where resuming is one
+  tap from landing (§3.5); its summary/stats content moves to Profile.
+- The old **Profile tab absorbs that stats content** and becomes the user's overview:
+  who they are, how much they've practiced, how much XP they've earned, and their
+  subscription (§3.9). One "about me" surface instead of two.
 
 ```mermaid
 flowchart LR
     subgraph Tabs["Primary navigation"]
-        Home["Home / Dashboard"]
-        MainMenu["Main Menu<br/>(the 4 categories)"]
+        MainMenu["Main Menu<br/>(home — the 4 programs)"]
         Library["Library"]
-        Profile["Profile"]
+        Profile["Profile<br/>(overview, stats, subscription)"]
     end
 ```
 
@@ -30,7 +38,7 @@ uploads, and the same screen inventory below apply on every platform (architectu
 §2.7) — what changes with viewport width is layout, never which features exist.
 
 Onboarding and the MIDI setup flow sit outside the tab bar (full-screen, linear).
-The Learn My Music upload flow is entered from Home/Library/Main Menu but opens as
+The Learn My Music upload flow is entered from the Main Menu or Library but opens as
 its own modal/stack flow since it has a distinct linear upload → processing → result
 shape.
 
@@ -52,44 +60,13 @@ shape.
 5. **Account creation** — email/social sign-in (needed to persist progress across
    devices); guest mode allowed with a clear "progress stays on this device only"
    notice, upgradeable to an account later without losing local progress.
-6. → lands on **Home / Dashboard**.
+6. → lands on the **Main Menu** (§3.3), the app's home.
 
-## 3.3 Tab: Home / Dashboard
+## 3.3 Tab: Main Menu — the home screen
 
-- **Streak + XP summary** (glanceable, top of screen) — leads with the **spendable XP
-  balance** (PRD F-03), since that's the number that actually does something; the
-  cosmetic Level shows alongside it, smaller, not as the headline.
-- "Continue" card — resumes the last in-progress lesson/upload.
-- Today's Daily Challenge card — shows its bonus-XP reward.
-- **Recommended-next card** — surfaces one specific unlockable tier the user is close
-  to affording (e.g. "40 XP to unlock Sight-Reading Tier 3"), across whichever
-  category they've been most active in — not "next unit on a path," since there is
-  no single path.
-- Recent achievements strip.
-- Entry point into Learn My Music (secondary, not competing with the core "continue
-  learning" flow) — one entry now, not two.
-
-## 3.4 Shared surfaces: Lesson Player & Session Summary
-
-Used across all three tiered categories, not owned by any one of them:
-
-- **Lesson Player** (full-screen, entered from a category's Tier Ladder or from
-  Library):
-  - Header: progress-through-lesson bar, exit/pause.
-  - Main surface: notation/keyboard visualization appropriate to lesson type —
-    falling notes or on-staff cursor for play-along; chord-symbol + listen controls
-    for chord-progression steps; multiple-choice/tap surface for pure theory steps.
-  - Live feedback overlay when a MIDI keyboard is active (per-note hit/miss, live
-    accuracy meter) — see grading engine in the architecture doc.
-- **Session Summary** screen on completion: score, XP earned, accuracy breakdown by
-  skill (notes/rhythm/timing), retry vs. continue. The same family of summary screen
-  closes every session type in §3.5 below (Ear Training rounds, Sight-Reading
-  passages, the Repeat drill, Lesson Player lessons) with activity-appropriate detail.
-
-## 3.5 Tab: Main Menu
-
-The Main Menu is Keyvoria's curriculum, not just a practice-tool list — exactly
-**four** tiles, one per category (PRD §1.4):
+**This is where Keyvoria opens.** The Main Menu is both the app's home screen and its
+curriculum — the user's first decision is which program to work on, not which summary
+card to read. Exactly **four** tiles, one per category (PRD §1.4):
 
 1. **Ear Training** → this category's Tier Ladder (below)
 2. **Sight-Reading** → this category's Tier Ladder (below) — the drill itself has no
@@ -99,15 +76,33 @@ The Main Menu is Keyvoria's curriculum, not just a practice-tool list — exactl
    entitled, otherwise the upload flow (§3.7)
 
 There is no fifth "Warm Up"/"Free Play" tile in V1 (PRD §1.4). Every tile leads into
-that category's own space and returns here on exit rather than dead-ending. This
-screen is also linked from the Home dashboard, not just reachable via the tab bar,
-since it's the app's most frequently used surface after "Continue."
+that category's own space and returns here on exit rather than dead-ending — since
+this is the home screen, "back out of what I was doing" and "go home" are the same
+gesture, and no flow needs a separate route back to a dashboard.
+
+**Above the tiles, one compact momentum strip** — the two things the retired Home tab
+did that a landing screen genuinely needs, kept deliberately small so the four tiles
+stay the visual focus:
+
+- **Continue** — a single row resuming the last in-progress lesson/upload, shown only
+  when there *is* one. Absent for a user with nothing in progress, rather than
+  rendering an empty state.
+- **Today's Daily Challenge** — one line with its bonus-XP reward, collapsing to a
+  "done" checkmark once completed.
+- **Spendable XP balance** sits in the header next to the Show Note Names toggle, as
+  a number, not a card — it's the figure that decides whether a tier is affordable, so
+  it belongs wherever the user is choosing what to do next.
+
+Everything else the old dashboard carried — recommended-next-unlock, achievement
+strips, streak summaries, lifetime stats — moves to Profile (§3.9). The rule for what
+earns a place here: it either *starts* an activity or it *decides* which activity to
+start. Anything that only reports on past activity belongs in Profile.
 
 A **Show Note Names** toggle (PRD F-02a) sits in this screen's header, not per-tile —
 it's one setting that applies to every keyboard shown anywhere in the app, so it's set
 once from the hub rather than re-toggled per mode.
 
-### 3.5.1 Category Tier Ladder (shared shape, used by all three tiered categories)
+### 3.3.1 Category Tier Ladder (shared shape, used by all three tiered categories)
 
 Tapping Ear Training, Sight-Reading, or Playback & Repeat opens that category's own
 **Tier Ladder** screen before any drill/practice screen — this is what replaced the
@@ -133,7 +128,7 @@ old cross-category "Learn tab" skill tree, scoped to one category at a time:
   procedurally-generated drill leads into that category's own setup screen (below)
   rather than a fixed lesson list, since those configure at play time.
 
-### 3.5.1a The on-screen keyboard (shared surface, present in every category)
+### 3.3.1a The on-screen keyboard (shared surface, present in every category)
 
 A single keyboard component renders at the bottom of **every** play surface — Ear
 Training's drill screen, Sight-Reading, the Repeat drill, the Lesson Player, and the
@@ -149,7 +144,7 @@ screens are laid out around it rather than reflowing when no hardware is present
 - No screen shows a "connect a MIDI keyboard to continue" gate. The only
   MIDI-specific UI is an optional status chip indicating hardware is connected.
 
-### 3.5.2 Ear Training
+### 3.3.2 Ear Training
 
 See PRD F-02a. From the Tier Ladder, the procedurally-generated drill opens:
 1. **Drill Setup** — choose *Note Intervals* or *Chord Progressions*.
@@ -160,25 +155,25 @@ See PRD F-02a. From the Tier Ladder, the procedurally-generated drill opens:
 2. **Drill Screen** — large "play stimulus" control (with a repeat/"play again"
    affordance), multiple-choice answer buttons sized to the selected quality
    pool/interval set, immediate correct/incorrect feedback per round, running
-   accuracy visible throughout. The shared on-screen keyboard (§3.5.1a) sits below
+   accuracy visible throughout. The shared on-screen keyboard (§3.3.1a) sits below
    as a reference instrument the user can tap to compare against the stimulus,
    respecting the Show Note Names setting.
 3. **Session Summary** (§3.4) — overall accuracy, breakdown per interval/quality, XP
    earned, retry-with-same-config vs. change config.
 
-### 3.5.3 Sight-Reading
+### 3.3.3 Sight-Reading
 
 See PRD F-02b. No setup screen — tapping into an unlocked Sight-Reading tier
 immediately opens a passage from that tier with a randomly chosen clef badge (Treble
 or Bass) at the top.
 1. **Sight-Reading Screen** — curated passage rendered via the `notation` package,
-   with the shared on-screen keyboard (§3.5.1a) directly below the staff and a live
+   with the shared on-screen keyboard (§3.3.1a) directly below the staff and a live
    grading overlay above it. The user plays the passage by tapping that keyboard or
    on connected hardware — either works. Sight-read-once by default with an optional
    practice-first toggle.
 2. **Session Summary** (§3.4) — note accuracy and rhythm/timing breakdown.
 
-### 3.5.4 Playback & Repeat
+### 3.3.4 Playback & Repeat
 
 See PRD F-02c. This category's Tier Ladder mixes two content shapes: authored
 lessons (exercises/chord progressions/classical/original songs — tap into Lesson
@@ -188,18 +183,35 @@ drill:
    drill's own internal difficulty; a one-line explainer that tempo speeds up
    automatically as the sequence grows.
 2. **Repeat Screen** — the app plays a growing note sequence, then the shared
-   on-screen keyboard (§3.5.1a) goes into "your turn" state and waits for the
+   on-screen keyboard (§3.3.1a) goes into "your turn" state and waits for the
    matching input, tapped on screen or played on hardware; a progress readout shows
    current sequence length and tempo. Ends on the first miss.
 3. **Session Summary** (§3.4) — rounds survived, longest sequence, XP earned, retry.
 
-### 3.5.5 Practice Screen
+### 3.3.5 Practice Screen
 
 Shared surface reused by Sight-Reading, the Repeat drill, and Library song practice —
 metronome, loop-region selector, speed control, live grading overlay, and the shared
-on-screen keyboard (§3.5.1a).
+on-screen keyboard (§3.3.1a).
 
-## 3.6 Tab: Library
+## 3.4 Shared surfaces: Lesson Player & Session Summary
+
+Used across all three tiered categories, not owned by any one of them:
+
+- **Lesson Player** (full-screen, entered from a category's Tier Ladder or from
+  Library):
+  - Header: progress-through-lesson bar, exit/pause.
+  - Main surface: notation/keyboard visualization appropriate to lesson type —
+    falling notes or on-staff cursor for play-along; chord-symbol + listen controls
+    for chord-progression steps; multiple-choice/tap surface for pure theory steps.
+  - Live feedback overlay when a MIDI keyboard is active (per-note hit/miss, live
+    accuracy meter) — see grading engine in the architecture doc.
+- **Session Summary** screen on completion: score, XP earned, accuracy breakdown by
+  skill (notes/rhythm/timing), retry vs. continue. The same family of summary screen
+  closes every session type in §3.3 above (Ear Training rounds, Sight-Reading
+  passages, the Repeat drill, Lesson Player lessons) with activity-appropriate detail.
+
+## 3.5 Tab: Library
 
 - **Search & filters** — text search plus filter chips (category: Ear Training /
   Sight-Reading / Playback & Repeat, difficulty, skill tag, genre, duration, content
@@ -213,7 +225,7 @@ on-screen keyboard (§3.5.1a).
   or original-artist attribution, public-domain/license note per F-01 licensing
   requirement).
 
-## 3.7 Learn My Music flow (modal stack, entered from the Main Menu, Home, or Library)
+## 3.6 Learn My Music flow (modal stack, entered from the Main Menu or Library)
 
 See PRD F-05 for the underlying analysis/labeling requirements — Keyvoria's one
 premium feature, and its only entitlement-gated flow. An earlier draft split this
@@ -258,8 +270,7 @@ into a free MIDI/MusicXML flow and a separate paid MP3 flow; V1 merges them into
    returns to Mode Select, not straight into whichever mode was last used, since
    switching is a core part of this feature.
 
-## 3.8 Achievements & Progress (reached from Profile, and from Home's achievement
-strip)
+## 3.7 Achievements & Progress (reached from Profile, §3.8)
 
 - **Achievements screen** — grid of badges, earned/locked, per-badge criteria on tap.
 - **Streaks screen** — calendar/heatmap view of practice days, streak-freeze status.
@@ -269,27 +280,94 @@ strip)
     training) over time, and time-practiced trends — *how good*.
   - Per-category XP balance and lifetime-spend, and an unlocked-tier ladder mini-view
     for each of Ear Training / Sight-Reading / Playback & Repeat (tap through to that
-    category's full Tier Ladder, §3.5.1) — *how far*.
+    category's full Tier Ladder, §3.3.1) — *how far*.
 
-## 3.9 Tab: Profile
+## 3.8 Tab: Profile — the user's overview
 
-- Account info, subscription/entitlement state — gates Learn My Music (PRD F-05),
-  the on-screen keyboard's range (2 octaves free / 61 keys premium, PRD §1.4), and
-  each category's premium-only tiers; **Keyvoria Plus is $9.95/month** (PRD §1.4).
-  This screen surfaces current entitlement state and is where the upgrade CTA lives.
+The third and last tab, and the only place in Keyvoria that reports on the user rather
+than giving them something to do. It absorbs what an earlier draft split between a
+Home/Dashboard tab and a thin settings-style Profile tab (§3.1).
+
+**Top: the three headline numbers**, presented as equals rather than one hero stat,
+since they answer different questions:
+
+- **Total XP earned** — *lifetime* XP, every point ever earned, which only ever goes
+  up. Deliberately distinct from the spendable balance shown on the Main Menu: this is
+  the "how much have I done" number, not the "what can I afford" number (PRD F-03).
+  Both appear here, labelled so the difference is legible — lifetime as the headline,
+  spendable beneath it as "available to spend."
+- **Total hours practiced** — cumulative active practice time across every category
+  and activity type (DB §4.10a). "Active" means time inside a session actually
+  playing or answering, not time with the app open; a session idle past a timeout
+  stops accruing, so the number stays honest.
+- **Current streak** — days, with streak-freeze status.
+
+**Below that: the breakdowns.**
+
+- Per-category summary — XP spent and current tier (T2 / 4) for each of the three
+  tiered categories, tapping through to that category's Tier Ladder (§3.3.1).
+- Practice-time breakdown by category and a recent-activity heatmap.
+- Recent achievements strip → full Achievements / Streaks / Progress Analytics (§3.7).
+- **Recommended next unlock** — the tier the user is closest to affording (e.g. "40 XP
+  to unlock Sight-Reading Tier 3"), moved here from the retired dashboard. It reports
+  on progress, so it lives with the stats; tapping it goes straight to that ladder.
+
+### 3.8.1 Subscription management
+
+Its own labelled section on the Profile screen — reachable in one tap from the tab
+bar, never buried behind a Settings sub-screen. Cancelling must not be harder to find
+than subscribing was.
+
+**Not subscribed:** current plan reads "Free," with what Plus adds (tier 4 in every
+category, the 61-key keyboard, Learn My Music) and the upgrade CTA at $9.95/month.
+
+**Subscribed:** plan, price, and **renewal date**, plus a **Cancel Subscription**
+action. Cancelling is explicit about what it does and doesn't do:
+
+- Access continues to the end of the period already paid for — cancelling never
+  revokes Plus mid-cycle. The screen then reads "Plus until 14 March," and a
+  **Resume Subscription** action replaces Cancel for the rest of that window.
+- The confirmation names what lapses at period end: tier 4 relocks in all three
+  categories, the on-screen keyboard returns to 2 octaves, and Learn My Music uploads
+  become inaccessible. It also names what does *not*: **XP, unlocked tiers 1–3,
+  progress, streaks, and achievements are untouched, and uploaded files are retained,
+  not deleted** — resubscribing restores access rather than starting over. Users
+  hesitate to cancel when they can't tell which it is; saying so plainly is the
+  honest version and also the one that gets them back.
+- One confirmation step, no retention interstitial chain. A single "here's what you
+  lose" screen is information; a sequence of them is a dark pattern.
+
+**Where cancellation actually happens differs by platform**, and the UI has to be
+honest about it rather than pretending one flow fits all (architecture §2.6a):
+
+| Purchased on | Cancel behavior |
+|---|---|
+| **Web** (Stripe) | Cancels in-app. Keyvoria's backend sets `cancel_at_period_end`; the UI updates immediately. |
+| **iOS** (App Store IAP) | Apple owns the subscription — no server-side cancel exists. The button deep-links to the system Manage Subscriptions sheet, labelled so the handoff isn't a surprise. |
+| **Android** (Play Billing) | Same shape as iOS: deep-links to the Play subscription centre. |
+
+A subscription bought on one platform is visible from all of them, since entitlement
+is server-side (§2.7). If the user is on a platform other than the one they purchased
+on, this section says where to cancel instead of offering a button that can't work —
+e.g. "Purchased through the App Store. Manage it on your iPhone or at
+reportaproblem.apple.com." Silently showing a dead button is the failure mode here.
+
+### 3.8.2 The rest of Profile
+
+- Account info, sign-out, delete account.
 - MIDI device management (paired devices, latency calibration).
 - Notification preferences (daily reminder, streak-risk nudge).
-- Links out to Achievements / Streaks / Progress Analytics (§3.8).
 - App settings (audio output, accessibility options), support/help.
 
-## 3.10 Full screen inventory (reference list)
+## 3.9 Full screen inventory (reference list)
 
 Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Account Creation
 
-Tabs: Home · Main Menu (Ear Training [Tier Ladder, Drill Setup, Drill Screen],
+Tabs (3): **Main Menu — home** (Ear Training [Tier Ladder, Drill Setup, Drill Screen],
 Sight-Reading [Tier Ladder, Sight-Reading Screen], Playback & Repeat [Tier Ladder,
 Difficulty Setup, Repeat Screen], Learn My Music) · Library (Search/Filter, Item
-Detail) · Profile
+Detail) · Profile (Overview/Stats, Subscription Management, Cancel Confirmation,
+Account, MIDI Devices, Notifications, Settings)
 
 Shared surfaces: Lesson Player · Session Summary · Practice Screen
 
@@ -300,3 +378,6 @@ Progress: Achievements · Streaks · Progress Analytics
 
 Utility: Unit Preview (bottom sheet) · MIDI Device Management · Notification
 Preferences · Settings
+
+Retired: **Home / Dashboard** — its start-an-activity content moved to the Main Menu
+(§3.3), its reporting content to Profile (§3.8).

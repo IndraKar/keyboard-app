@@ -51,6 +51,11 @@ erDiagram
     REPEAT_SESSIONS ||--o{ REPEAT_ROUNDS : contains
 
     USERS ||--o{ ENTITLEMENTS : has
+    USERS ||--o{ SUBSCRIPTIONS : "billed via"
+    SUBSCRIPTIONS ||--o| ENTITLEMENTS : grants
+
+    USERS ||--o{ PRACTICE_INTERVALS : accrues
+    USERS ||--|| USER_STATS : "rolled up into"
 ```
 
 ## 4.2 Identity & account
@@ -65,6 +70,10 @@ every screen that renders a keyboard, not reconfigured per session).
 **`entitlements`**
 `id`, `user_id → users`, `plan` (enum: free / trial / paid — `paid` means an active
 Keyvoria Plus subscription, $9.95/month per PRD §1.4), `starts_at`, `expires_at`.
+This table answers only "what can this user access right now," so it stays small and
+fast — it is read on nearly every gated action. The commercial state behind it
+(provider, renewal date, cancellation) lives in `subscriptions` (§4.10b); cancelling
+changes that table, and only the period-end job changes this one.
 Gates three things: F-05 Learn My Music in full (see `generated_tutorials` §4.11 for
 exactly where that check happens — every upload type now, not just audio), the
 on-screen keyboard's key range (the shared component reads `plan` at mount —
@@ -118,7 +127,7 @@ not procedurally generated.
 `musicxml_asset_id → media_assets`, `midi_reference_asset_id → media_assets`
 (expected note/timing sequence for grading, same role as
 `exercises.midi_reference_asset_id`), `measure_count`, `difficulty` (1–10). The Main
-Menu's Sight-Reading tile (screen map §3.5) queries `WHERE clef IN ('treble', 'bass')
+Menu's Sight-Reading tile (screen map §3.3) queries `WHERE clef IN ('treble', 'bass')
 AND lesson.tier_id IN <the user's currently-unlocked Sight-Reading tiers>` and picks
 one at random — `grand_staff` passages exist in this table for tiers that
 deliberately combine both clefs but aren't in that quick-launch pool, since PRD F-02b
@@ -289,7 +298,7 @@ Unique on `(user_id, tier_id)`. Purchasing is a single transaction: verify the u
 current balance covers `xp_cost` (and, if `required_plan = premium`, verify
 `entitlements`), insert this row, and from that point every lesson under that tier is
 accessible. This never happens automatically on lesson completion — it's a deliberate
-action the user takes from that category's tier-ladder screen (screen map §3.5).
+action the user takes from that category's tier-ladder screen (screen map §3.3).
 
 **Computing a user's spendable XP balance** — never stored directly, always
 `sum(xp_events.amount) − sum(user_category_unlocks.xp_spent)` for that user,
@@ -351,6 +360,85 @@ schema supports either, but it changes how `daily_challenges` vs.
 **`daily_challenge_progress`**
 `id`, `user_id → users`, `daily_challenge_id → daily_challenges`, `completed_at`,
 `attempt_id → attempts`.
+
+## 4.10a Practice time (Profile's "total hours")
+
+Supports PRD F-07's headline stat. Every session type already carries start/end
+timestamps (`attempts`, `ear_training_sessions`, `repeat_sessions`), so raw duration
+is derivable — but two problems make a naive `sum(ended_at - started_at)` the wrong
+answer, and both are why this gets its own structure:
+
+1. **Idle time inflates it.** A session left open while the user walks away would
+   count. Practice time must be *active* time.
+2. **Summing three tables on every Profile load is wasteful**, and gets worse as
+   history grows — Profile is a frequently-visited tab.
+
+**`practice_intervals`**
+`id`, `user_id → users`, `category` (enum, nullable — null for Learn My Music and
+Library practice, which sit outside the three tiered categories), `source_type`
+(enum: attempt / ear_training_session / repeat_session / learn_my_music),
+`source_id` (uuid, the row in whichever table above), `started_at`, `ended_at`,
+`active_seconds` (int). Written once when a session closes.
+
+`active_seconds` is **not** `ended_at − started_at`: the client accumulates it while
+the session is actually receiving input or presenting a stimulus, and pauses
+accumulation after an idle timeout (suggest 90s of no interaction, tuned in QA) and
+whenever the app is backgrounded. It is also clamped server-side to the wall-clock
+span, so a buggy or tampered client cannot report more active time than elapsed.
+
+**`user_stats`**
+`user_id → users` (PK), `total_active_seconds`, `total_active_seconds_by_category`
+(jsonb), `lifetime_xp`, `sessions_completed`, `updated_at`. A rollup maintained
+incrementally as each `practice_intervals` row lands, so Profile reads one row.
+Rebuildable from `practice_intervals` + `xp_events` at any time — it is a cache, never
+a source of truth, and a periodic job re-derives it to catch drift.
+
+`lifetime_xp` is duplicated here (it is also `sum(xp_events.amount)`) for the same
+read-performance reason as `user_level`, and under the same rule: any *decision* —
+what a user can afford, whether an unlock is permitted — reads the ledger, never this
+table (§4.9b).
+
+## 4.10b Subscriptions & billing state
+
+Supports PRD F-07's subscription management. `entitlements` (§4.2) answers "what can
+this user access right now" and stays deliberately small and fast, since it is checked
+on nearly every gated action. This table answers the separate question of "what is the
+state of their commercial relationship," which is where cancellation lives.
+
+**`subscriptions`**
+`id`, `user_id → users`, `provider` (enum: stripe / apple_app_store / google_play),
+`provider_subscription_id` (text — the id in that provider's system),
+`purchase_platform` (enum: web / ios / android — where it was bought, which
+determines where it can be cancelled), `status` (enum: active / trialing /
+cancel_pending / expired / grace_period / billing_retry), `price_cents` (`995` for
+Keyvoria Plus at $9.95/month), `currency`, `current_period_start`, `current_period_end`,
+`cancel_at_period_end` (bool), `cancelled_at` (nullable — when the user *requested*
+cancellation, distinct from when access ends), `created_at`, `updated_at`.
+
+Notes that matter for the cancel flow:
+
+- **Cancellation sets `cancel_at_period_end = true`; it does not touch
+  `entitlements`.** Access continues until `current_period_end`, at which point the
+  provider webhook moves `status` to `expired` and a job downgrades `entitlements.plan`
+  to `free`. This is what makes "Plus until 14 March" truthful rather than a UI
+  fiction. Resuming before that date clears the flag with no billing event at all.
+- **Only `provider = stripe` can be cancelled by our backend.** Apple and Google own
+  their subscriptions; there is no server-side cancel API for them, so the app
+  deep-links to their management surfaces and waits for the webhook. `purchase_platform`
+  is what the Profile screen reads to decide which of those it is showing (screen map
+  §3.8.1).
+- **Webhooks are the source of truth for `status`,** not client reports — a client
+  saying "I cancelled" is a hint to refetch, never an authority to downgrade.
+- **A row is never deleted on cancellation.** History is kept, so a resubscribing user
+  is recognizable as returning and their prior period is auditable. Multiple rows per
+  user are expected over time; the current one is the row with the latest
+  `current_period_end`.
+- **Downgrading never destroys user data** (PRD F-07): `xp_events`,
+  `user_category_unlocks` for tiers 1-3, `user_progress`, `streaks`, and
+  `generated_tutorials`/uploaded files all survive. The only effect of an expired
+  entitlement is gating — tier 4 becomes unpurchasable/unenterable, the keyboard
+  renders 2 octaves, Learn My Music locks. Resubscribing restores access with nothing
+  to rebuild.
 
 ## 4.11 Learn My Music
 
