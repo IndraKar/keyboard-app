@@ -13,12 +13,12 @@ implementation begins.
    V1 feature scope, non-functional requirements, explicit out-of-scope list.
 2. [Technical Architecture](./02-technical-architecture.md) — shared-codebase strategy,
    monorepo layout, MIDI/audio/notation stack, backend, offline/sync model.
-3. [Screen Map](./03-screen-map.md) — full IA, navigation model, and per-screen
-   responsibilities, including the Learn My Music and audio-upload flows.
+3. [Screen Map](./03-screen-map.md) — full IA, navigation model, the four-category
+   Main Menu, and the Learn My Music upload flow.
 4. [Database Structure](./04-database-schema.md) — entity list, ER diagram, and
-   table-by-table field definitions across content, progress, gamification, and
+   table-by-table field definitions across content, the XP economy, progress, and
    user-upload domains.
-5. [Development Roadmap](./05-roadmap.md) — milestone sequence (M0–M10) with goals,
+5. [Development Roadmap](./05-roadmap.md) — milestone sequence (M0–M9) with goals,
    deliverables, and exit criteria for each.
 
 ## How to review

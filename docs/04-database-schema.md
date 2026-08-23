@@ -18,8 +18,9 @@ erDiagram
     USERS ||--|| USER_LEVEL : has
     USERS ||--o{ DAILY_CHALLENGE_PROGRESS : tracks
 
-    LEARNING_PATHS ||--o{ PATH_UNITS : contains
-    PATH_UNITS }o--|| LESSONS : references
+    CATEGORY_TIERS ||--o{ LESSONS : unlocks
+    CATEGORY_TIERS ||--o{ USER_CATEGORY_UNLOCKS : "purchased as"
+    USERS ||--o{ USER_CATEGORY_UNLOCKS : purchases
 
     LESSONS ||--o{ ATTEMPTS : "attempted via"
     LESSONS }o--o{ TAGS : tagged
@@ -62,13 +63,15 @@ the Main Menu's global keyboard-label toggle from PRD F-02a; one setting, read b
 every screen that renders a keyboard, not reconfigured per session).
 
 **`entitlements`**
-`id`, `user_id → users`, `plan` (enum: free / trial / paid), `starts_at`, `expires_at`.
-Gates the two things in PRD §1.4's Free vs. Premium table: F-06 Learn My Song (see
-`generated_tutorials` §4.11 for exactly where that check happens), and the on-screen
-keyboard's key range — the app-shell component that renders it reads `plan` at mount
-(`plan = free` → 2 octaves, otherwise → 61 keys), not a value stored per-user
-elsewhere. The specific paid plan mechanic is still open (PRD §1.6), but the table and
-both checks against it are now live rather than stubbed.
+`id`, `user_id → users`, `plan` (enum: free / trial / paid — `paid` means an active
+Keyvoria Plus subscription, $9.95/month per PRD §1.4), `starts_at`, `expires_at`.
+Gates three things: F-05 Learn My Music in full (see `generated_tutorials` §4.11 for
+exactly where that check happens — every upload type now, not just audio), the
+on-screen keyboard's key range (the app-shell component that renders it reads `plan`
+at mount — `plan = free` → 2 octaves, otherwise → 61 keys, not a value stored
+per-user elsewhere), and `category_tiers.required_plan = premium` tiers within Ear
+Training/Sight-Reading/Playback & Repeat (§4.9b) — a free user can hold any amount of
+unspent XP and still can't purchase one of these without an active `paid` plan.
 
 **`midi_devices`**
 `id`, `user_id → users`, `device_name`, `transport` (usb / bluetooth), `last_connected_at`,
@@ -76,19 +79,17 @@ both checks against it are now live rather than stubbed.
 
 ## 4.3 Content
 
-**`learning_paths`**
-`id`, `slug`, `title`, `level` (enum: beginner / intermediate / advanced / genre),
-`genre` (nullable, e.g. "jazz", "pop_rock" — set only when `level = genre`),
-`description`, `sort_order`, `is_published`.
-
-**`path_units`**
-`id`, `path_id → learning_paths`, `lesson_id → lessons`, `sort_order`,
-`unlock_rule` (jsonb — e.g. `{"requires_unit_ids": [...]}`, evaluated for the
-skill-tree lock/unlock state).
+**`category_tiers`** — see §4.9b for the full spec (kept there, next to the XP
+economy it powers, rather than here — cross-referenced from `lessons` below since
+every curated lesson belongs to one).
 
 **`lessons`**
 `id`, `slug`, `title`, `type` (enum: exercise / chord_progression / theory /
-ear_training / sight_reading / song), `difficulty` (1–10 int), `est_duration_seconds`,
+ear_training / sight_reading / song), `tier_id → category_tiers` (**not** nullable —
+every curated lesson belongs to exactly one category tier; there is no
+"unattached" curated content in V1's model, per PRD F-01/F-03), `difficulty`
+(1–10 int, fine-grained ordering *within* a tier — tiers are the coarse XP-unlock
+boundary, `difficulty` is the finer sequencing inside one), `est_duration_seconds`,
 `skill_focus` (text[] — e.g. `{rhythm, left_hand, chord_voicing}`), `description`,
 `is_published`. Type-specific detail lives in the linked table (`exercises` §4.4,
 `sight_reading_passages` §4.4a, `chord_progression_lessons` §4.5, `songs` §4.6, or
@@ -112,15 +113,15 @@ Supports PRD F-02b. Unlike ear training, these are curated content (like exercis
 not procedurally generated.
 
 **`sight_reading_passages`**
-`id`, `lesson_id → lessons` (nullable — same standalone-vs-path-linked pattern as
-`songs`), `clef` (enum: treble / bass / grand_staff), `musicxml_asset_id →
-media_assets`, `midi_reference_asset_id → media_assets` (expected note/timing
-sequence for grading, same role as `exercises.midi_reference_asset_id`),
-`measure_count`, `difficulty` (1–10). The Main Menu's Sight Reading tile (screen map
-§3.5) queries `WHERE clef IN ('treble', 'bass') AND difficulty ≈ <user's current path
-level>` and picks one at random — `grand_staff` passages exist in this table for
-curated path content but aren't in that quick-launch pool, since PRD F-02b only
-randomizes between the two single-clef options.
+`id`, `lesson_id → lessons`, `clef` (enum: treble / bass / grand_staff),
+`musicxml_asset_id → media_assets`, `midi_reference_asset_id → media_assets`
+(expected note/timing sequence for grading, same role as
+`exercises.midi_reference_asset_id`), `measure_count`, `difficulty` (1–10). The Main
+Menu's Sight-Reading tile (screen map §3.5) queries `WHERE clef IN ('treble', 'bass')
+AND lesson.tier_id IN <the user's currently-unlocked Sight-Reading tiers>` and picks
+one at random — `grand_staff` passages exist in this table for tiers that
+deliberately combine both clefs but aren't in that quick-launch pool, since PRD F-02b
+only randomizes between the two single-clef options.
 
 ### 4.5 Chord progressions
 
@@ -135,8 +136,8 @@ theory_explainer / listen_identify / play_along), `content_md`.
 ### 4.6 Songs (classical + original)
 
 **`songs`**
-`id`, `lesson_id → lessons` (nullable — a song can exist in the Library without being
-attached to a path unit), `title`, `composer_or_artist`, `era` (nullable, classical
+`id`, `lesson_id → lessons` (every song belongs to a Playback & Repeat tier, per
+§4.3's `lessons.tier_id`), `title`, `composer_or_artist`, `era` (nullable, classical
 only), `category` (enum: classical_public_domain / original), `license_type` (enum:
 public_domain / owned_original), `license_source_note` (text — PD edition citation, or
 "composed in-house"), `musicxml_asset_id → media_assets`,
@@ -175,8 +176,9 @@ user-configured at play time rather than pre-authored, so the schema models a
 *drill configuration* plus a *played session* separately.
 
 **`ear_training_drills`**
-`id`, `lesson_id → lessons` (nullable — set only for curated, path-linked stops;
-null for an ad-hoc config the user assembles from the Main Menu), `drill_type` (enum:
+`id`, `lesson_id → lessons` (nullable — set only for curated, tier-linked stops
+within the Ear Training category; null for an ad-hoc config the user assembles from
+the Main Menu, which spends no XP and unlocks nothing), `drill_type` (enum:
 interval / chord_progression), `stimulus_note_count` (int, 2–8, applicable when
 `drill_type = interval` — 2 = two-note interval, 3 = triad graded by chord quality,
 4–8 = melodic interval-chain dictation), `allowed_qualities` (text[], subset of
@@ -184,10 +186,12 @@ interval / chord_progression), `stimulus_note_count` (int, 2–8, applicable whe
 chord_progression`, or when `drill_type = interval` and `stimulus_note_count = 3`),
 `progression_length` (int, nullable — number of chords in sequence, applicable when
 `drill_type = chord_progression`), `difficulty_level` (int, 1–5 — the user-facing
-Difficulty dial from PRD F-02a; for curated, `lesson_id`-linked drills this also
-orders the drill's position within its path unit). A row is created for every
-session, curated or ad hoc, so `ear_training_sessions` always has exactly one
-`drill_id` to reference regardless of where the config came from.
+Difficulty dial from PRD F-02a; for curated, `lesson_id`-linked drills, the linked
+`lessons.tier_id` is what actually gates access — this field is the *internal*
+difficulty dial within an already-unlocked drill, distinct from the XP-cost tier
+gate). A row is created for every session, curated or ad hoc, so
+`ear_training_sessions` always has exactly one `drill_id` to reference regardless of
+where the config came from.
 
 **`ear_training_sessions`**
 `id`, `user_id → users`, `drill_id → ear_training_drills`, `started_at`,
@@ -207,15 +211,20 @@ the `core-theory` package, not pre-authored content), `correct_answer` (for
 interval-chain rounds, the ordered list of interval names between consecutive notes),
 `user_answer`, `is_correct`, `response_time_ms`.
 
-### 4.9a Repeat drills
+### 4.9a Playback & Repeat: the Repeat drill
 
-Supports PRD F-02c. This mode always requires a MIDI keyboard (there's no self-graded
-reduced mode, unlike ear training), so a session is graded round-by-round against
-live MIDI input via the `grading-engine`, same as Sight Reading and Exercises.
+Supports PRD F-02c's procedurally-generated half of the Playback & Repeat category
+(the authored half — exercises, chord progressions, songs — uses the ordinary
+`exercises`/`chord_progression_lessons`/`songs` tables above, all linked into this
+category's tiers via `lessons.tier_id`). This mode always requires a MIDI keyboard
+(there's no self-graded reduced mode, unlike ear training), so a session is graded
+round-by-round against live MIDI input via the `grading-engine`, same as Sight
+Reading and Exercises.
 
 **`repeat_drills`**
 `id`, `lesson_id → lessons` (nullable, same curated-vs-ad-hoc pattern as
-`ear_training_drills`), `difficulty_tier` (enum: basic / intermediate / advanced),
+`ear_training_drills` — set only when this specific drill config is the thing gating
+a Playback & Repeat tier), `difficulty_tier` (enum: basic / intermediate / advanced),
 `starting_tempo_bpm`, `tempo_ramp_bpm_per_round` (how much playback speeds up each
 time the sequence grows by a note — set per tier, so Advanced ramps faster than
 Basic per PRD F-02c).
@@ -234,9 +243,51 @@ note sequence played this round, one note longer than the previous round),
 `attempts.note_events` — this is what the live MIDI input was graded against),
 `passed` (bool).
 
+### 4.9b The XP economy: category tiers & unlock purchases
+
+Supports PRD F-03 — the schema for "XP is a currency, not a score." Two tables, kept
+next to the drill/content tables above rather than inside §4.10 Gamification, since
+they're as much a *content-organization* structure (what tier does a lesson belong
+to) as a gamification one.
+
+**`category_tiers`**
+`id`, `category` (enum: ear_training / sight_reading / playback_repeat — exactly
+Keyvoria's three tiered categories; Learn My Music has no tier ladder, it's gated
+purely by `entitlements`, §4.11), `tier_number` (int — ordering within its category;
+tier 1 is free and already unlocked for every user with no purchase needed),
+`title`, `description`, `xp_cost` (int; 0 for every category's tier 1),
+`required_plan` (enum: free / premium — the tiers where `required_plan = premium`
+are what PRD F-03 calls "premium sits on top of XP, not instead of it": still costs
+`xp_cost` XP *and* requires an active Keyvoria Plus entitlement, typically only the
+top tier or two per category). Unique on `(category, tier_number)`. Every curated
+`lessons` row (§4.3) belongs to exactly one of these via `lessons.tier_id`.
+
+**`user_category_unlocks`**
+`id`, `user_id → users`, `tier_id → category_tiers`, `xp_spent` (int — a snapshot of
+`category_tiers.xp_cost` at purchase time, so a later cost-curve rebalance in content
+production doesn't retroactively rewrite what a past purchase "cost"), `unlocked_at`.
+Unique on `(user_id, tier_id)`. Purchasing is a single transaction: verify the user's
+current balance covers `xp_cost` (and, if `required_plan = premium`, verify
+`entitlements`), insert this row, and from that point every lesson under that tier is
+accessible. This never happens automatically on lesson completion — it's a deliberate
+action the user takes from that category's tier-ladder screen (screen map §3.5).
+
+**Computing a user's spendable XP balance** — never stored directly, always
+`sum(xp_events.amount) − sum(user_category_unlocks.xp_spent)` for that user,
+computed server-side at request time (or cached briefly, never trusted from a
+client), same never-trust-the-client rule that already governs `xp_events` below.
+This is distinct from **lifetime XP** (`sum(xp_events.amount)` alone, with nothing
+subtracted), which is what the purely-cosmetic Level (`user_level`, §4.10) is derived
+from — spending XP on an unlock doesn't demote a user's Level, since Level reflects
+effort put in, not currency currently on hand.
+
 ## 4.10 Gamification
 
 **`xp_events`**
+The **earning** ledger only — spending is tracked separately in
+`user_category_unlocks` (§4.9b), not as a negative row here, so this table never
+needs negative `amount` values and always reads as "here's everything a user has
+ever earned."
 `id`, `user_id → users`, `attempt_id → attempts` (nullable),
 `ear_training_session_id → ear_training_sessions` (nullable — set instead of
 `attempt_id` for §4.9 sessions), `repeat_session_id → repeat_sessions` (nullable —
@@ -244,13 +295,17 @@ set instead of `attempt_id` for §4.9a sessions; a session with `show_note_names
 still generates one of these per PRD F-02a — the toggle changes nothing about how XP
 is earned), `source` (enum: lesson_complete / daily_challenge / achievement /
 streak_bonus / ear_training_session_complete / repeat_session_complete), `amount`,
-`created_at`. XP totals are always `sum(xp_events.amount)` server-side — never a
-client-writable counter (per architecture §2.7).
+`created_at`. Both a user's spendable balance and lifetime total are always computed
+from this table server-side (§4.9b) — never a client-writable counter (per
+architecture §2.7).
 
 **`user_level`**
-`user_id → users` (PK), `current_level`, `current_xp_into_level`, `total_xp`
-(denormalized cache of the `xp_events` sum, recomputed by the same job that inserts
-events — kept for fast dashboard reads, not as a source of truth).
+`user_id → users` (PK), `current_level`, `current_xp_into_level` — derived purely
+from **lifetime** XP (`sum(xp_events.amount)`, unaffected by spending), recomputed by
+the same job that inserts events. This is explicitly **cosmetic** (PRD F-03) — it
+gates nothing in the app; the real progression state is per-category unlocked tiers
+(`user_category_unlocks`, §4.9b). Kept as its own small table (rather than computed
+on every read) purely for fast dashboard reads.
 
 **`streaks`**
 `user_id → users` (PK), `current_streak_days`, `longest_streak_days`,
@@ -259,7 +314,8 @@ events — kept for fast dashboard reads, not as a source of truth).
 **`achievements`**
 `id`, `slug`, `title`, `description`, `icon_asset`, `criteria` (jsonb — rule
 definition evaluated by the `gamification` package, e.g.
-`{"type": "streak_reached", "days": 30}` or `{"type": "path_completed", "path_id": ...}`).
+`{"type": "streak_reached", "days": 30}` or `{"type": "tier_unlocked", "category":
+"sight_reading", "tier_number": 3}`).
 
 **`user_achievements`**
 `id`, `user_id → users`, `achievement_id → achievements`, `unlocked_at`. Unique on
@@ -277,12 +333,12 @@ schema supports either, but it changes how `daily_challenges` vs.
 `id`, `user_id → users`, `daily_challenge_id → daily_challenges`, `completed_at`,
 `attempt_id → attempts`.
 
-## 4.11 Learn My Music & Learn My Song
+## 4.11 Learn My Music
 
-`upload_type = audio` (Learn My Song, PRD F-06) is V1's one entitlement-gated flow:
-the API checks `entitlements` (§4.2) for the requesting user before accepting an
-audio upload or serving a `generated_tutorials` row sourced from one. `upload_type`
-`midi`/`musicxml` (Learn My Music, F-05) has no such check — it's free.
+Every upload type here (`midi` / `musicxml` / `audio`) is gated the same way now —
+PRD F-05 is one unified premium feature, not a free-MIDI/paid-audio split. The API
+checks `entitlements` (§4.2) for the requesting user before accepting *any* upload or
+serving a `generated_tutorials` row, regardless of `upload_type`.
 
 **`user_uploads`**
 `id`, `user_id → users`, `upload_type` (enum: midi / musicxml / audio),
@@ -296,7 +352,8 @@ audio upload or serving a `generated_tutorials` row sourced from one. `upload_ty
 transparency/debuggability of the rating), `detected_tempo_bpm`, `hands_separate_available`
 (bool), `is_estimated` (bool — **true for audio-sourced tutorials, false for
 MIDI/MusicXML-sourced**; this is the field the UI's "Estimated" badge reads from, per
-PRD F-06), `sheet_music_available` (bool — false when transcription confidence is
+PRD F-05 — format determines confidence, not entitlement, since both formats are
+premium now), `sheet_music_available` (bool — false when transcription confidence is
 too low to render notation responsibly; gates whether the Sheet Music mode card in
 the screen map's Mode Select is enabled or shown disabled with an explanation. The
 Synthesia-style and Auto-Play modes have no equivalent gate — they degrade
@@ -314,7 +371,7 @@ Practice Screen consumes both through the same loop-selector UI.
 `id`, `generated_tutorial_id → generated_tutorials`, `start_time_ms`, `end_time_ms`,
 `chord_label`, `confidence` (0–1, from the transcription model), `user_corrected`
 (bool) — supports the "manually correct obviously-wrong chord labels" interaction from
-the screen map's Learn My Song flow.
+the screen map's Learn My Music flow.
 
 ## 4.12 Search
 

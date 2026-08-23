@@ -14,9 +14,10 @@ where web trails mobile in capability: the same Expo Router screens, the same
 `packages/*` business logic, and the same component library render all three targets.
 `apps/app` is the entire product on every platform — desktop web included. It is
 explicitly **not** a landing page: log in from a browser and you get the real Keyvoria
-learning experience (Main Menu, Lesson Player, Ear Training, Sight Reading, Repeat,
-Learn My Music/Song, Progress Analytics — everything), laid out for a desktop viewport
-rather than simplified or reduced. See "Responsive layout" below for how one codebase
+learning experience (Main Menu, Lesson Player, Ear Training, Sight-Reading, Playback &
+Repeat, Learn My Music, Progress Analytics — everything), laid out for a desktop
+viewport rather than simplified or reduced. See "Responsive layout" below for how one
+codebase
 serves a touch phone screen and a mouse-and-keyboard desktop browser without forking
 the UI.
 
@@ -68,7 +69,7 @@ viewport, not by forking screens:
 - **Desktop gets real desktop affordances, not just more space:** hover states on
   interactive elements (tiles, library cards), keyboard shortcuts for the
   MIDI-heavy practice screens (space to pause, arrow keys to scrub), and layouts that
-  use horizontal room deliberately (e.g. the Learning Path skill tree spreads wider
+  use horizontal room deliberately (e.g. a category's Tier Ladder spreads wider
   rather than staying phone-narrow with empty margins). These are additive
   desktop-specific behaviors layered onto the same components, gated by platform
   checks, not a different app.
@@ -95,9 +96,13 @@ keyvoria/
 │   │                             #   intervals, key detection) — no I/O
 │   ├── grading-engine/          # Pure TS: compares live MIDI input stream against
 │   │                             #   an expected note/timing sequence → accuracy score
-│   ├── gamification/            # Pure TS: XP curve, streak/freeze logic, achievement
-│   │                             #   rule evaluation — used by both client (optimistic
-│   │                             #   local update) and server (source of truth)
+│   ├── gamification/            # Pure TS: XP-earning curve, the per-category tier-
+│   │                             #   unlock economy (validates an unlock purchase
+│   │                             #   against current balance server-side — never
+│   │                             #   trusts a client-reported balance), streak/freeze
+│   │                             #   logic, achievement rule evaluation — used by
+│   │                             #   both client (optimistic local update) and
+│   │                             #   server (source of truth)
 │   ├── content-schema/          # Zod schemas for lessons/exercises/progressions/songs
 │   ├── midi/                    # Common MIDI interface; platform impls (web/native)
 │   ├── audio-engine/            # Common playback/looping/speed-change interface;
@@ -220,14 +225,17 @@ The same account, signed into a phone and a desktop browser, is the same state �
 is the whole point of a shared backend rather than two platform-specific ones. What
 that covers concretely, all keyed off one `user_id` in Postgres (§4, database schema):
 
-- **XP, level, streaks** (`xp_events`/`user_level`/`streaks`) — earned on one device,
+- **XP balance, lifetime XP (cosmetic Level), streaks** (`xp_events`/
+  `user_category_unlocks`/`streaks`, §4.10) — earned or spent on one device,
   visible immediately on the other next time it's online.
-- **Unlocked lessons & path progress** (`user_progress`, `path_units.unlock_rule`
-  evaluated against it) — start a path unit on mobile on the train, finish it on
-  desktop at a real keyboard, same progress record either way.
-- **Entitlements/subscription state** (`entitlements`) — buy premium on one device,
-  the 61-key on-screen keyboard and Learn My Song unlock everywhere, immediately,
-  since the check is a live read against Postgres, not a per-device flag.
+- **Unlocked category tiers & lesson progress** (`user_category_unlocks`,
+  `user_progress`, §4.9b/§4.8) — spend XP to unlock a Sight-Reading tier on mobile on
+  the train, the exact same unlocked tier (and the lessons it reveals) is there on
+  desktop at a real keyboard, same record either way.
+- **Entitlements/subscription state** (`entitlements`) — buy Keyvoria Plus on one
+  device, the 61-key on-screen keyboard, Learn My Music, and every category's
+  premium-only tiers unlock everywhere, immediately, since the check is a live read
+  against Postgres, not a per-device flag.
 - **Uploaded music** (`user_uploads` in Supabase Storage, `generated_tutorials` in
   Postgres) — upload an MP3 or MIDI file from either platform, it's in "My Uploads"
   on both, because the file itself lives in cloud object storage, not on-device.
@@ -261,7 +269,7 @@ handling is narrower:
 | Web MIDI | Web MIDI API (native browser) | Chrome/Edge support is solid; Safari is the gap — flag as a known web-platform limitation, not fixable by us |
 | Native MIDI | Custom Expo native module (CoreMIDI / android.media.midi) | §2.3 |
 | Audio synthesis/playback | Tone.js (web), native audio module (native) | pitch-preserving time-stretch needed for the 0.25×–2× speed range — evaluate `soundtouch`-based approach |
-| Audio→MIDI transcription | `basic-pitch` (Python) | best-effort, always labeled estimated per F-06 |
+| Audio→MIDI transcription | `basic-pitch` (Python) | best-effort, always labeled estimated per F-05 |
 | Tempo/beat detection | `librosa` | |
 | Backend | Fastify + tRPC | |
 | DB/Auth/Storage | Supabase (Postgres) | |

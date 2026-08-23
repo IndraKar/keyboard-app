@@ -8,8 +8,11 @@ A single, polished app that takes someone from "never touched a keyboard" to
 confidently playing real songs, reading music, and improvising over chord changes,
 using a MIDI keyboard for real-time feedback on notes, chords, rhythm, and timing. It
 should feel closer to a well-designed game or fitness app (Duolingo / Yousician
-territory) than a static video course: structured paths, instant feedback, visible
-progress, and a reason to come back daily.
+territory) than a static video course: instant feedback, visible progress, and a
+reason to come back daily. Unlike a single fixed curriculum, Keyvoria is organized
+around four learning categories a user chooses freely between (§1.4), with XP earned
+through practice spent deliberately to unlock harder content in whichever category
+they care about — progression the user steers, not a rail they're placed on.
 
 ## 1.2 Target users
 
@@ -19,8 +22,8 @@ progress, and a reason to come back daily.
 | **Returning Player** | Took lessons years ago, rusty | Placement/assessment, refreshers on theory & technique, faster ramp |
 | **Self-taught Improviser** | Plays by ear, weak on theory/reading | Chord progressions, theory, sight-reading, ear training |
 | **Classical Track Student** | Wants repertoire and reading fluency | Public-domain classical pieces, hands-separate practice, grading |
-| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MIDI/MusicXML, free) and Learn My Song (F-06, MP3/audio, **premium**) |
-| **Genre Learner** | Wants pop/jazz/blues comping, not classical | Genre-focused learning paths, chord-progression lessons |
+| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MP3 + MIDI/MusicXML, **premium**) |
+| **Genre Learner** | Wants pop/jazz/blues comping, not classical | Genre-tagged Playback & Repeat content and Library filters |
 
 ## 1.3 Platforms & shared codebase
 
@@ -33,49 +36,67 @@ thin, platform-specific implementations behind a common interface.
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
 
-A **Main Menu** screen (screen map §3.5) is the primary entry point into training, and
-V1 keeps it to exactly four selections rather than a longer practice-tool list:
+A **Main Menu** screen (screen map §3.5 — this now absorbs what an earlier draft
+called the separate "Learn tab," since the four categories below *are* the
+curriculum) is the primary entry point, and V1 keeps it to exactly Keyvoria's four
+major learning categories:
 
 1. **Ear Training** (F-02a)
-2. **Sight Reading** (F-02b)
-3. **Repeat** (F-02c)
-4. **Learn My Song** (F-06) — **Premium**
+2. **Sight-Reading** (F-02b)
+3. **Playback & Repeat** (F-02c)
+4. **Learn My Music** (F-05) — **Premium**
 
-Chord-progression practice and free/warm-up play are not separate Main Menu entries
-in V1: chord progressions are delivered through path content and the Library (F-01,
-F-04) rather than a standalone practice tool, and open-ended free play is cut for
-launch simplicity. This can be revisited post-V1 if users ask for it.
+Each category has its own progression, independent of the others (F-03) — a user
+picks which skills to develop rather than being pushed through one linear
+curriculum. There is deliberately no "Beginner/Intermediate/Advanced path" spanning
+all categories at once; the closest earlier draft had one, and it's retired in favor
+of per-category progression. Free/warm-up play remains cut from V1's Main Menu for
+launch simplicity, revisitable post-V1.
 
-**Free vs. Premium.** Two things are gated in V1; everything else — all paths, Ear
-Training, Sight Reading, Repeat, Learn My Music, the Library, XP/achievements/streaks
-— is free, unrestricted.
+**Free vs. Premium — Keyvoria Plus, $9.95/month.**
 
-| | Free | Premium |
+| | Free | Premium (Keyvoria Plus) |
 |---|---|---|
 | On-screen keyboard | **2 octaves** | **61 keys** (5 octaves) |
-| Learn My Song (F-06) | Locked (paywall) | Unlocked |
+| Ear Training / Sight-Reading / Playback & Repeat | All beginner–intermediate tiers, XP-unlocked (F-03) | + the most advanced tier(s) in each category, some of which need the 61-key range to even be playable |
+| Learn My Music (F-05) | Locked (paywall) | Unlocked — Keyvoria's primary premium feature |
 
-Both gates are decided; the billing mechanic behind them (one-time unlock vs.
-subscription, price) is still the open **DECISION NEEDED** from §1.6.
+The billing mechanic is a **$9.95/month subscription** — this closes the billing
+`DECISION NEEDED` an earlier draft left open. What's still genuinely open: exact
+per-tier XP costs (F-03) and exactly which advanced tiers require the 61-key range
+vs. simply being paywalled outright, both of which need content-production input to
+answer for real, not an invented number here.
 
 ### F-01 Structured learning content
-- 25–50 original learning exercises (technique, theory, rhythm, hand independence)
-  spanning beginner → advanced.
-- 25–50 chord-progression lessons (e.g. I–V–vi–IV, ii–V–I, 12-bar blues, modal vamps),
-  each with theory explanation, listen-and-identify, and play-along with MIDI grading.
-- 10–20 public-domain classical pieces (e.g. Bach Minuets, Clementi Sonatinas, Satie
-  Gymnopédie No.1, Beethoven Für Elise excerpt, Joplin rags), sourced from verifiably
-  public-domain editions (IMSLP or hand-engraved from PD scores — see licensing note
-  below), each in MusicXML.
-- 10–20 original practice songs, purpose-written to reinforce specific skills, licensed
-  in-house (no third-party rights risk).
-- Beginner, Intermediate, Advanced, and Genre-focused (at least 2 genres, e.g.
-  Pop/Rock comping and Jazz basics) learning paths, each a sequenced curriculum of the
-  content above plus theory/ear-training/sight-reading units.
+Content is organized **by category**, not by a level spanning all of them — each
+item below belongs to exactly one of the three tiered categories (Learn My Music is
+user-generated and has no authored-content quota of its own):
 
-  **DECISION NEEDED:** confirm which 2+ genre paths to prioritize for V1 (suggest
-  Pop/Rock and Jazz-basics as most broadly useful; Blues and Classical-repertoire as
-  fallback options).
+- **Ear Training** — procedurally generated per F-02a's engine at play time; no
+  fixed authored-item count the way the content-heavy categories below have.
+- **Sight-Reading** — 15–20 curated passages (`sight_reading_passages`, DB §4.4a)
+  spanning Treble, Bass, and Grand Staff clefs across the difficulty range.
+- **Playback & Repeat** — this is where nearly all authored content volume lives,
+  since it's the category for playing real material rather than isolated drills:
+  - 25–50 original exercises (technique, rhythm, hand independence)
+  - 25–50 chord-progression lessons (e.g. I–V–vi–IV, ii–V–I, 12-bar blues, modal
+    vamps), each with theory explanation, listen-and-identify, and play-along
+  - 10–20 public-domain classical pieces (e.g. Bach Minuets, Clementi Sonatinas,
+    Satie Gymnopédie No.1, Beethoven Für Elise excerpt, Joplin rags), sourced from
+    verifiably public-domain editions (IMSLP or hand-engraved from PD scores)
+  - 10–20 original practice songs, purpose-written to reinforce specific skills,
+    licensed in-house (no third-party rights risk)
+  - plus the category's own procedurally-generated call-and-response drill (F-02c)
+
+Genre (Pop/Rock, Jazz, Blues, Classical-repertoire, etc.) is a **tag**, not a
+separate path — content across Playback & Repeat (and the Library, F-04) carries
+genre tags for filtering, rather than genre defining its own linear curriculum,
+consistent with "users choose which skills to develop" above.
+
+**DECISION NEEDED:** confirm which 2+ genre tags to prioritize authoring content for
+in V1 (suggest Pop/Rock and Jazz-basics as most broadly useful; Blues and
+Classical-repertoire as fallback options) — same open question as before, just
+reframed as tags rather than paths.
 
 ### F-02 MIDI performance feedback
 - Detect connected MIDI keyboard (USB and Bluetooth MIDI where the OS supports it).
@@ -90,12 +111,16 @@ subscription, price) is still the open **DECISION NEEDED** from §1.6.
   premium** — but this only affects users relying on it as their input surface. A
   connected real MIDI keyboard is never range-limited by the app regardless of tier;
   the cap exists because the on-screen keyboard *is* the instrument for a free user
-  with no hardware, not because the app restricts hardware you already own.
+  with no hardware, not because the app restricts hardware you already own. The
+  free-tier curriculum (Ear Training and Sight-Reading's non-advanced tiers, and
+  Playback & Repeat's exercises/songs below the advanced tier) is deliberately
+  authored to fit within 2 octaves wherever musically reasonable, so the free
+  keyboard cap is rarely the thing standing between a free user and a lesson.
 
 ### F-02a Ear Training: intervals & chord-quality drills
-A configurable ear-training drill, launched from the Main Menu (screen map §3.5) and
-also offered as fixed, difficulty-ordered stops on the Beginner/Intermediate paths.
-Two drill types, both configured before the session starts:
+A configurable ear-training drill, launched from the Main Menu (screen map §3.5),
+with its own XP-unlocked tier ladder (F-03) rather than being a fixed stop on a
+cross-category path. Two drill types, both configured before the session starts:
 
 - **Note Intervals** — the system plays a stimulus of **2 to 8 notes**, chosen by the
   user with a stepper/slider:
@@ -128,30 +153,37 @@ lesson types (PRD F-03).
 **Show Note Names.** A toggle, available wherever a keyboard is shown on screen (Ear
 Training first, reusable anywhere else a keyboard renders), that labels every key with
 its note name. It's an assist for beginners, not a separate mode — a session with it
-on still earns points and still counts toward unlocking harder lessons, so a beginner
-can treat Ear Training as an approachable, rewarded activity from day one rather than
-something to avoid until they're "ready." It's one user-level setting (not
+on still earns XP and still counts toward unlocking harder tiers, so a beginner can
+treat Ear Training as an approachable, rewarded activity from day one rather than
+something to avoid until they're "ready." It's one account-level setting (not
 reconfigured per session), so it applies consistently across every screen that shows a
 keyboard.
 
-### F-02b Sight Reading
+### F-02b Sight-Reading
 Short notated passages the user reads and plays in real time, graded by the same
 `grading-engine` as F-02 (this mode does expect a MIDI keyboard, unlike ear training).
-- **No manual setup screen** — tapping Sight Reading from the Main Menu launches
+- **No manual setup screen** — tapping Sight-Reading from the Main Menu launches
   straight into a passage. Clef is picked for the user, randomly, **treble or bass**,
   every time the tile is tapped, so the two get roughly even practice over time without
   the user having to remember to switch. Difficulty is likewise not manually chosen —
-  it tracks the user's current path level automatically.
+  it tracks the user's currently-unlocked tier in this category (F-03) automatically.
 - Passages are curated content (not procedurally generated, unlike F-02a), difficulty-
-  tagged, and pulled into the Beginner/Intermediate/Advanced paths as well as offered
-  as standalone drills from the Main Menu.
+  tagged, and organized into this category's own XP-unlocked tier ladder (F-03).
 - Grading covers note accuracy and rhythm/timing, consistent with F-02.
 
-### F-02c Repeat
-A call-and-response memory drill: the system plays a short note sequence, then the
-user must play it back correctly on their MIDI keyboard (this mode requires one, like
-Sight Reading — there's no meaningful reduced mode for "play back what you heard").
-- **Difficulty tier**: Basic, Intermediate, or Advanced, chosen before starting.
+### F-02c Playback & Repeat
+Keyvoria's third category, and the home for both a procedurally-generated drill and
+the bulk of F-01's authored play-along content (exercises, chord progressions,
+classical pieces, original songs) — the throughline is "hear something, play it,"
+whether that's a generated note sequence or a real piece of music.
+
+**Repeat drill** (the procedurally-generated half): a call-and-response memory drill —
+the system plays a short note sequence, then the user must play it back correctly on
+their MIDI keyboard (this mode requires one, like Sight-Reading — there's no
+meaningful reduced mode for "play back what you heard").
+- **Difficulty tier**: Basic, Intermediate, or Advanced, chosen before starting —
+  distinct from this category's XP-unlocked content tiers; this selector picks the
+  drill's own internal difficulty once the Repeat drill itself is unlocked.
 - Each correct round extends the sequence by one note and the drill continues; a
   round is graded via the same `grading-engine` note/timing matching used everywhere
   else. The session ends on the first incorrect repeat-back, and its score is how many
@@ -160,75 +192,113 @@ Sight Reading — there's no meaningful reduced mode for "play back what you hea
   the chosen difficulty tier (Advanced ramps faster than Basic) — this is what makes
   the drill get harder over a single session, not just across sessions.
 
-### F-03 Gamification & progress
-- XP awarded per completed lesson/exercise/song, weighted by difficulty and accuracy.
-- Levels derived from cumulative XP.
+**Play-along repertoire** (the authored half, F-01): exercises, chord-progression
+lessons, classical pieces, and original songs, each graded via the shared
+`grading-engine` the same way as everywhere else, organized into this category's
+tier ladder alongside the Repeat drill.
+
+### F-03 The XP economy — Keyvoria's primary progression system
+**XP is a currency the user spends, not a score that just goes up.** This is
+deliberate: a traditional "user level" would be a single number that only ever
+increases and gates nothing in particular — that's exactly what V1 does *not* want,
+because it makes XP cosmetic. Instead:
+
+- **Earning.** XP is awarded per completed lesson, exercise, challenge, or practice
+  session, weighted by difficulty and accuracy — same trigger as any XP system.
+- **Spending.** Ear Training, Sight-Reading, and Playback & Repeat (not Learn My
+  Music — see below) each have their own ladder of **tiers**: tier 1 is free and
+  already unlocked in every category, and each subsequent tier is **purchased** by
+  spending accumulated XP — a deliberate, permanent "unlock" action the user chooses
+  to take, not something that happens automatically the moment they've "earned
+  enough." Unlocking a tier reveals a batch of harder lessons/challenges in that
+  category.
+- **One shared balance, spent on purpose.** XP is earned from any activity in any
+  category and pooled into one balance, spendable on an unlock in *any* category.
+  This is what creates real choice: a user can save toward an expensive Sight-Reading
+  unlock instead of a cheaper Ear Training one, split spending across all three, or
+  binge one category while ignoring another entirely — Keyvoria doesn't force an
+  order.
+- **The cost curve is what makes XP feel valuable.** Each tier should cost
+  meaningfully more than the last (illustratively, on the order of 1.5–2× per step,
+  tuned during content production rather than locked here) — early unlocks come
+  quickly and feel rewarding, later ones require sustained practice and represent a
+  real decision about where to invest. A flat or trivial cost curve would collapse
+  this back into cosmetic points; that's the failure mode this is explicitly
+  designed to avoid.
+- **Premium sits on top of XP, not instead of it.** The most advanced tier(s) in
+  each of the three categories are gated behind Keyvoria Plus *in addition to* their
+  XP cost — a free user can save XP indefinitely and still not reach hardcore
+  content without upgrading. Some of that gate is a direct business decision; some of
+  it is a natural consequence of those tiers needing the 61-key keyboard (§1.4).
+  Learn My Music (F-05) doesn't participate in this tier/XP-unlock system at all —
+  it's gated purely by the Premium subscription, since it's user-generated content
+  with no authored difficulty ladder to unlock.
+- **Level still exists, but only as flavor.** A lightweight, purely cosmetic Level
+  (derived from lifetime XP ever earned — not current spendable balance) shows on
+  the profile for a sense of overall progress and bragging rights. It gates nothing.
+  The real progression state a user cares about is "which tiers have I unlocked in
+  each category," not their Level number.
 - Daily streaks with a grace/freeze mechanic (1 freeze earned periodically, to avoid
   punishing a single missed day too harshly).
-- Achievements/badges (skill milestones, streak milestones, genre completion, perfect
-  scores, "Learn My Music" milestones).
-- Daily challenge: one bite-sized, auto-selected exercise/song section per day.
-- Progress tracking: per-skill mastery (e.g. "chord voicings," "sight-reading," "left
-  hand independence"), visualized over time.
+- Achievements/badges (streak milestones, "first advanced-tier unlock in a category,"
+  perfect-accuracy sessions, Learn My Music milestones).
+- Daily challenge: one bite-sized, auto-selected activity per day, with a bonus-XP
+  reward on top of the activity's normal XP — a daily nudge toward the spendable
+  balance, not just a streak-keeper.
+- Progress tracking: both per-skill accuracy mastery (e.g. "chord voicings,"
+  "sight-reading," "left hand independence" — *how good* the user is) and per-category
+  XP balance/spend and unlocked-tier state (*how far* they've progressed) — these
+  answer different questions and both show on Progress Analytics (screen map §3.8).
 
 ### F-04 Library
 - Searchable/filterable catalog of all lessons, exercises, chord progressions, and
   songs (classical + original), filterable by difficulty, skill tag, genre, duration,
-  and completion status.
+  category, and completion status.
 
-### F-05 "Learn My Music"
-- User uploads a MIDI file or MusicXML file of a song they want to learn.
-- System analyzes and produces:
-  - Difficulty rating (using note density, hand span, tempo, rhythmic complexity,
-    chord complexity as inputs to a scoring heuristic).
-  - Hands-separate practice mode (left hand alone / right hand alone / both).
+### F-05 "Learn My Music" — Premium
+Keyvoria's **primary premium feature**, and the fourth Main Menu category. Earlier
+drafts split this into a free MIDI/MusicXML flow and a separate premium MP3 flow;
+V1 merges them into one feature, one Main Menu entry, entirely behind Keyvoria Plus.
+- User uploads their own music: **MP3 audio** (the primary, headline format) or,
+  where supported, **MIDI/MusicXML** (symbolic formats). Reaching this category
+  without an active subscription shows a paywall/upsell screen instead of the upload
+  flow (`entitlements` in the DB schema, §4.2).
+- Keyvoria analyzes the upload and builds a **personalized practice experience**:
+  - Difficulty analysis (note density, hand span, tempo, rhythmic/chord complexity).
+  - Adjustable playback speed, **0.25×–2× continuous** (YouTube-style picker, not
+    fixed presets), pitch-preserved throughout the range.
   - Section looping (auto-segmented by phrase/measure, user-adjustable loop points).
-  - Performance grading against the uploaded score using the same MIDI-feedback
-    engine as F-02.
-  - Adjustable playback/practice speed, **0.25×–2× continuous** (YouTube-style
-    picker, not fixed presets), pitch-preserved throughout the range.
-- Because this is a *symbolic* input format (MIDI/MusicXML), analysis is
-  deterministic, not estimated — this is the higher-confidence path relative to F-06.
+  - Progressive, hands-separate practice (left hand alone / right hand alone / both).
+  - Performance grading against the uploaded material using the shared
+    `grading-engine` (F-02).
+- **Three ways to practice the same upload**, all built on one analysis pass so the
+  user can freely switch between them:
+  1. **Sheet Music** — renders the analysis as notation (treble/bass grand staff, via
+     the `notation` package) for users who want to read it.
+  2. **Synthesia-style** — falling-notes/piano-roll practice with everything above
+     (hands-separate, section looping, 0.25×–2× speed, performance grading).
+  3. **Auto-Play** — Keyvoria plays the piece back through a synthesized piano, with
+     play/pause/scrub controls so the user can pause at any moment and listen/follow
+     along at their own pace; note highlighting on the visual keyboard runs alongside
+     since the same rendering pipeline as mode 2 already drives it.
+- **Format determines confidence, not entitlement.** MIDI/MusicXML is a *symbolic*
+  input, so its analysis is deterministic, not estimated. MP3 analysis is best-effort
+  (tempo/BPM detection plus audio→MIDI transcription) and **must be clearly and
+  persistently labeled an estimate** (e.g. "Estimated — audio transcription is
+  approximate" banner, not a one-time toast) — this matters most for Sheet Music mode,
+  where a low-confidence transcription can render outright wrong notation, so that
+  mode should visibly flag (or decline to render) sections below a confidence
+  threshold rather than presenting a clean-looking score that's actually guesswork.
+  Users can manually correct detected chords on an MP3 upload, and corrections should
+  feed back into all three modes once confidence is reasonable.
 
-### F-06 Audio-file upload & analysis ("Learn My Song") — Premium
-This and the 61-key on-screen keyboard (F-02, §1.4's Free vs. Premium table) are V1's
-two paid features — everything else in this document (all learning paths, Ear
-Training, Sight Reading, Repeat, the Library) is free. Reaching this from the Main
-Menu without an active entitlement shows a paywall/upsell screen instead of the upload
-flow (see `entitlements` in the DB schema, §4.2 — already modeled as a stubbed table
-this feature now activates). **DECISION NEEDED:** the pricing mechanic itself (one-time
-unlock vs. subscription, and price) is still open; only the "these two things are
-gated, the rest of the app isn't" call has been made.
-- User uploads an audio recording, typically an MP3, of a song they want to learn.
-- System runs tempo/BPM detection and best-effort chord/note transcription (as
-  before), then offers **three ways to learn the song**, all built on top of that one
-  transcription pass so the user can freely switch between them for the same upload:
-  1. **Sheet Music** — renders the transcription as notation (treble/bass grand
-     staff, via the `notation` package) for users who want to read it.
-  2. **Synthesia-style** — falling-notes/piano-roll practice, the same visual paradigm
-     and controls as F-05's Tutorial Player (hands-separate, section looping,
-     0.25×–2× speed, performance grading against the transcription).
-  3. **Auto-Play** — the app plays the transcribed performance back through a
-     synthesized piano, with play/pause/scrub controls so the user can pause at any
-     moment and listen/follow along at their own pace; note highlighting on the
-     visual keyboard is shown alongside since the same rendering pipeline as mode 2
-     already drives it.
-  Section looping, tempo-adjusted playback, and 0.25×–2× speed control are available
-  in all three modes, not just Auto-Play.
-- **All transcription output must be clearly and persistently labeled as an estimate**
-  (e.g. "Estimated — audio transcription is approximate" badge/banner, not a one-time
-  toast) since audio-to-MIDI transcription accuracy varies significantly by recording
-  quality and polyphony. This applies across all three modes, but matters most for
-  Sheet Music, where a low-confidence transcription can render outright wrong notation
-  — that mode should visibly flag (or decline to render) sections below a confidence
-  threshold, rather than presenting a clean-looking score that's actually guesswork.
-  Users can manually correct detected chords, and corrections should be able to feed
-  back into all three modes once confidence is reasonable.
-
-### F-07 Onboarding & assessment
-- Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire").
-- Lightweight skill assessment (can be skipped) to place the user on a path instead of
-  always starting at absolute zero.
+### F-06 Onboarding & assessment
+- Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire") —
+  feeds an initial recommendation of which category to start spending XP in, not a
+  fixed path assignment.
+- Lightweight skill assessment (can be skipped) to grant a starting XP boost and/or
+  pre-unlock an early tier or two in the relevant category, instead of always
+  starting every category at tier 1.
 - MIDI keyboard setup/pairing walkthrough, with a no-MIDI fallback path.
 
 ## 1.5 Non-functional requirements
@@ -257,10 +327,11 @@ gated, the rest of the app isn't" call has been made.
 - Live/synchronous teacher-led lessons or video calls.
 - Instruments other than keyboard/piano (no guitar, no vocal).
 - Marketplace/third-party content submission.
-- The specific billing mechanic behind the premium gate — **DECISION NEEDED:**
-  one-time unlock vs. subscription, and price. That Learn My Song and the 61-key
-  on-screen keyboard specifically are V1's two paid features, and everything else
-  ships free, is now decided (§1.4's Free vs. Premium table, PRD F-06).
 - Full generalized audio-to-score transcription for dense/polyphonic recordings —
-  F-06 is explicitly "best-effort" for V1, not a competitor to specialized transcription
-  software.
+  F-05's MP3 path is explicitly "best-effort" for V1, not a competitor to specialized
+  transcription software.
+- Exact per-tier XP costs and exactly which advanced tiers are premium-only because
+  they need the 61-key range vs. simply paywalled outright (F-03, §1.4) — the
+  mechanism is fully specified; the numbers need content-production input to set for
+  real. Billing itself is resolved: **Keyvoria Plus, $9.95/month** (§1.4) — no longer
+  an open decision.
