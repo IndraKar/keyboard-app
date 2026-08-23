@@ -10,14 +10,14 @@ flowchart LR
     subgraph Tabs["Primary navigation"]
         Home["Home / Dashboard"]
         Learn["Learn<br/>(paths + player)"]
-        Practice["Practice"]
+        Practice["Practice<br/>(= Main Menu)"]
         Library["Library"]
         Profile["Profile"]
     end
 ```
 
 Onboarding and the MIDI setup flow sit outside the tab bar (full-screen, linear).
-Upload flows (Learn My Music, audio upload) are entered from Home/Library/Practice
+Upload flows (Learn My Music, Learn My Song) are entered from Home/Library/Practice
 but open as their own modal/stack flow since they have a distinct linear
 upload → processing → result shape.
 
@@ -43,7 +43,7 @@ upload → processing → result shape.
 - Today's Daily Challenge card.
 - Recommended-next card (next unit on the active learning path).
 - Recent achievements strip.
-- Entry points into Learn My Music and Audio Upload (secondary, not competing with
+- Entry points into Learn My Music and Learn My Song (secondary, not competing with
   the core "continue learning" flow).
 
 ## 3.4 Tab: Learn
@@ -67,20 +67,30 @@ upload → processing → result shape.
   - **Session Summary** screen on completion: score, XP earned, accuracy breakdown by
     skill (notes/rhythm/timing), retry vs. continue.
 
-## 3.5 Tab: Practice
+## 3.5 Tab: Practice — Main Menu
 
-Free-practice space, distinct from the guided Lesson Player:
+The Practice tab's home screen *is* the app's **Main Menu**: a single hub screen with
+one tile per training session type, so nothing is buried under a generic label. Tiles:
 
-- **Practice Home** — quick launchers: metronome-only free play, "warm up" (auto-picks
-  a couple of recent exercises), chord-progression trainer, ear-training drills,
-  sight-reading drills.
-- **Chord Progression Trainer** — pick/roll a progression, play along with adjustable
-  tempo and a "show me the chord" hint toggle.
+- **Ear Training** → Drill Setup (below)
+- **Sight Reading** → clef selector (below)
+- **Chord Progression Trainer** → pick/roll a progression, play along with adjustable
+  tempo and a "show me the chord" hint toggle
+- **Learn My Song** → the MP3/audio upload flow (§3.8a)
+- **Warm Up** → auto-picks a couple of recently-practiced exercises, no setup needed
+- **Free Play** → metronome-only, no grading target
+
+Each tile opens straight into that mode's setup step (no extra menu layer), and each
+mode returns to this Main Menu on exit rather than dead-ending. This is also linked
+from the Home dashboard, not just reachable via the tab bar, since it's the app's most
+frequently used surface after "Continue."
+
 - **Ear Training** — see PRD F-02a for the full spec. Flow:
-  1. **Drill Setup** (bottom sheet or dedicated screen) — choose *Note Intervals* or
-     *Chord Progressions*; for Note Intervals, a 2-notes / 3-notes toggle; for Chord
-     Progressions (and the 3-note case of Note Intervals), a 4-way multi-select chip
-     row for chord quality: Major / Minor / Augmented / Diminished.
+  1. **Drill Setup** — choose *Note Intervals* or *Chord Progressions*.
+     - Note Intervals: a **2–8 notes** stepper (2 = interval, 3 = triad, 4–8 =
+       interval-chain dictation) plus a **Difficulty 1–5** slider.
+     - Chord Progressions: a 4-way multi-select chip row for chord quality —
+       Major / Minor / Augmented / Diminished — plus the same Difficulty 1–5 slider.
   2. **Drill Screen** — large "play stimulus" control (with a repeat/"play again"
      affordance), multiple-choice answer buttons sized to the selected quality
      pool/interval set, immediate correct/incorrect feedback per round, running
@@ -88,14 +98,22 @@ Free-practice space, distinct from the guided Lesson Player:
   3. **Session Summary** — same family as the Lesson Player's summary screen: overall
      accuracy, breakdown per interval/quality, XP earned, retry-with-same-config vs.
      change config.
-- **Sight Reading** — generated or curated short passages, sight-read-once grading.
-- **Practice Screen** (shared surface used by the above and by Library song
-  practice) — metronome, loop-region selector, speed control, live grading overlay.
+- **Sight Reading** — see PRD F-02b. Flow:
+  1. **Clef Setup** — Treble / Bass / Grand Staff selector, plus difficulty filter.
+  2. **Sight Reading Screen** — curated passage rendered via the `notation` package,
+     live MIDI grading overlay (this mode requires a MIDI keyboard, unlike Ear
+     Training), sight-read-once by default with an optional practice-first toggle.
+  3. **Session Summary** — note accuracy and rhythm/timing breakdown, same family as
+     above.
+- **Practice Screen** (shared surface used by Chord Progression Trainer, Warm Up, and
+  Library song practice) — metronome, loop-region selector, speed control, live
+  grading overlay.
 
 ## 3.6 Tab: Library
 
 - **Search & filters** — text search plus filter chips (difficulty, skill tag, genre,
-  duration, content type: exercise / progression / classical / original song,
+  duration, content type: exercise / progression / classical / original song /
+  sight-reading passage,
   completion status).
 - **Result list/grid** → **Item Detail** screen (description, difficulty, preview
   audio, "Start"/"Practice" CTA) → Lesson Player or Practice Screen.
@@ -119,20 +137,37 @@ Free-practice space, distinct from the guided Lesson Player:
 5. Saved into **Library → "My Uploads"** for repeat practice; also surfaces on Home
    "Continue" if in progress.
 
-## 3.8 Audio Upload flow (modal stack)
+## 3.8a Learn My Song flow (modal stack, entered from the Main Menu, Home, or Library)
 
-1. **Upload** — pick an audio file.
+See PRD F-06 for the underlying analysis/labeling requirements.
+
+1. **Upload** — pick an audio file (typically MP3).
 2. **Processing** — job-queued server-side analysis (tempo detection + best-effort
    transcription via `services/transcription`); shows a clear "this can take a
    minute" state since it's not instant like the MIDI/MusicXML path.
-3. **Audio Practice Screen** — waveform view, section loop selector, speed control
-   (25/50/75/100%, pitch-preserved), detected BPM (editable if wrong).
-4. **Estimated Transcription panel** — chord/note overlay clearly and persistently
-   labeled "Estimated," with a way to view/hide it and (V1-light) manually correct
-   obviously-wrong chord labels.
+3. **Mode Select** — once processing completes, one screen with three cards, each
+   launching a different way to learn the same transcription:
+   - **Sheet Music** — notation view (treble/bass grand staff via the `notation`
+     package); low-confidence passages are visibly flagged rather than rendered as
+     if certain.
+   - **Synthesia-style** — falling-notes/piano-roll practice: hands-separate toggle,
+     section loop selector, 25/50/75/100% speed control, performance grading against
+     the transcription — the same surface family as F-05's Tutorial Player.
+   - **Auto-Play** — the app plays the transcribed performance through a synthesized
+     piano with play / pause / scrub controls (pause at any moment); note highlighting
+     on the visual keyboard runs alongside, reusing mode 2's rendering.
+   All three share the same **Estimated Transcription** banner (persistent, not a
+   toast) and the same section loop / speed / BPM controls underneath the mode-
+   specific surface; switching modes mid-session keeps the current loop region and
+   playback position where meaningful.
+4. **Estimated Transcription panel** (available from any of the three modes) —
+   chord/note overlay clearly and persistently labeled "Estimated," with a way to
+   view/hide it and (V1-light) manually correct obviously-wrong chord labels.
 5. Saved into **Library → "My Uploads"** alongside Learn My Music items, visually
    distinguished (estimated-transcription badge) so users don't confuse confidence
-   levels between the two upload types.
+   levels between the two upload types. Re-opening a saved upload returns to Mode
+   Select, not straight into whichever mode was last used, since switching is a core
+   part of this feature.
 
 ## 3.9 Achievements & Progress (reached from Profile, and from Home's achievement
 strip)
@@ -155,13 +190,15 @@ strip)
 
 Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Account Creation
 
-Tabs: Home · Learn (Path Selector, Skill Tree) · Practice (Home, Chord Trainer, Ear
-Training, Sight Reading) · Library (Search/Filter, Item Detail) · Profile
+Tabs: Home · Learn (Path Selector, Skill Tree) · Practice/Main Menu (Chord Trainer,
+Ear Training [Drill Setup, Drill Screen], Sight Reading [Clef Setup, Sight Reading
+Screen], Warm Up, Free Play) · Library (Search/Filter, Item Detail) · Profile
 
 Shared surfaces: Lesson Player · Session Summary · Practice Screen
 
 Upload flows: Learn My Music (Upload, Processing, Tutorial Overview, Tutorial Player) ·
-Audio Upload (Upload, Processing, Audio Practice, Estimated Transcription panel)
+Learn My Song (Upload, Processing, Mode Select, Sheet Music / Synthesia-style /
+Auto-Play, Estimated Transcription panel)
 
 Progress: Achievements · Streaks · Progress Analytics
 

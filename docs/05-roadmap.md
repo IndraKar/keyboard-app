@@ -14,7 +14,7 @@ flowchart TD
     M2 --> M5["M5 · Gamification & progress"]
     M4 --> M6["M6 · Library & search"]
     M3 --> M7["M7 · Learn My Music"]
-    M3 --> M8["M8 · Audio upload & analysis"]
+    M3 --> M8["M8 · Learn My Song"]
     M5 --> M9["M9 · Polish, accessibility, QA"]
     M6 --> M9
     M7 --> M9
@@ -58,14 +58,19 @@ MIDI-integration milestone lands.
 - Visual learning path (skill tree) screen with lock/unlock logic.
 - Lesson Player shell supporting theory and ear-training lesson types (no MIDI grading
   yet — multiple-choice/tap-based interaction).
+- **Main Menu screen** (screen map §3.5, the Practice tab's home): tiles for Ear
+  Training, Sight Reading, Chord Progression Trainer, Learn My Song, Warm Up, Free
+  Play — wired to whatever's built so far and stubbed for the rest, so the hub exists
+  from early on rather than being bolted on later.
 - Ear Training drill engine (PRD F-02a, `ear_training_drills` §4.9): Drill Setup screen
-  (interval vs. chord-progression mode, 2/3-note toggle, major/minor/augmented/
-  diminished quality multi-select), stimulus generation via the `core-theory` package,
-  Drill Screen with multiple-choice grading and session summary.
+  (interval vs. chord-progression mode, 2–8 note stepper, Difficulty 1–5 slider,
+  major/minor/augmented/diminished quality multi-select), stimulus generation via the
+  `core-theory` package, Drill Screen with multiple-choice grading and session summary.
 - A handful (3–5) of placeholder lessons per type to validate the pipeline, not full
   V1 content volume (that's M4).
-**Exit criteria:** a user can pick a path, move through the skill tree, and complete a
-theory/ear-training lesson with progress persisted (`user_progress`, §4.8).
+**Exit criteria:** a user can pick a path, move through the skill tree, complete a
+theory/ear-training lesson with progress persisted (`user_progress`, §4.8), and reach
+every implemented training type from the Main Menu.
 
 ## M3 — MIDI integration
 **Size:** XL — highest technical risk in the roadmap; start early, expect iteration.
@@ -82,6 +87,10 @@ rhythm/timing feedback.
   results.
 - Exercise lesson type (§4.4) fully working: play-along with real-time feedback and
   Session Summary.
+- Sight Reading (PRD F-02b, `sight_reading_passages` §4.4a): Clef Setup screen
+  (Treble / Bass / Grand Staff), Sight Reading Screen rendering a passage via the
+  `notation` package with live grading, Session Summary — this mode needs a MIDI
+  keyboard so it lands here rather than M2.
 **Exit criteria:** a real MIDI keyboard, connected on each platform, drives correct
 hit/miss/early/late feedback on a simple exercise, with latency that feels responsive
 (architecture §2.6 budget).
@@ -96,6 +105,8 @@ hit/miss/early/late feedback on a simple exercise, with latency that feels respo
 - 10–20 public-domain classical pieces engraved/sourced to MusicXML with verified PD
   licensing notes (`songs.license_source_note`).
 - 10–20 original practice songs composed in-house.
+- 15–20 sight-reading passages (`sight_reading_passages`, §4.4a) spanning Treble,
+  Bass, and Grand Staff clefs across the difficulty range.
 - Beginner/Intermediate/Advanced paths and the confirmed genre path(s) fully sequenced
   end to end (not just placeholders).
 **Exit criteria:** every path in the PRD's F-01 scope is playable start-to-finish with
@@ -133,15 +144,20 @@ Tutorial Player flow (screen map §3.7) including hands-separate mode, loop sele
 **Exit criteria:** a user can upload a real-world MIDI or MusicXML file and get a
 working, gradable tutorial with an honest difficulty rating.
 
-## M8 — Audio upload & analysis
+## M8 — Learn My Song (audio upload & analysis)
 **Size:** L
-**Goal:** F-06 end-to-end.
+**Goal:** F-06 end-to-end, all three learn modes.
 **Deliverables:** `services/transcription` (basic-pitch + librosa); job-queue wiring
 from `services/api`; `estimated_chord_labels` table and manual-correction interaction
-(§4.11); Audio Upload flow screens (screen map §3.8) with the persistent "Estimated"
-labeling requirement from the PRD enforced in the UI (not just a one-time toast).
-**Exit criteria:** a user can upload an audio recording and get tempo-detected,
-loopable, speed-adjustable playback with best-effort chord overlay that is
+(§4.11); Upload → Processing → Mode Select flow (screen map §3.8a) with all three
+modes working off the one transcription — Sheet Music (via the `notation` package,
+gated by `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
+falling-notes surface and `grading-engine` from M3/M7), and Auto-Play (synthesized
+piano playback with pause/scrub) — plus the persistent "Estimated" labeling
+requirement from the PRD enforced in the UI (not just a one-time toast).
+**Exit criteria:** a user can upload an MP3 and get tempo-detected, loopable,
+speed-adjustable playback in all three modes, with best-effort chord/note output that
+is
 unambiguously marked as an estimate throughout the UI.
 
 ## M9 — Polish, accessibility, QA

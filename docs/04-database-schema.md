@@ -25,6 +25,7 @@ erDiagram
     LESSONS }o--o{ TAGS : tagged
 
     LESSONS ||--o| EXERCISES : "type: exercise"
+    LESSONS ||--o| SIGHT_READING_PASSAGES : "type: sight_reading"
     LESSONS ||--o| CHORD_PROGRESSION_LESSONS : "type: progression"
     LESSONS ||--o| SONGS : "type: song"
 
@@ -77,8 +78,10 @@ skill-tree lock/unlock state).
 `id`, `slug`, `title`, `type` (enum: exercise / chord_progression / theory /
 ear_training / sight_reading / song), `difficulty` (1–10 int), `est_duration_seconds`,
 `skill_focus` (text[] — e.g. `{rhythm, left_hand, chord_voicing}`), `description`,
-`is_published`. Type-specific detail lives in the linked table (§4.4–4.6) via
-`lessons.detail_id` + `type`, not a giant nullable-column table.
+`is_published`. Type-specific detail lives in the linked table (`exercises` §4.4,
+`sight_reading_passages` §4.4a, `chord_progression_lessons` §4.5, `songs` §4.6, or
+`ear_training_drills` §4.9 for the `ear_training` type) via `lessons.detail_id` +
+`type`, not a giant nullable-column table.
 
 **`tags`** / **`lesson_tags`** (join table `lesson_id`, `tag_id`) — powers Library
 search/filter facets independent of `skill_focus` (tags are curator-facing/searchable;
@@ -90,6 +93,18 @@ search/filter facets independent of `skill_focus` (tags are curator-facing/searc
 `id`, `lesson_id → lessons`, `midi_reference_asset_id → media_assets` (the expected
 note/timing sequence the grading engine plays against), `instructions_md`,
 `hand` (enum: left / right / both).
+
+### 4.4a Sight reading passages
+
+Supports PRD F-02b. Unlike ear training, these are curated content (like exercises),
+not procedurally generated.
+
+**`sight_reading_passages`**
+`id`, `lesson_id → lessons` (nullable — same standalone-vs-path-linked pattern as
+`songs`), `clef` (enum: treble / bass / grand_staff), `musicxml_asset_id →
+media_assets`, `midi_reference_asset_id → media_assets` (expected note/timing
+sequence for grading, same role as `exercises.midi_reference_asset_id`),
+`measure_count`, `difficulty` (1–10).
 
 ### 4.5 Chord progressions
 
@@ -145,14 +160,16 @@ user-configured at play time rather than pre-authored, so the schema models a
 
 **`ear_training_drills`**
 `id`, `lesson_id → lessons` (nullable — set only for curated, path-linked stops;
-null for an ad-hoc config the user assembles in the Practice tab), `drill_type` (enum:
-interval / chord_quality / chord_progression), `stimulus_note_count` (enum: 2 / 3 —
-applicable when `drill_type = interval`; 3 means the stimulus is a triad, graded like
-`chord_quality`), `allowed_qualities` (text[], subset of `{major, minor, augmented,
-diminished}` — applicable when `drill_type` is `chord_quality` or `chord_progression`,
-or when `drill_type = interval` and `stimulus_note_count = 3`), `progression_length`
-(int, nullable — number of chords in sequence, applicable when
-`drill_type = chord_progression`), `difficulty` (1–10). A row is created for every
+null for an ad-hoc config the user assembles from the Main Menu), `drill_type` (enum:
+interval / chord_progression), `stimulus_note_count` (int, 2–8, applicable when
+`drill_type = interval` — 2 = two-note interval, 3 = triad graded by chord quality,
+4–8 = melodic interval-chain dictation), `allowed_qualities` (text[], subset of
+`{major, minor, augmented, diminished}` — applicable when `drill_type =
+chord_progression`, or when `drill_type = interval` and `stimulus_note_count = 3`),
+`progression_length` (int, nullable — number of chords in sequence, applicable when
+`drill_type = chord_progression`), `difficulty_level` (int, 1–5 — the user-facing
+Difficulty dial from PRD F-02a; for curated, `lesson_id`-linked drills this also
+orders the drill's position within its path unit). A row is created for every
 session, curated or ad hoc, so `ear_training_sessions` always has exactly one
 `drill_id` to reference regardless of where the config came from.
 
@@ -167,10 +184,12 @@ table rather than `attempts`.
 `id`, `session_id → ear_training_sessions`, `round_index`, `stimulus` (jsonb — the
 generated notes/chord-quality sequence actually played, e.g.
 `{"note_a": "C4", "note_b": "E4"}` for a 2-note interval, `{"root": "C4", "quality":
-"minor"}` for a triad, or `{"chords": [{"root": "C4", "quality": "major"}, {"root":
-"G4", "quality": "diminished"}]}` for a progression — generated at runtime by the
-`core-theory` package, not pre-authored content), `correct_answer`, `user_answer`,
-`is_correct`, `response_time_ms`.
+"minor"}` for a triad, `{"notes": ["C4", "E4", "G4", "B4", "D5"]}` for a 5-note
+interval-chain dictation round, or `{"chords": [{"root": "C4", "quality": "major"},
+{"root": "G4", "quality": "diminished"}]}` for a progression — generated at runtime by
+the `core-theory` package, not pre-authored content), `correct_answer` (for
+interval-chain rounds, the ordered list of interval names between consecutive notes),
+`user_answer`, `is_correct`, `response_time_ms`.
 
 ## 4.10 Gamification
 
@@ -212,7 +231,7 @@ schema supports either, but it changes how `daily_challenges` vs.
 `id`, `user_id → users`, `daily_challenge_id → daily_challenges`, `completed_at`,
 `attempt_id → attempts`.
 
-## 4.11 Learn My Music & audio upload
+## 4.11 Learn My Music & Learn My Song
 
 **`user_uploads`**
 `id`, `user_id → users`, `upload_type` (enum: midi / musicxml / audio),
@@ -226,7 +245,11 @@ schema supports either, but it changes how `daily_challenges` vs.
 transparency/debuggability of the rating), `detected_tempo_bpm`, `hands_separate_available`
 (bool), `is_estimated` (bool — **true for audio-sourced tutorials, false for
 MIDI/MusicXML-sourced**; this is the field the UI's "Estimated" badge reads from, per
-PRD F-06).
+PRD F-06), `sheet_music_available` (bool — false when transcription confidence is
+too low to render notation responsibly; gates whether the Sheet Music mode card in
+the screen map's Mode Select is enabled or shown disabled with an explanation. The
+Synthesia-style and Auto-Play modes have no equivalent gate — they degrade
+gracefully with a rougher transcription in a way that mis-rendered notation cannot).
 
 **`tutorial_sections`**
 `id`, `generated_tutorial_id → generated_tutorials`, `label`, `start_time_ms`,
@@ -240,7 +263,7 @@ Practice Screen consumes both through the same loop-selector UI.
 `id`, `generated_tutorial_id → generated_tutorials`, `start_time_ms`, `end_time_ms`,
 `chord_label`, `confidence` (0–1, from the transcription model), `user_corrected`
 (bool) — supports the "manually correct obviously-wrong chord labels" interaction from
-the screen map's Audio Upload flow.
+the screen map's Learn My Song flow.
 
 ## 4.12 Search
 

@@ -2,12 +2,14 @@
 
 ## 1.1 Vision
 
-A single, polished app — **KeyPath** (working name) — that takes someone from "never
-touched a keyboard" to confidently playing real songs, reading music, and improvising
-over chord changes, using a MIDI keyboard for real-time feedback on notes, chords,
-rhythm, and timing. It should feel closer to a well-designed game or fitness app
-(Duolingo / Yousician territory) than a static video course: structured paths, instant
-feedback, visible progress, and a reason to come back daily.
+**KEYFORGE** — *Forge Your Musical Mastery.*
+
+A single, polished app that takes someone from "never touched a keyboard" to
+confidently playing real songs, reading music, and improvising over chord changes,
+using a MIDI keyboard for real-time feedback on notes, chords, rhythm, and timing. It
+should feel closer to a well-designed game or fitness app (Duolingo / Yousician
+territory) than a static video course: structured paths, instant feedback, visible
+progress, and a reason to come back daily.
 
 ## 1.2 Target users
 
@@ -17,7 +19,7 @@ feedback, visible progress, and a reason to come back daily.
 | **Returning Player** | Took lessons years ago, rusty | Placement/assessment, refreshers on theory & technique, faster ramp |
 | **Self-taught Improviser** | Plays by ear, weak on theory/reading | Chord progressions, theory, sight-reading, ear training |
 | **Classical Track Student** | Wants repertoire and reading fluency | Public-domain classical pieces, hands-separate practice, grading |
-| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (MIDI/MusicXML/audio upload) |
+| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MIDI/MusicXML) and Learn My Song (F-06, MP3/audio) |
 | **Genre Learner** | Wants pop/jazz/blues comping, not classical | Genre-focused learning paths, chord-progression lessons |
 
 ## 1.3 Platforms & shared codebase
@@ -30,6 +32,12 @@ thin, platform-specific implementations behind a common interface.
 ## 1.4 V1 feature scope
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
+
+A **Main Menu** screen (screen map §3.5) is the primary entry point into every
+training session type below — Ear Training (both drill types), Sight Reading (both
+clefs), Chord Progression Trainer, and Learn My Song — rather than those being buried
+under a generic "Practice" label. It is not a separate feature so much as the
+organizing surface for all of F-02a, F-02b, and F-06.
 
 ### F-01 Structured learning content
 - 25–50 original learning exercises (technique, theory, rhythm, hand independence)
@@ -61,25 +69,48 @@ Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
   for theory/ear-training/sight-reading content that doesn't require live playing.
 
 ### F-02a Ear Training: intervals & chord-quality drills
-A configurable ear-training drill, selectable from the Practice tab (screen map §3.5)
-and also offered as fixed, difficulty-ordered stops on the Beginner/Intermediate paths.
-Before starting, the user picks:
-- **Drill type** — *Note Intervals* (the system plays 2 or 3 notes together; user
-  identifies what was played) or *Chord Progressions* (the system plays a short
-  sequence of chords; user identifies each chord in order).
-- **Notes per stimulus** (Note Intervals only) — **2 notes** (a two-note interval,
-  e.g. major third, perfect fifth) or **3 notes** (a triad, graded by chord quality).
-- **Chord quality pool** (Chord Progressions, and the 3-note case of Note Intervals) —
-  a multi-select over exactly four qualities: **Major, Minor, Augmented, Diminished**.
-  Only chords built from the selected qualities are used, so a beginner can start with
-  Major vs. Minor only and add Augmented/Diminished once that's solid.
-- Each round plays the stimulus (repeatable via a "play again" control) and presents
-  multiple-choice answers; the session is self-graded (no MIDI keyboard required, per
-  F-02's reduced mode) — a stretch goal, not V1, is letting the user instead play back
-  what they heard on a connected MIDI keyboard, graded by the same `grading-engine`
-  used elsewhere in the app.
-- Session summary shows accuracy per quality/interval type, feeding the same per-skill
-  Progress Analytics breakdown as other lesson types (PRD F-03).
+A configurable ear-training drill, launched from the Main Menu (screen map §3.5) and
+also offered as fixed, difficulty-ordered stops on the Beginner/Intermediate paths.
+Two drill types, both configured before the session starts:
+
+- **Note Intervals** — the system plays a stimulus of **2 to 8 notes**, chosen by the
+  user with a stepper/slider:
+  - **2 notes**: classic two-note interval identification (answer: interval name,
+    e.g. major third, perfect fifth).
+  - **3 notes**: a triad, graded by chord quality (see quality pool below).
+  - **4–8 notes**: a short note sequence (played melodically); the user identifies
+    the full chain of intervals between consecutive notes — this scales the same
+    mechanic up into basic melodic dictation without introducing a new drill type.
+  - A **Difficulty** setting (1–5, independent of note count) widens or narrows the
+    interval range the stimulus is drawn from, adds/removes closely-confusable
+    distractor choices, and adjusts playback tempo — so, for example, a 2-note drill
+    at Difficulty 1 stays within an octave with obviously-different answer choices,
+    while Difficulty 5 spans wider intervals with tighter distractors.
+- **Chord Progressions** — the system plays a short sequence of chords; the user
+  identifies each chord's quality in order. Quality pool is a multi-select over
+  exactly four qualities: **Major, Minor, Augmented, Diminished** (chords are built
+  only from selected qualities, so a beginner can start with Major vs. Minor and add
+  Augmented/Diminished later). The same Difficulty 1–5 setting adjusts progression
+  length and voicing complexity.
+
+Mechanics common to both: each round plays the stimulus (repeatable via a "play
+again" control) and presents multiple-choice answers; the session is self-graded (no
+MIDI keyboard required, per F-02's reduced mode) — a stretch goal, not V1, is letting
+the user instead play back what they heard on a connected MIDI keyboard, graded by the
+same `grading-engine` used elsewhere in the app. Session summary shows accuracy per
+interval/quality, feeding the same per-skill Progress Analytics breakdown as other
+lesson types (PRD F-03).
+
+### F-02b Sight Reading
+Short notated passages the user reads and plays in real time, graded by the same
+`grading-engine` as F-02 (this mode does expect a MIDI keyboard, unlike ear training).
+- **Clef selector**: Treble, Bass, or Grand Staff (both clefs, hands together) — set
+  before starting, since left-hand/bass-clef reading is a distinct skill most beginner
+  content should isolate before combining.
+- Passages are curated content (not procedurally generated, unlike F-02a), difficulty-
+  tagged, and pulled into the Beginner/Intermediate/Advanced paths as well as offered
+  as standalone drills from the Main Menu.
+- Grading covers note accuracy and rhythm/timing, consistent with F-02.
 
 ### F-03 Gamification & progress
 - XP awarded per completed lesson/exercise/song, weighted by difficulty and accuracy.
@@ -110,16 +141,32 @@ Before starting, the user picks:
 - Because this is a *symbolic* input format (MIDI/MusicXML), analysis is
   deterministic, not estimated — this is the higher-confidence path relative to F-06.
 
-### F-06 Audio-file upload & analysis
-- User uploads an audio recording (e.g. a recording of a song they want to learn).
-- System provides: slowed-down playback (25/50/75/100%, pitch-preserved), section
-  looping, automatic tempo/BPM detection, and best-effort chord/note transcription.
+### F-06 Audio-file upload & analysis ("Learn My Song")
+- User uploads an audio recording, typically an MP3, of a song they want to learn.
+- System runs tempo/BPM detection and best-effort chord/note transcription (as
+  before), then offers **three ways to learn the song**, all built on top of that one
+  transcription pass so the user can freely switch between them for the same upload:
+  1. **Sheet Music** — renders the transcription as notation (treble/bass grand
+     staff, via the `notation` package) for users who want to read it.
+  2. **Synthesia-style** — falling-notes/piano-roll practice, the same visual paradigm
+     and controls as F-05's Tutorial Player (hands-separate, section looping,
+     25/50/75/100% speed, performance grading against the transcription).
+  3. **Auto-Play** — the app plays the transcribed performance back through a
+     synthesized piano, with play/pause/scrub controls so the user can pause at any
+     moment and listen/follow along at their own pace; note highlighting on the
+     visual keyboard is shown alongside since the same rendering pipeline as mode 2
+     already drives it.
+  Section looping, tempo-adjusted playback, and speed control (25/50/75/100%) are
+  available in all three modes, not just Auto-Play.
 - **All transcription output must be clearly and persistently labeled as an estimate**
   (e.g. "Estimated — audio transcription is approximate" badge/banner, not a one-time
   toast) since audio-to-MIDI transcription accuracy varies significantly by recording
-  quality and polyphony. Users can manually correct detected chords, and corrections
-  should be able to feed a "Learn My Music"-style structured practice view once
-  confidence is reasonable.
+  quality and polyphony. This applies across all three modes, but matters most for
+  Sheet Music, where a low-confidence transcription can render outright wrong notation
+  — that mode should visibly flag (or decline to render) sections below a confidence
+  threshold, rather than presenting a clean-looking score that's actually guesswork.
+  Users can manually correct detected chords, and corrections should be able to feed
+  back into all three modes once confidence is reasonable.
 
 ### F-07 Onboarding & assessment
 - Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire").
