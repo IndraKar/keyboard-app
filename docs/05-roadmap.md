@@ -26,8 +26,8 @@ before any code is written.
 **Deliverables:** the five documents in this `docs/keyboard-app/` set.
 **Exit criteria:** explicit sign-off from the product owner, including resolution of
 the `DECISION NEEDED` items flagged in the PRD and architecture docs (genre-tag
-choice, Expo-vs-Flutter confirmation, exact per-tier XP costs, daily-challenge
-personalization). **No application code is written until this milestone is approved.**
+choice, Expo-vs-Flutter confirmation, daily-challenge personalization — per-tier XP
+costs are now settled, see PRD F-03). **No application code is written until this milestone is approved.**
 
 ## M1 — Foundations
 **Size:** M
@@ -158,9 +158,14 @@ into actual numbers per tier, tuned by whoever's authoring the content.
   generated (not authored per-item), this is a smaller task — setting each tier's
   `difficulty_level` range and XP cost (`category_tiers`, §4.9b) rather than
   authoring individual lessons.
-- **Four tiers per category, no exceptions** (PRD §1.4, DB §4.9b): tier 1 at
-  `xp_cost = 0`, tiers 2–3 `required_plan = free` on a rising cost curve, tier 4
-  `required_plan = premium` at the highest cost.
+- **Four tiers per category, with the settled numbers** (PRD F-03, DB §4.9b) seeded
+  as data, not hard-coded: costs 0 / 750 / 1,250 / 2,000 and earn rates 75 / 100 /
+  125 / 150 XP per correct exercise, tier 4 `required_plan = premium`.
+- **Content volume is now pace-constrained, not just quality-constrained.** At 750 XP
+  for tier 2, a user clears it in ~10 correct tier-1 exercises, so each tier needs
+  enough distinct exercises that they aren't repeating the same handful on the way
+  through. Treat "exercises per tier" as a number to check against these costs during
+  authoring, not an afterthought.
 - **The 2-octave rule is a hard authoring constraint for tiers 1–3** in all three
   categories — every passage, exercise, song arrangement, and generated sequence in
   those tiers must be playable within 2 octaves, verified by the content linter, not
@@ -181,7 +186,8 @@ nice-to-have.
 **Goal:** F-03 end-to-end — XP earning *and spending* both work, making tiers beyond
 each category's free tier 1 actually reachable for the first time.
 **Deliverables:**
-- `gamification` package: XP-earning curve, and the tier-unlock purchase transaction
+- `gamification` package: the earning rule (one correct exercise → that tier's flat
+  rate, and **no other XP source** — PRD F-03), and the tier-unlock purchase transaction
   (validate balance and, where relevant, `entitlements`, then insert into
   `user_category_unlocks` — §4.9b) as one atomic, server-validated operation.
 - `xp_events` / `user_category_unlocks` / `user_level` / `streaks` / `achievements` /

@@ -70,10 +70,8 @@ active Keyvoria Plus subscription *and* its XP cost. There is no per-category
 variation in where the paywall falls, which keeps the offer explainable in one
 sentence: *tiers 1–3 free, tier 4 plus the 61-key keyboard for $9.95/month.*
 
-The billing mechanic is a **$9.95/month subscription** — this closes the billing
-`DECISION NEEDED` an earlier draft left open. What's still genuinely open: exact
-per-tier XP costs (F-03), which needs content-production input to answer for real
-rather than an invented number here.
+The billing mechanic is a **$9.95/month subscription**. The XP numbers are now set
+too (F-03) — earning rates and unlock costs are fixed values, not placeholders.
 
 ### F-01 Structured learning content
 Content is organized **by category**, not by a level spanning all of them — each
@@ -229,12 +227,36 @@ deliberate: a traditional "user level" would be a single number that only ever
 increases and gates nothing in particular — that's exactly what V1 does *not* want,
 because it makes XP cosmetic. Instead:
 
-- **Earning.** XP is awarded per completed lesson, exercise, challenge, or practice
-  session, weighted by difficulty and accuracy — same trigger as any XP system.
+- **Earning — one rule, no exceptions.** XP is awarded for **one correct exercise,
+  once**, at a flat rate set by the tier the exercise belongs to:
+
+  | Tier | XP per correct exercise |
+  |---|---|
+  | 1 | **75** |
+  | 2 | **100** |
+  | 3 | 125 |
+  | 4 | 150 |
+
+  An incorrect exercise earns **nothing** — not a reduced amount, not a consolation
+  award. Nothing else in the app grants XP either: no completion bonus for finishing
+  a session, no streak XP, no daily-challenge bonus XP, no XP for free play. This
+  retires the earlier draft's "streak bonus" and "daily challenge bonus XP" as
+  *XP sources*; streaks and the daily challenge remain as engagement features, they
+  simply don't mint currency. The reason to be strict here: every additional XP
+  source silently devalues the unlock costs below, and a currency with many faucets
+  stops feeling earned.
 - **Spending.** Ear Training, Sight-Reading, and Playback & Repeat (not Learn My
-  Music — see below) each have their own ladder of **tiers**: tier 1 is free and
-  already unlocked in every category, and each subsequent tier is **purchased** by
-  spending accumulated XP — a deliberate, permanent "unlock" action the user chooses
+  Music — see below) each have their own ladder of **tiers**, with fixed costs:
+
+  | Tier | Unlock cost | Correct tier-1 exercises to afford it |
+  |---|---|---|
+  | 1 | **0** — unlocked from the start | — |
+  | 2 | **750 XP** | 10 |
+  | 3 | **1,250 XP** | 17 (or 13 correct tier-2 exercises) |
+  | 4 | 2,000 XP **+ Keyvoria Plus** | 27 (or 16 correct tier-3 exercises) |
+
+  Tier 1 is free and already unlocked in every category; each subsequent tier is
+  **purchased** by spending accumulated XP — a deliberate, permanent "unlock" action the user chooses
   to take, not something that happens automatically the moment they've "earned
   enough." Unlocking a tier reveals a batch of harder lessons/challenges in that
   category.
@@ -244,13 +266,19 @@ because it makes XP cosmetic. Instead:
   unlock instead of a cheaper Ear Training one, split spending across all three, or
   binge one category while ignoring another entirely — Keyvoria doesn't force an
   order.
-- **The cost curve is what makes XP feel valuable.** Each tier should cost
-  meaningfully more than the last (illustratively, on the order of 1.5–2× per step,
-  tuned during content production rather than locked here) — early unlocks come
-  quickly and feel rewarding, later ones require sustained practice and represent a
-  real decision about where to invest. A flat or trivial cost curve would collapse
-  this back into cosmetic points; that's the failure mode this is explicitly
-  designed to avoid.
+- **The cost curve is what makes XP feel valuable.** Costs rise faster than earning
+  rates: unlock costs step 750 → 1,250 → 2,000 (roughly 1.6×) while the per-exercise
+  rate only steps 75 → 100 → 125 → 150. So each tier takes more real practice than
+  the one before even though each exercise pays more — early unlocks come quickly and
+  feel rewarding, later ones represent a genuine decision about where to invest. A
+  flat or trivial cost curve would collapse this back into cosmetic points; that's
+  the failure mode this is explicitly designed to avoid.
+- **What "an exercise" means for XP.** One exercise is one graded item — a single
+  interval identified, one passage played correctly end to end, one sequence repeated
+  back. A practice session bundles five of them, so a flawless tier-1 session pays
+  375 XP and two of them clear a tier-2 unlock. This is deliberately the unit the
+  user experiences as "getting one right," so the reward lands immediately rather
+  than being deferred to a session total.
 - **Four tiers per category; tier 4 is premium.** Every tiered category has exactly
   four tiers. Tier 1 is free and pre-unlocked (0 XP). Tiers 2 and 3 are free-tier XP
   purchases. **Tier 4 — the bonus tier — is gated behind Keyvoria Plus *in addition
@@ -270,9 +298,9 @@ because it makes XP cosmetic. Instead:
   punishing a single missed day too harshly).
 - Achievements/badges (streak milestones, "first advanced-tier unlock in a category,"
   perfect-accuracy sessions, Learn My Music milestones).
-- Daily challenge: one bite-sized, auto-selected activity per day, with a bonus-XP
-  reward on top of the activity's normal XP — a daily nudge toward the spendable
-  balance, not just a streak-keeper.
+- Daily challenge: one bite-sized, auto-selected activity per day. Its exercises pay
+  their normal per-tier rate when answered correctly and **nothing extra** — the
+  draw is the prompt itself, not bonus currency (see the earning rule above).
 - Progress tracking: both per-skill accuracy mastery (e.g. "chord voicings,"
   "sight-reading," "left hand independence" — *how good* the user is) and per-category
   XP balance/spend and unlocked-tier state (*how far* they've progressed) — these
@@ -402,8 +430,9 @@ Subscription** action:
 - Full generalized audio-to-score transcription for dense/polyphonic recordings —
   F-05's MP3 path is explicitly "best-effort" for V1, not a competitor to specialized
   transcription software.
-- Exact per-tier XP costs for tiers 2–4 (F-03, §1.4) — the mechanism is fully
-  specified; the numbers need content-production input to set for real. The two
-  things this bullet used to also leave open are now resolved: **which tiers are
-  premium** (always and only tier 4, §1.4) and **billing** (Keyvoria Plus,
-  $9.95/month).
+- *(Resolved — kept here as a record.)* Per-tier XP costs and earn rates, which tiers
+  are premium (always and only tier 4), and billing ($9.95/month) were all open in
+  earlier drafts. All three are now fixed in F-03 and §1.4. What remains genuinely
+  open is only the **tier-3 and tier-4 rates and cost** (125/150 XP and 2,000 XP),
+  which extend the given curve and should be confirmed once tier-3+ content exists to
+  play against.

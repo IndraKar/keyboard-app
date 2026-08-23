@@ -1,0 +1,1121 @@
+<title>Keyvoria</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#110f0e; --surface:#1c1917; --surface-2:#221e1b; --border:#332c27; --border-soft:#2a2320;
+  --text:#f5f1ec; --dim:#a89f96; --faint:#6f655d;
+  --accent:#ff8a3d; --accent-deep:#c96a2c; --accent-soft:rgba(255,138,61,0.13);
+  --gold:#e8c15a; --gold-soft:rgba(232,193,90,0.13);
+  --good:#5ee6a5; --good-soft:rgba(94,230,165,0.13);
+  --bad:#ff6b6b; --bad-soft:rgba(255,107,107,0.13);
+  --felt:#7d2230;
+  --ivory:#f4efe6; --ivory-2:#e6dfd3; --ebony:#151211;
+  --display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --body:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+  --wk:34px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--body);
+  -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  touch-action:manipulation;
+}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;}
+.tnum{font-variant-numeric:tabular-nums;}
+
+/* ---------- shell ---------- */
+.app{
+  max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;
+  display:flex;flex-direction:column;position:relative;
+  background:var(--bg);
+  border-left:1px solid var(--border-soft);border-right:1px solid var(--border-soft);
+}
+@media(max-width:540px){.app{border:none;}}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 18px 10px;flex-shrink:0;
+}
+.brand{display:flex;align-items:center;gap:9px;}
+.wordmark{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.07em;}
+.xppill{
+  display:flex;align-items:center;gap:6px;background:var(--accent-soft);
+  border:1px solid var(--accent);color:var(--accent);
+  font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;white-space:nowrap;
+}
+.view{flex:1;padding:6px 18px 18px;display:flex;flex-direction:column;gap:14px;min-height:0;}
+.tabbar{
+  display:flex;flex-shrink:0;border-top:1px solid var(--border);
+  background:var(--bg);padding:9px 6px calc(11px + env(safe-area-inset-bottom,0px));
+  position:sticky;bottom:0;
+}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:10px;font-weight:600;padding:4px 0;border-radius:10px;}
+.tab.on{color:var(--accent);}
+
+/* ---------- type ---------- */
+.h1{font-family:var(--display);font-size:23px;font-weight:600;letter-spacing:-.01em;text-wrap:balance;}
+.h2{font-family:var(--display);font-size:16px;font-weight:600;}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);}
+.sub{color:var(--dim);font-size:12.5px;line-height:1.5;}
+.faint{color:var(--faint);font-size:11px;line-height:1.5;}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;}
+.card.warm{background:linear-gradient(140deg,#241a12,#1c1917);border-color:#3d2c1b;}
+.card.gold{background:linear-gradient(140deg,#241e14,#1c1917);border-color:#4a3a1e;}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.stack{display:flex;flex-direction:column;gap:12px;}
+.grow{flex:1;min-width:0;}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--accent);color:#1a0f06;font-weight:700;font-size:13.5px;
+  padding:13px 20px;border-radius:999px;transition:filter .12s,transform .08s;
+}
+.btn:active{transform:translateY(1px);}
+.btn:hover{filter:brightness(1.08);}
+.btn.block{display:flex;width:100%;}
+.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn.ghost:hover{border-color:var(--faint);filter:none;}
+.btn.gold{background:var(--gold);color:#241a06;}
+.btn.off{background:var(--surface-2);color:var(--faint);cursor:not-allowed;}
+.btn.off:hover{filter:none;}
+.btn.sm{font-size:11.5px;padding:8px 14px;}
+.link{color:var(--faint);font-size:11.5px;text-decoration:underline;padding:6px 0;}
+.link:hover{color:var(--dim);}
+
+/* ---------- tiles ---------- */
+.tile{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:15px;
+  transition:border-color .14s,background .14s;
+}
+.tile:hover{border-color:var(--accent-deep);}
+.tile.warm{background:linear-gradient(140deg,#2a1c10,#1c1917);border-color:#3f2c19;}
+.tile.gold{background:linear-gradient(140deg,#241e14,#1c1917);border-color:#4a3a1e;}
+.tile.gold:hover{border-color:var(--gold);}
+.ticon{width:46px;height:46px;border-radius:14px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ticon.gold{background:var(--gold-soft);}
+.ttitle{font-size:14.5px;font-weight:600;}
+.tsub{font-size:11.5px;color:var(--dim);margin-top:3px;}
+.pill{
+  font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:3px 8px;border-radius:999px;flex-shrink:0;
+  background:var(--gold-soft);border:1px solid rgba(232,193,90,.4);color:var(--gold);
+}
+
+/* ---------- momentum ---------- */
+.momentum{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:linear-gradient(140deg,#241a12,#1c1917);border:1px solid #3a2b1c;border-radius:14px;padding:12px 14px;}
+.molabel{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);}
+.motitle{font-size:13px;font-weight:600;margin-top:2px;}
+
+/* ---------- toggle ---------- */
+.togglerow{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 14px;}
+.tglabel{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;}
+.tg{width:40px;height:23px;border-radius:999px;position:relative;flex-shrink:0;background:var(--surface-2);border:1px solid var(--border);transition:background .15s;}
+.tg.on{background:var(--accent);border-color:var(--accent);}
+.knob{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--faint);transition:left .15s,background .15s;}
+.tg.on .knob{left:19px;background:#1a0f06;}
+
+/* ---------- tier ladder ---------- */
+.tier{display:flex;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;transition:border-color .14s;}
+.tier.cur{background:linear-gradient(140deg,#241a12,#1c1917);border-color:#3f2c19;}
+.tier.open:hover{border-color:var(--accent-deep);}
+.node{width:33px;height:33px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--display);font-weight:700;font-size:13px;}
+.node.done{background:var(--good);color:#0d2b1c;}
+.node.cur{background:var(--accent);color:#1a0f06;}
+.node.lock{background:var(--surface-2);border:1px solid var(--border);color:var(--faint);}
+.tiertitle{font-size:13.5px;font-weight:600;}
+.tiersub{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.45;}
+.unlockrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;}
+.cost{font-family:var(--display);font-size:13px;font-weight:700;color:var(--accent);}
+.cost.short{font-family:var(--body);font-size:11px;font-weight:600;color:var(--faint);}
+
+/* ---------- exercise ---------- */
+.exhead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.iconbtn{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.iconbtn:hover{border-color:var(--faint);}
+.dots{display:flex;gap:6px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);}
+.dot.ok{background:var(--good);border-color:var(--good);}
+.dot.no{background:var(--bad);border-color:var(--bad);}
+.dot.now{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+.prompt{text-align:center;font-family:var(--display);font-size:15px;font-weight:600;line-height:1.4;text-wrap:balance;}
+.playbtn{
+  width:96px;height:96px;border-radius:50%;margin:0 auto;
+  background:radial-gradient(circle at 34% 28%,#ffb27a,var(--accent) 62%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 10px rgba(255,138,61,.07);transition:transform .1s,box-shadow .2s;
+}
+.playbtn:active{transform:scale(.96);}
+.playbtn.ringing{box-shadow:0 0 0 18px rgba(255,138,61,.05);}
+.opts{display:flex;flex-direction:column;gap:9px;}
+.opt{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;font-size:13.5px;font-weight:600;transition:border-color .14s,background .14s;
+}
+.opt:hover:not(.locked){border-color:var(--accent-deep);}
+.opt.right{background:var(--good-soft);border-color:var(--good);color:var(--good);}
+.opt.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--bad);}
+.opt.locked{cursor:default;}
+.verdict{text-align:center;font-size:13px;font-weight:700;padding:4px 0;}
+.verdict.ok{color:var(--good);}
+.verdict.no{color:var(--bad);}
+
+/* ---------- staff ---------- */
+.staffcard{background:#181513;border:1px solid var(--border);border-radius:16px;padding:16px 10px;overflow-x:auto;}
+.staffcard svg{display:block;margin:0 auto;}
+
+/* ---------- keyboard ---------- */
+.kbdock{margin-top:auto;padding-top:12px;flex-shrink:0;}
+.exbody{flex:1;display:flex;flex-direction:column;gap:14px;min-height:0;}
+.kbmeta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;padding:0 2px;}
+.kbscroll{overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--ebony);border:1px solid var(--border);-webkit-overflow-scrolling:touch;}
+.kb{position:relative;height:132px;padding-top:7px;background:linear-gradient(180deg,var(--felt) 0 7px,var(--ebony) 7px);}
+.kb.mini{height:104px;}
+.wk{
+  position:absolute;top:7px;bottom:0;
+  background:linear-gradient(180deg,var(--ivory) 78%,var(--ivory-2));
+  border:1px solid #0f0d0c;border-top:none;border-radius:0 0 5px 5px;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:7px;
+  font-size:9.5px;font-weight:600;color:#8a8076;
+  box-shadow:inset -2px 0 3px rgba(0,0,0,.16);
+  user-select:none;-webkit-user-select:none;
+}
+.wk.down{background:linear-gradient(180deg,#ffc79b,#f0a878);box-shadow:inset 0 3px 7px rgba(90,40,0,.3);}
+.wk.hint{background:linear-gradient(180deg,#bff3da,#8fe3bf);}
+.bk{
+  position:absolute;top:7px;height:58%;
+  background:linear-gradient(180deg,#2c2725,#121010 72%);
+  border-radius:0 0 4px 4px;z-index:2;
+  box-shadow:0 4px 6px rgba(0,0,0,.55),inset 0 -2px 2px rgba(255,255,255,.07);
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;
+  font-size:8px;font-weight:600;color:#7a716a;
+  user-select:none;-webkit-user-select:none;
+}
+.bk.down{background:linear-gradient(180deg,#d9853f,#a85f27);box-shadow:0 2px 3px rgba(0,0,0,.5);}
+.bk.hint{background:linear-gradient(180deg,#4bbd90,#2f8e69);}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 8px;text-align:center;}
+.statnum{font-family:var(--display);font-size:21px;font-weight:700;color:var(--accent);}
+.statlab{font-size:9.5px;color:var(--faint);margin-top:4px;line-height:1.35;}
+.kv{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:5px 0;}
+.kvk{color:var(--dim);}
+.kvv{font-weight:600;}
+.bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:7px;}
+.barfill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent-deep),var(--accent));}
+
+/* ---------- summary ---------- */
+.bigxp{font-family:var(--display);font-size:44px;font-weight:700;color:var(--accent);line-height:1;}
+.center{text-align:center;}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:86px;z-index:60;
+  background:var(--good);color:#0b2b1c;font-weight:700;font-size:12.5px;
+  padding:11px 18px;border-radius:999px;box-shadow:0 8px 26px rgba(0,0,0,.5);
+  max-width:88vw;text-align:center;
+}
+.toast.warn{background:var(--accent);color:#1a0f06;}
+.notice{background:var(--accent-soft);border:1px solid rgba(255,138,61,.3);border-radius:12px;padding:11px 13px;font-size:11.5px;color:var(--dim);line-height:1.55;}
+.notice.keep{background:var(--good-soft);border-color:rgba(94,230,165,.3);}
+.notice b{color:var(--text);}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="14" width="3" height="7" rx="1" fill="#ff8a3d"/><rect x="9" y="9" width="3" height="12" rx="1" fill="#ff8a3d"/><rect x="15" y="4" width="3" height="17" rx="1" fill="#ff8a3d"/><path d="M16.5 1.5L18.2 4L16.5 6.5L14.8 4Z" fill="#f5f1ec"/></svg>
+      <div class="wordmark">KEYVORIA</div>
+    </div>
+    <div class="xppill tnum"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2C12 2 6 9 6 14a6 6 0 0012 0c0-2-1-3.5-2-5 0 2-1 3-2 3-1.5 0-2-1.5-1-3.5C13.5 6 12 4 12 2z" fill="#ff8a3d"/></svg><span id="xpLabel">0</span> XP</div>
+  </div>
+  <div class="view" id="view"></div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script>
+"use strict";
+
+/* ============================ persistence ============================ */
+const SAVE_KEY = "keyvoria.v1";
+const DEFAULTS = {
+  xp: 0, lifetimeXp: 0,
+  unlocked: { ear: 1, sight: 1, repeat: 1 },
+  plus: false, cancelPending: false,
+  noteNames: true,
+  exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0
+};
+let S = Object.assign({}, DEFAULTS);
+
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      S = Object.assign({}, DEFAULTS, p);
+      S.unlocked = Object.assign({}, DEFAULTS.unlocked, p.unlocked || {});
+    }
+  }catch(e){ /* private mode / blocked storage — run with defaults */ }
+}
+function save(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+}
+
+/* ============================ music theory ============================ */
+const PC_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const IS_BLACK = [0,1,0,1,0,0,1,0,1,0,1,0];
+const DIATONIC = {0:0,2:1,4:2,5:3,7:4,9:5,11:6};
+const midiName = m => PC_NAMES[m%12] + (Math.floor(m/12)-1);
+const midiShort = m => PC_NAMES[m%12];
+const isBlack = m => !!IS_BLACK[m%12];
+function diatonicIndex(m){
+  const pc = m%12, oct = Math.floor(m/12)-1;
+  const step = DIATONIC[pc] !== undefined ? DIATONIC[pc] : DIATONIC[pc-1];
+  return oct*7 + step;
+}
+const INTERVALS = [
+  {s:1,  n:"Minor 2nd"},  {s:2,  n:"Major 2nd"}, {s:3,  n:"Minor 3rd"},
+  {s:4,  n:"Major 3rd"},  {s:5,  n:"Perfect 4th"}, {s:6, n:"Tritone"},
+  {s:7,  n:"Perfect 5th"},{s:8,  n:"Minor 6th"}, {s:9,  n:"Major 6th"},
+  {s:10, n:"Minor 7th"},  {s:11, n:"Major 7th"}, {s:12, n:"Octave"}
+];
+const byStep = s => INTERVALS.find(i => i.s === s);
+const CHORDS = {
+  Major:[0,4,7], Minor:[0,3,7], Augmented:[0,4,8], Diminished:[0,3,6]
+};
+
+/* Free keyboard: C3-C5 (25 keys). Plus: C2-C7 (61 keys). */
+const FREE_LO = 48, FREE_HI = 72;
+const PLUS_LO = 36, PLUS_HI = 96;
+const kbLo = () => S.plus ? PLUS_LO : FREE_LO;
+const kbHi = () => S.plus ? PLUS_HI : FREE_HI;
+
+const rand = n => Math.floor(Math.random()*n);
+const pick = a => a[rand(a.length)];
+function shuffle(a){
+  const r = a.slice();
+  for(let i=r.length-1;i>0;i--){ const j=rand(i+1); [r[i],r[j]]=[r[j],r[i]]; }
+  return r;
+}
+
+/* ============================ XP economy ============================ */
+/* Set by product direction: T1 exercise 75 XP, T2 exercise 100 XP,
+   unlock T2 = 750 XP, unlock T3 = 1250 XP.
+   T3/T4 exercise values and the T4 unlock cost continue the same curve. */
+const TIER_XP   = {1:75, 2:100, 3:125, 4:150};
+const TIER_COST = {1:0,  2:750, 3:1250, 4:2000};
+
+const CATS = {
+  ear: {
+    key:"ear", name:"Ear Training", short:"Ear",
+    icon:'<path d="M12 3v11.5" stroke="#ff8a3d" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="17.5" r="2.5" stroke="#ff8a3d" stroke-width="2"/><circle cx="18" cy="15.5" r="2.5" stroke="#ff8a3d" stroke-width="2"/><path d="M12 3l6 1.5v11" stroke="#ff8a3d" stroke-width="2" stroke-linecap="round"/>',
+    tiers:[
+      {n:1,title:"Foundations",sub:"Wide, obvious intervals — 3rds, 5ths, octaves"},
+      {n:2,title:"Building Fluency",sub:"All intervals within an octave, plus major/minor triads"},
+      {n:3,title:"Sharper Ears",sub:"Tight intervals and all four triad qualities"},
+      {n:4,title:"Virtuoso",sub:"Wide leaps across the full 61-key range"}
+    ]
+  },
+  sight: {
+    key:"sight", name:"Sight-Reading", short:"Sight",
+    icon:'<path d="M3 6h18M3 10h18M3 14h18" stroke="#ff8a3d" stroke-width="1.6"/><circle cx="7" cy="6" r="1.6" fill="#1c1917"/><circle cx="14" cy="14" r="1.6" fill="#1c1917"/>',
+    tiers:[
+      {n:1,title:"Foundations",sub:"Four notes, one clef, stepwise motion"},
+      {n:2,title:"Building Fluency",sub:"Five notes with small leaps"},
+      {n:3,title:"Advanced Reading",sub:"Six notes, wider leaps, both clefs"},
+      {n:4,title:"Virtuoso",sub:"Grand-staff range beyond two octaves"}
+    ]
+  },
+  repeat: {
+    key:"repeat", name:"Playback & Repeat", short:"Repeat",
+    icon:'<path d="M12 3v6M12 3l-3 3M12 3l3 3" stroke="#ff8a3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 21v-6M12 21l-3-3M12 21l3-3" stroke="#ff8a3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    tiers:[
+      {n:1,title:"Foundations",sub:"Three-note sequences, slow tempo"},
+      {n:2,title:"Building Repertoire",sub:"Four notes, quicker tempo"},
+      {n:3,title:"Real Repertoire",sub:"Five notes with leaps"},
+      {n:4,title:"Virtuoso",sub:"Six notes across the full range"}
+    ]
+  }
+};
+const tierOf = (catKey,n) => CATS[catKey].tiers[n-1];
+const EXERCISES_PER_SESSION = 5;
+
+/* ============================ audio ============================ */
+let ctx = null, master = null;
+const voices = new Map();
+
+function audio(){
+  if(!ctx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0.85;
+    master.connect(ctx.destination);
+  }
+  if(ctx.state === "suspended") ctx.resume();
+  return ctx;
+}
+function freq(m){ return 440 * Math.pow(2,(m-69)/12); }
+
+function startNote(m){
+  const c = audio(); if(!c) return;
+  if(voices.has(m)) stopNote(m, true);
+  const t = c.currentTime;
+  const g = c.createGain();
+  const filt = c.createBiquadFilter();
+  filt.type = "lowpass";
+  filt.frequency.setValueAtTime(Math.min(8000, freq(m)*7 + 700), t);
+  filt.Q.value = 0.6;
+
+  const o1 = c.createOscillator(); o1.type = "triangle"; o1.frequency.setValueAtTime(freq(m), t);
+  const o2 = c.createOscillator(); o2.type = "sine";     o2.frequency.setValueAtTime(freq(m)*2, t);
+  const g2 = c.createGain(); g2.gain.value = 0.18;
+  const o3 = c.createOscillator(); o3.type = "triangle"; o3.frequency.setValueAtTime(freq(m)*0.999, t);
+  const g3 = c.createGain(); g3.gain.value = 0.4;
+
+  const peak = 0.3;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(peak*0.42, t + 0.5);
+
+  o1.connect(g); o2.connect(g2); g2.connect(g); o3.connect(g3); g3.connect(g);
+  g.connect(filt); filt.connect(master);
+  o1.start(t); o2.start(t); o3.start(t);
+  voices.set(m, {o:[o1,o2,o3], g, c});
+}
+function stopNote(m, now){
+  const v = voices.get(m); if(!v) return;
+  voices.delete(m);
+  const t = v.c.currentTime;
+  const rel = now ? 0.02 : 0.28;
+  try{
+    v.g.gain.cancelScheduledValues(t);
+    v.g.gain.setValueAtTime(Math.max(v.g.gain.value, 0.0002), t);
+    v.g.gain.exponentialRampToValueAtTime(0.0001, t + rel);
+  }catch(e){}
+  v.o.forEach(o => { try{ o.stop(t + rel + 0.03); }catch(e){} });
+}
+function blip(m, dur){
+  startNote(m);
+  setTimeout(() => stopNote(m), Math.round(dur*1000));
+}
+/* Play a list of {midi, at, dur} in ms. Returns total ms. */
+function playPhrase(notes){
+  notes.forEach(n => setTimeout(() => blip(n.midi, n.dur/1000), n.at));
+  return notes.reduce((mx,n) => Math.max(mx, n.at + n.dur), 0);
+}
+function allOff(){ Array.from(voices.keys()).forEach(m => stopNote(m, true)); }
+
+/* ============================ app state ============================ */
+let curScreen = "menu";
+let ladderCat = "ear";
+let session = null;
+let toastTimer = null;
+let noteHook = null;      /* fn(midi) while an exercise is listening */
+let held = new Set();
+
+/* practice-time accrual: counts only while an exercise session is open */
+let sessionStarted = null;
+function beginTiming(){ sessionStarted = Date.now(); }
+function endTiming(){
+  if(sessionStarted){
+    S.practiceSeconds += Math.min(3600, Math.round((Date.now()-sessionStarted)/1000));
+    sessionStarted = null; save();
+  }
+}
+
+function go(next){
+  if(curScreen === "play" && next !== "play") endTiming();
+  curScreen = next; noteHook = null; allOff(); held.clear();
+  window.scrollTo(0,0);
+  render();
+}
+function toast(msg, warn){
+  const old = document.querySelector(".toast");
+  if(old) old.remove();
+  clearTimeout(toastTimer);
+  const el = document.createElement("div");
+  el.className = "toast" + (warn ? " warn" : "");
+  el.setAttribute("role","status");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  toastTimer = setTimeout(() => el.remove(), 2200);
+}
+
+/* ============================ XP ============================ */
+/* XP is earned ONLY here: one correct exercise, one award. Nothing else grants XP. */
+function awardCorrectExercise(tierN){
+  const amt = TIER_XP[tierN];
+  S.xp += amt; S.lifetimeXp += amt; S.exercisesCorrect++;
+  save();
+  return amt;
+}
+function tryUnlock(catKey, tierN){
+  const cost = TIER_COST[tierN];
+  if(tierN === 4 && !S.plus){ go("paywall"); return; }
+  if(S.xp < cost){ toast("Need " + (cost - S.xp) + " more XP", true); return; }
+  S.xp -= cost;
+  S.unlocked[catKey] = tierN;
+  save();
+  toast(CATS[catKey].name + " Tier " + tierN + " unlocked");
+  render();
+}
+
+/* ============================ exercise generators ============================ */
+function whiteNotesIn(lo, hi){
+  const out = [];
+  for(let m=lo;m<=hi;m++) if(!isBlack(m)) out.push(m);
+  return out;
+}
+
+function genEar(tier){
+  const useChord = tier >= 2 && Math.random() < (tier >= 3 ? 0.5 : 0.35);
+  const lo = tier === 4 ? PLUS_LO+12 : 52, hi = tier === 4 ? PLUS_HI-12 : 67;
+
+  if(useChord){
+    const qualities = tier >= 3 ? ["Major","Minor","Augmented","Diminished"] : ["Major","Minor"];
+    const q = pick(qualities);
+    const root = 48 + rand(13);
+    const notes = CHORDS[q].map(iv => root + iv);
+    return {
+      kind:"ear", mode:"chord",
+      prompt:"Which chord quality is this?",
+      answer:q,
+      options: shuffle(qualities.slice()),
+      phrase: notes.map(m => ({midi:m, at:0, dur:1500}))
+    };
+  }
+  let pool;
+  if(tier === 1)      pool = [4,7,12,5];
+  else if(tier === 2) pool = [2,3,4,5,7,9,12];
+  else                pool = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const s = pick(pool);
+  const root = lo + rand(Math.max(1, hi - lo - s));
+  const wrongs = shuffle(pool.filter(x => x !== s)).slice(0,3).map(x => byStep(x).n);
+  return {
+    kind:"ear", mode:"interval",
+    prompt:"Which interval is this?",
+    answer: byStep(s).n,
+    options: shuffle([byStep(s).n].concat(wrongs)),
+    phrase: [
+      {midi:root,   at:0,   dur:620},
+      {midi:root+s, at:700, dur:620},
+      {midi:root,   at:1500, dur:900},
+      {midi:root+s, at:1500, dur:900}
+    ]
+  };
+}
+
+function genSight(tier){
+  const count = tier === 1 ? 4 : tier === 2 ? 5 : 6;
+  const clef = tier >= 3 || Math.random() < 0.5 ? (Math.random() < 0.5 ? "treble" : "bass") : "treble";
+  let lo, hi;
+  if(tier === 4){ lo = clef === "treble" ? 60 : 43; hi = clef === "treble" ? 84 : 64; }
+  else { lo = clef === "treble" ? 60 : 48; hi = clef === "treble" ? 72 : 60; }
+  const scale = whiteNotesIn(lo, hi);
+  const maxLeap = tier === 1 ? 1 : tier === 2 ? 2 : 4;
+
+  const notes = [];
+  let idx = rand(scale.length);
+  for(let i=0;i<count;i++){
+    notes.push(scale[idx]);
+    let step = 0;
+    while(step === 0) step = rand(maxLeap*2+1) - maxLeap;
+    idx = Math.max(0, Math.min(scale.length-1, idx + step));
+  }
+  return { kind:"sight", clef, notes, pos:0, prompt:"Play the passage, left to right" };
+}
+
+function genRepeat(tier){
+  const count = tier === 1 ? 3 : tier === 2 ? 4 : tier === 3 ? 5 : 6;
+  const gap = tier === 1 ? 620 : tier === 2 ? 520 : tier === 3 ? 440 : 380;
+  const lo = tier === 4 ? PLUS_LO+12 : 52, hi = tier === 4 ? PLUS_HI-12 : 71;
+  const scale = whiteNotesIn(lo, hi);
+  const notes = [];
+  for(let i=0;i<count;i++) notes.push(pick(scale));
+  return {
+    kind:"repeat", notes, pos:0, gap,
+    phrase: notes.map((m,i) => ({midi:m, at:i*gap, dur:gap*0.82})),
+    prompt:"Listen, then play it back"
+  };
+}
+
+function genExercise(catKey, tier){
+  if(catKey === "ear")   return genEar(tier);
+  if(catKey === "sight") return genSight(tier);
+  return genRepeat(tier);
+}
+
+function startSession(catKey, tier){
+  session = {
+    cat:catKey, tier, idx:0, correct:0, xp:0,
+    results:[], ex:genExercise(catKey, tier),
+    state:"ready", picked:null
+  };
+  beginTiming();
+  go("play");
+}
+function nextExercise(){
+  session.idx++;
+  if(session.idx >= EXERCISES_PER_SESSION){ endTiming(); go("summary"); return; }
+  session.ex = genExercise(session.cat, session.tier);
+  session.state = "ready"; session.picked = null;
+  render();
+}
+function judge(ok){
+  if(session.state === "done") return;
+  session.state = "done";
+  session.results.push(ok);
+  S.exercisesDone++;
+  if(ok){
+    const amt = awardCorrectExercise(session.tier);
+    session.correct++; session.xp += amt;
+  } else { save(); }
+  render();
+}
+
+/* ============================ keyboard input ============================ */
+function userNoteOn(m){
+  if(held.has(m)) return;
+  held.add(m);
+  startNote(m);
+  paintKey(m, true);
+  if(noteHook) noteHook(m);
+}
+function userNoteOff(m){
+  if(!held.has(m)) return;
+  held.delete(m);
+  stopNote(m);
+  paintKey(m, false);
+}
+function paintKey(m, on){
+  const el = document.querySelector('[data-midi="'+m+'"]');
+  if(el) el.classList.toggle("down", on);
+}
+function flashKey(m, cls, ms){
+  const el = document.querySelector('[data-midi="'+m+'"]');
+  if(!el) return;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+
+const KEYMAP = {a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,h:9,u:10,j:11,k:12,o:13,l:14,p:15,";":16};
+document.addEventListener("keydown", e => {
+  if(e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  const off = KEYMAP[e.key.toLowerCase()];
+  if(off === undefined) return;
+  const base = S.plus ? 60 : FREE_LO + 12;
+  const m = base + off;
+  if(m >= kbLo() && m <= kbHi()){ e.preventDefault(); userNoteOn(m); }
+});
+document.addEventListener("keyup", e => {
+  const off = KEYMAP[e.key.toLowerCase()];
+  if(off === undefined) return;
+  const base = S.plus ? 60 : FREE_LO + 12;
+  userNoteOff(base + off);
+});
+document.addEventListener("pointerup", () => { Array.from(held).forEach(userNoteOff); });
+document.addEventListener("pointercancel", () => { Array.from(held).forEach(userNoteOff); });
+window.addEventListener("blur", () => { Array.from(held).forEach(userNoteOff); });
+
+/* ============================ keyboard rendering ============================ */
+function keyboardHTML(opts){
+  opts = opts || {};
+  const lo = kbLo(), hi = kbHi();
+  const whites = [];
+  for(let m=lo;m<=hi;m++) if(!isBlack(m)) whites.push(m);
+  const W = whites.length;
+  /* A 2-octave range fits any phone, so size it to the viewport and never scroll.
+     The 61-key range cannot fit, so it falls back to fixed keys and scrolls. */
+  const fits = W <= 16;
+  const wPct = 100 / W;
+  const bwPct = wPct * 0.62;
+  const WK = 34, BW = Math.round(WK*0.62);
+  const unit = v => fits ? (v + "%") : (v + "px");
+  const wkW = fits ? wPct : WK;
+  const bkW = fits ? bwPct : BW;
+
+  let html = "";
+  whites.forEach((m,i) => {
+    const label = S.noteNames ? (m%12===0 ? midiName(m) : midiShort(m)) : "";
+    const left = fits ? i*wPct : i*WK;
+    html += '<div class="wk" data-midi="'+m+'" role="button" aria-label="'+midiName(m)+'"'+
+            ' style="left:'+unit(left)+';width:'+unit(wkW)+'">'+label+'</div>';
+  });
+  for(let m=lo;m<=hi;m++){
+    if(!isBlack(m)) continue;
+    let before = 0;
+    for(let k=lo;k<m;k++) if(!isBlack(k)) before++;
+    const left = fits ? (before*wPct - bwPct/2) : (before*WK - BW/2);
+    const right = left + bkW;
+    if(left < 0 || right > (fits ? 100 : W*WK)) continue;
+    html += '<div class="bk" data-midi="'+m+'" role="button" aria-label="'+midiName(m)+'"'+
+            ' style="left:'+unit(left)+';width:'+unit(bkW)+'"></div>';
+  }
+  const rangeLabel = S.plus ? "61 keys · Keyvoria Plus · scroll for more" : "2 octaves · Free";
+  const meta = opts.meta === false ? "" :
+    '<div class="kbmeta"><span class="faint">'+rangeLabel+'</span>'+
+    '<span class="faint">'+(S.noteNames ? "Note names on" : "Note names off")+'</span></div>';
+  const inner = fits ? 'width:100%' : 'width:'+(W*WK)+'px';
+  return '<div class="kbdock">'+meta+
+    '<div class="kbscroll"><div class="kb'+(opts.mini?" mini":"")+'" id="kb" style="'+inner+'">'+html+'</div></div></div>';
+}
+document.addEventListener("pointerdown", e => {
+  const k = e.target.closest("[data-midi]");
+  if(!k) return;
+  e.preventDefault();
+  userNoteOn(parseInt(k.dataset.midi,10));
+});
+document.addEventListener("pointerenter", e => {
+  if(!e.target || !e.target.closest) return;
+}, true);
+
+/* ============================ staff rendering ============================ */
+function staffSVG(ex){
+  const W = Math.max(300, 60 + ex.notes.length*52), H = 150;
+  const LS = 13, Y0 = 96;               /* bottom line */
+  const bottomDia = ex.clef === "treble" ? diatonicIndex(64) : diatonicIndex(43);
+  const y = m => Y0 - (diatonicIndex(m) - bottomDia) * (LS/2);
+
+  let s = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Music passage">';
+  for(let i=0;i<5;i++){
+    const ly = Y0 - i*LS;
+    s += '<line x1="14" y1="'+ly+'" x2="'+(W-14)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
+  }
+  if(ex.clef === "treble"){
+    s += '<path d="M34 '+(Y0-38)+'c-9 4-9 16 0 22 8 6 8 16-1 22-7 5-7 14-1 19M33 '+(Y0-38)+'c6 3 6 46 0 63" stroke="#c7bcb1" stroke-width="2.3" fill="none" stroke-linecap="round"/>';
+  } else {
+    s += '<circle cx="33" cy="'+(Y0-3*LS)+'" r="4.4" fill="#c7bcb1"/>';
+    s += '<path d="M33 '+(Y0-3*LS-4)+'c11 0 17 9 17 17 0 13-12 22-24 27" stroke="#c7bcb1" stroke-width="2.6" fill="none" stroke-linecap="round"/>';
+    s += '<circle cx="56" cy="'+(Y0-2.5*LS)+'" r="1.9" fill="#c7bcb1"/><circle cx="56" cy="'+(Y0-1.5*LS)+'" r="1.9" fill="#c7bcb1"/>';
+  }
+  ex.notes.forEach((m,i) => {
+    const cx = 72 + i*52, cy = y(m);
+    const state = i < ex.pos ? "done" : (i === ex.pos ? "now" : "todo");
+    const fill = state === "done" ? "#5ee6a5" : state === "now" ? "#ff8a3d" : "#f5f1ec";
+    const dia = diatonicIndex(m);
+    for(let d = bottomDia-2; d >= dia; d -= 2){
+      const ly = Y0 - (d - bottomDia)*(LS/2);
+      s += '<line x1="'+(cx-12)+'" y1="'+ly+'" x2="'+(cx+12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
+    }
+    for(let d = bottomDia+10; d <= dia; d += 2){
+      const ly = Y0 - (d - bottomDia)*(LS/2);
+      s += '<line x1="'+(cx-12)+'" y1="'+ly+'" x2="'+(cx+12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
+    }
+    s += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="7" ry="5.4" transform="rotate(-18 '+cx+' '+cy+')" fill="'+fill+'"/>';
+    const up = cy > Y0 - 2*LS;
+    s += up
+      ? '<line x1="'+(cx+6.6)+'" y1="'+(cy-2)+'" x2="'+(cx+6.6)+'" y2="'+(cy-34)+'" stroke="'+fill+'" stroke-width="1.7"/>'
+      : '<line x1="'+(cx-6.6)+'" y1="'+(cy+2)+'" x2="'+(cx-6.6)+'" y2="'+(cy+34)+'" stroke="'+fill+'" stroke-width="1.7"/>';
+    if(state === "now"){
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="14" fill="none" stroke="#ff8a3d" stroke-width="1" opacity=".45"/>';
+    }
+  });
+  return s + '</svg>';
+}
+
+/* ============================ icons ============================ */
+const IC = {
+  home:'<path d="M4 11.5L12 4l8 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9" stroke="currentColor" stroke-width="1.8" fill="none"/>',
+  lib:'<rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  user:'<circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M5 20c1.5-4 4.2-6 7-6s5.5 2 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>',
+  back:'<path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  chev:'<path d="M9 6l6 6-6 6" stroke="#a89f96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  play:'<path d="M8 5v14l11-7L8 5z" fill="#1a0f06"/>',
+  ear:'<path d="M12 3v12" stroke="#1a0f06" stroke-width="2.4" stroke-linecap="round"/><path d="M7 8l5-5 5 5" stroke="#1a0f06" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  spark:'<path d="M12 2C12 2 6 9 6 14a6 6 0 0012 0c0-2-1-3.5-2-5 0 2-1 3-2 3-1.5 0-2-1.5-1-3.5C13.5 6 12 4 12 2z" fill="#ff8a3d"/>',
+  lock:'<rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+  gold:'<path d="M12 3v12" stroke="#e8c15a" stroke-width="2" stroke-linecap="round"/><path d="M7 8l5-5 5 5" stroke="#e8c15a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="5" y="16" width="14" height="5" rx="1.5" stroke="#e8c15a" stroke-width="1.8" fill="none"/>'
+};
+const svg = (p,s) => '<svg width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+p+'</svg>';
+
+/* ============================ screens ============================ */
+function tierProgressLabel(catKey){
+  const u = S.unlocked[catKey];
+  return "Tier " + u + " of 4 · " + TIER_XP[u] + " XP per correct exercise";
+}
+
+function screenMenu(){
+  const t = k => {
+    const c = CATS[k];
+    return '<button class="tile'+(k==="ear"?" warm":"")+'" data-go="ladder" data-cat="'+k+'">'+
+      '<span class="ticon">'+svg(c.icon,23)+'</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">'+c.name+'</span>'+
+      '<span class="tsub" style="display:block">'+tierProgressLabel(k)+'</span></span>'+
+      svg(IC.chev,18)+'</button>';
+  };
+  return '<div class="stack">'+
+    '<button class="momentum" data-go="ladder" data-cat="repeat">'+
+      '<span class="grow"><span class="molabel" style="display:block">Continue</span>'+
+      '<span class="motitle" style="display:block">Playback &amp; Repeat · Tier '+S.unlocked.repeat+'</span></span>'+
+      svg(IC.chev,16)+'</button>'+
+    '<div class="togglerow"><span class="tglabel">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" stroke="#ff8a3d" stroke-width="1.6"/><path d="M7 7v12M11 7v12M15 7v12" stroke="#ff8a3d" stroke-width="1.2"/></svg>'+
+      'Show note names</span>'+
+      '<button class="tg'+(S.noteNames?" on":"")+'" data-act="names" role="switch" aria-checked="'+S.noteNames+'" aria-label="Show note names"><span class="knob"></span></button></div>'+
+    t("ear")+t("sight")+t("repeat")+
+    '<button class="tile gold" data-go="paywall">'+
+      '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Learn My Music</span>'+
+      '<span class="tsub" style="display:block">Upload an MP3 or MIDI file, we’ll teach it</span></span>'+
+      '<span class="pill">Premium</span></button>'+
+  '</div>';
+}
+
+function screenLadder(){
+  const c = CATS[ladderCat];
+  const u = S.unlocked[ladderCat];
+  let rows = "";
+  c.tiers.forEach(t => {
+    const done = t.n <= u, next = t.n === u+1;
+    const cost = TIER_COST[t.n];
+    const needsPlus = t.n === 4 && !S.plus;
+    const afford = S.xp >= cost;
+    let cls = "tier" + (next ? " cur" : "") + (done ? " open" : "");
+    let node = done ? "done" : next ? "cur" : "lock";
+    let body = '<div class="tiertitle">Tier '+t.n+' · '+t.title+'</div>'+
+               '<div class="tiersub">'+t.sub+'</div>';
+    if(done){
+      body += '<div class="unlockrow"><span class="cost">'+TIER_XP[t.n]+' XP per correct exercise</span>'+
+              '<span class="btn sm" style="pointer-events:none">Practise</span></div>';
+    } else if(next){
+      const label = needsPlus ? "Get Plus" : afford ? "Unlock" : "Need "+(cost-S.xp)+" more";
+      const bcls = needsPlus ? "btn sm gold" : afford ? "btn sm" : "btn sm off";
+      body += '<div class="unlockrow"><span class="cost'+(afford||needsPlus?"":" short")+'">'+cost.toLocaleString()+' XP'+(needsPlus?" + Plus":"")+'</span>'+
+              '<button class="'+bcls+'" data-act="unlock" data-cat="'+ladderCat+'" data-tier="'+t.n+'">'+label+'</button></div>';
+    } else {
+      body += '<div class="unlockrow"><span class="cost short">'+cost.toLocaleString()+' XP'+(t.n===4?" + Keyvoria Plus":"")+'</span></div>';
+    }
+    const attrs = done ? ' data-act="practise" data-cat="'+ladderCat+'" data-tier="'+t.n+'"' : "";
+    rows += '<'+(done?"button":"div")+' class="'+cls+'"'+attrs+' style="width:100%;text-align:left">'+
+              '<span class="node '+node+'">'+(done?"✓":t.n)+'</span>'+
+              '<span class="grow">'+body+'</span>'+
+            '</'+(done?"button":"div")+'>';
+  });
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">'+c.name+'</div><div style="width:34px"></div></div>'+
+    '<div class="faint">Tap an unlocked tier to practise. Correct exercises are the only way to earn XP.</div>'+
+    '<div class="stack">'+rows+'</div>';
+}
+
+function screenPlay(){
+  const ex = session.ex, c = CATS[session.cat];
+  let dots = "";
+  for(let i=0;i<EXERCISES_PER_SESSION;i++){
+    const r = session.results[i];
+    const cls = i < session.results.length ? (r ? "ok" : "no") : (i === session.idx ? "now" : "");
+    dots += '<span class="dot '+cls+'"></span>';
+  }
+  const head = '<div class="exhead">'+
+    '<button class="iconbtn" data-act="quit" aria-label="End session">'+svg(IC.close,13)+'</button>'+
+    '<div class="dots" aria-label="Exercise '+(session.idx+1)+' of '+EXERCISES_PER_SESSION+'">'+dots+'</div>'+
+    '<div class="faint tnum">'+TIER_XP[session.tier]+' XP</div></div>';
+
+  let body = "";
+  if(ex.kind === "ear"){
+    let opts = "";
+    ex.options.forEach(o => {
+      let cls = "opt";
+      if(session.state === "done"){
+        cls += " locked";
+        if(o === ex.answer) cls += " right";
+        else if(o === session.picked) cls += " wrong";
+      }
+      opts += '<button class="'+cls+'" data-act="answer" data-val="'+o+'">'+o+
+              (session.state==="done" && o===ex.answer ? "✓" : "")+'</button>';
+    });
+    body = '<div class="prompt">'+ex.prompt+'</div>'+
+      '<button class="playbtn" data-act="hear" aria-label="Play the sound">'+svg(IC.play,30)+'</button>'+
+      '<div class="faint center">Tap to hear it again</div>'+
+      '<div class="opts">'+opts+'</div>';
+  }
+  else if(ex.kind === "sight"){
+    body = '<div class="row"><span class="eyebrow">'+(ex.clef==="treble"?"Treble clef":"Bass clef")+'</span>'+
+           '<span class="faint">Note '+Math.min(ex.pos+1,ex.notes.length)+' of '+ex.notes.length+'</span></div>'+
+           '<div class="staffcard">'+staffSVG(ex)+'</div>'+
+           '<div class="faint center">'+ex.prompt+' — play it on the keyboard below</div>';
+  }
+  else {
+    let seq = "";
+    ex.notes.forEach((n,i) => {
+      const cls = i < ex.pos ? "ok" : (i === ex.pos && session.state === "listening" ? "now" : "");
+      seq += '<span class="dot '+cls+'"></span>';
+    });
+    body = '<div class="prompt">'+(session.state==="listening" ? "Your turn — play it back" : ex.prompt)+'</div>'+
+      '<button class="playbtn" data-act="hear" aria-label="Play the sequence">'+svg(IC.ear,28)+'</button>'+
+      '<div class="dots" style="justify-content:center">'+seq+'</div>'+
+      '<div class="faint center">'+ex.notes.length+' notes</div>';
+  }
+
+  let footer = "";
+  if(session.state === "done"){
+    const ok = session.results[session.results.length-1];
+    footer = '<div class="verdict '+(ok?"ok":"no")+'">'+
+      (ok ? "Correct · +"+TIER_XP[session.tier]+" XP" : "Not quite · no XP for this one")+'</div>'+
+      '<button class="btn block" data-act="next">'+
+        (session.idx+1 >= EXERCISES_PER_SESSION ? "See results" : "Next exercise")+'</button>';
+  }
+  const kb = keyboardHTML({});
+  return head + '<div class="exbody">'+body+footer+'</div>' + kb;
+}
+
+function screenSummary(){
+  const c = CATS[session.cat];
+  const all = session.correct === EXERCISES_PER_SESSION;
+  return '<div class="stack center" style="justify-content:center;flex:1">'+
+    '<div class="eyebrow">'+c.name+' · Tier '+session.tier+'</div>'+
+    '<div class="bigxp tnum">+'+session.xp+'</div>'+
+    '<div class="sub">XP earned this session</div>'+
+    '<div class="card" style="text-align:left">'+
+      '<div class="kv"><span class="kvk">Correct exercises</span><span class="kvv tnum">'+session.correct+' of '+EXERCISES_PER_SESSION+'</span></div>'+
+      '<div class="kv"><span class="kvk">XP per correct exercise</span><span class="kvv tnum">'+TIER_XP[session.tier]+'</span></div>'+
+      '<div class="kv"><span class="kvk">Spendable XP now</span><span class="kvv tnum">'+S.xp.toLocaleString()+'</span></div>'+
+    '</div>'+
+    (all ? '<div class="notice keep">Clean sweep — every exercise correct.</div>' :
+           '<div class="notice">Only correct exercises earn XP. Retry to bank the rest.</div>')+
+    '<button class="btn block" data-act="again">Practise again</button>'+
+    '<button class="btn ghost block" data-act="toladder">Back to '+c.name+'</button>'+
+  '</div>';
+}
+
+function screenLibrary(){
+  let rows = "";
+  Object.keys(CATS).forEach(k => {
+    const c = CATS[k], u = S.unlocked[k];
+    c.tiers.forEach(t => {
+      const open = t.n <= u;
+      rows += '<'+(open?"button":"div")+' class="card'+(open?"":"")+'" style="width:100%;text-align:left;'+(open?"":"opacity:.5")+'"'+
+        (open?' data-act="practise" data-cat="'+k+'" data-tier="'+t.n+'"':"")+'>'+
+        '<div class="row"><span class="grow"><span class="ttitle" style="display:block">'+c.name+' · Tier '+t.n+'</span>'+
+        '<span class="tsub" style="display:block">'+t.sub+'</span></span>'+
+        (open ? '<span class="cost tnum">'+TIER_XP[t.n]+' XP</span>'
+              : '<span class="cost short">'+TIER_COST[t.n].toLocaleString()+' XP</span>')+
+        '</div></'+(open?"button":"div")+'>';
+    });
+  });
+  return '<div class="h1">Library</div>'+
+    '<button class="tile warm" data-go="freeplay"><span class="ticon">'+svg(IC.gold.replace(/#e8c15a/g,"#ff8a3d"),22)+'</span>'+
+    '<span class="grow"><span class="ttitle" style="display:block">Free play</span>'+
+    '<span class="tsub" style="display:block">Just the piano — no grading, no XP</span></span>'+svg(IC.chev,18)+'</button>'+
+    '<div class="faint">Every exercise set, unlocked or not.</div>'+
+    '<div class="stack">'+rows+'</div>';
+}
+
+function screenFreeplay(){
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="library" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Free play</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="notice">Play anything you like. Nothing is graded here, so no XP is earned — XP comes only from correct exercises.</div>'+
+      '<div class="togglerow"><span class="tglabel">Show note names</span>'+
+      '<button class="tg'+(S.noteNames?" on":"")+'" data-act="names" role="switch" aria-checked="'+S.noteNames+'"><span class="knob"></span></button></div>'+
+      '<div class="faint">On a computer, the letter keys <b>A–J</b> and <b>W, E, T, Y, U</b> play too.</div>'+
+    '</div>'+ keyboardHTML({});
+}
+
+function screenProfile(){
+  const hrs = (S.practiceSeconds/3600).toFixed(1);
+  const acc = S.exercisesDone ? Math.round(S.exercisesCorrect/S.exercisesDone*100) : 0;
+  let cats = "";
+  Object.keys(CATS).forEach(k => {
+    cats += '<div class="kv"><span class="kvk">'+CATS[k].name+'</span><span class="kvv">Tier '+S.unlocked[k]+' of 4</span></div>';
+  });
+  let sub;
+  if(!S.plus){
+    sub = '<div class="sub" style="margin-bottom:11px">You’re on the <b>Free</b> plan — tiers 1–3 in every category, 2-octave keyboard.</div>'+
+          '<button class="btn gold block" data-go="paywall">Upgrade · $9.95/month</button>';
+  } else if(S.cancelPending){
+    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--accent)">Plus until 14 March</span></div>'+
+          '<div class="sub" style="margin:8px 0 11px">Cancelled — you keep everything until then.</div>'+
+          '<button class="btn block" data-act="resume">Resume subscription</button>';
+  } else {
+    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--good)">Keyvoria Plus</span></div>'+
+          '<div class="kv"><span class="kvk">Price</span><span class="kvv tnum">$9.95 / month</span></div>'+
+          '<div class="kv"><span class="kvk">Renews</span><span class="kvv">14 March 2026</span></div>'+
+          '<div class="kv"><span class="kvk">Purchased on</span><span class="kvv">Web · cancel here</span></div>'+
+          '<button class="link" data-go="cancel">Cancel subscription</button>';
+  }
+  return '<div class="h1">Profile</div>'+
+    '<div class="stats">'+
+      '<div class="stat"><div class="statnum tnum">'+S.lifetimeXp.toLocaleString()+'</div><div class="statlab">Total XP<br>earned</div></div>'+
+      '<div class="stat"><div class="statnum tnum">'+hrs+'</div><div class="statlab">Hours<br>practised</div></div>'+
+      '<div class="stat"><div class="statnum tnum">'+acc+'%</div><div class="statlab">Exercises<br>correct</div></div>'+
+    '</div>'+
+    '<div class="faint">'+S.xp.toLocaleString()+' XP available to spend · lifetime total never decreases</div>'+
+    '<div class="card"><div class="h2" style="margin-bottom:8px">Progress by category</div>'+cats+
+      '<div class="kv"><span class="kvk">Exercises completed</span><span class="kvv tnum">'+S.exercisesDone+'</span></div></div>'+
+    '<div class="card"><div class="h2" style="margin-bottom:8px">Subscription</div>'+sub+'</div>'+
+    '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
+      '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
+    '<button class="link" data-act="reset">Reset all progress</button>';
+}
+
+function screenPaywall(){
+  return '<div class="exhead"><button class="iconbtn" data-go="menu" aria-label="Close">'+svg(IC.close,13)+'</button>'+
+    '<div style="width:34px"></div><div style="width:34px"></div></div>'+
+    '<div class="stack center" style="justify-content:center;flex:1">'+
+      '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
+      '<div class="h1">Keyvoria Plus</div>'+
+      '<div class="sub">Tiers 1–3 are always free. Plus adds <b>tier 4</b> in every category, the 61-key keyboard those tiers are written for, and Learn My Music.</div>'+
+      '<div class="card gold"><div class="h2" style="color:var(--gold)">$9.95<span class="sub"> / month</span></div></div>'+
+      '<button class="btn gold block" data-act="upgrade">Upgrade now</button>'+
+      '<button class="btn ghost block" data-go="menu">Not now</button>'+
+    '</div>';
+}
+
+function screenCancel(){
+  return '<div class="exhead"><button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.close,13)+'</button>'+
+    '<div class="h2">Cancel Plus</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="sub">Your subscription stays active until <b>14 March 2026</b>. Nothing changes before then.</div>'+
+      '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 2 octaves)<br>· Access to your Learn My Music uploads</div>'+
+      '<div class="notice keep"><b>You keep everything else</b><br>· All '+S.lifetimeXp.toLocaleString()+' XP you’ve earned<br>· Every tier 1–3 you unlocked<br>· Progress and practice history<br>· Your uploaded files — kept, not deleted</div>'+
+      '<div class="faint">Resubscribe any time and everything comes straight back.</div>'+
+      '<button class="btn ghost block" data-act="confirmcancel">Cancel subscription</button>'+
+      '<button class="btn block" data-go="profile">Keep Keyvoria Plus</button>'+
+    '</div>';
+}
+
+/* ============================ render ============================ */
+const SCREENS = {
+  menu:screenMenu, ladder:screenLadder, play:screenPlay, summary:screenSummary,
+  library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
+  paywall:screenPaywall, cancel:screenCancel
+};
+const TAB_OF = { menu:"menu", ladder:"menu", play:"menu", summary:"menu", paywall:"menu",
+                 library:"library", freeplay:"library", profile:"profile", cancel:"profile" };
+const SHOW_TABS = { menu:1, library:1, profile:1 };
+
+function render(){
+  document.getElementById("xpLabel").textContent = S.xp.toLocaleString();
+  document.getElementById("view").innerHTML = SCREENS[curScreen]();
+  const tb = document.getElementById("tabbar");
+  if(SHOW_TABS[curScreen]){
+    tb.style.display = "flex";
+    const cur = TAB_OF[curScreen];
+    tb.innerHTML =
+      '<button class="tab'+(cur==="menu"?" on":"")+'" data-go="menu">'+svg(IC.home,19)+'Main Menu</button>'+
+      '<button class="tab'+(cur==="library"?" on":"")+'" data-go="library">'+svg(IC.lib,19)+'Library</button>'+
+      '<button class="tab'+(cur==="profile"?" on":"")+'" data-go="profile">'+svg(IC.user,19)+'Profile</button>';
+  } else tb.style.display = "none";
+
+  if(curScreen === "play") wirePlay();
+}
+
+/* ============================ exercise wiring ============================ */
+function wirePlay(){
+  const ex = session.ex;
+  if(session.state === "done"){ noteHook = null; return; }
+
+  if(ex.kind === "sight"){
+    noteHook = m => {
+      if(session.state === "done") return;
+      const want = ex.notes[ex.pos];
+      if(m === want){
+        ex.pos++;
+        flashKey(m, "hint", 220);
+        if(ex.pos >= ex.notes.length){ judge(true); return; }
+        render();
+      } else {
+        judge(false);
+      }
+    };
+  }
+  else if(ex.kind === "repeat"){
+    if(session.state === "listening"){
+      noteHook = m => {
+        if(session.state === "done") return;
+        const want = ex.notes[ex.pos];
+        if(m === want){
+          ex.pos++;
+          if(ex.pos >= ex.notes.length){ judge(true); return; }
+          render();
+        } else {
+          judge(false);
+        }
+      };
+    } else noteHook = null;
+  }
+  else noteHook = null;
+}
+
+function hearStimulus(){
+  const ex = session.ex;
+  if(session.state === "done") return;
+  const btn = document.querySelector(".playbtn");
+  if(btn) btn.classList.add("ringing");
+  const total = playPhrase(ex.phrase);
+  setTimeout(() => { if(btn) btn.classList.remove("ringing"); }, total + 200);
+  if(ex.kind === "repeat"){
+    setTimeout(() => {
+      if(!session || session.state === "done") return;
+      session.state = "listening"; ex.pos = 0;
+      render();
+    }, total + 320);
+  }
+}
+
+/* ============================ events ============================ */
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-go],[data-act]");
+  if(!el) return;
+  const act = el.dataset.act, dest = el.dataset.go;
+
+  if(dest){
+    if(dest === "ladder") ladderCat = el.dataset.cat;
+    go(dest);
+    return;
+  }
+  switch(act){
+    case "names":
+      S.noteNames = !S.noteNames; save(); render(); break;
+    case "unlock":
+      tryUnlock(el.dataset.cat, parseInt(el.dataset.tier,10)); break;
+    case "practise":
+      startSession(el.dataset.cat, parseInt(el.dataset.tier,10)); break;
+    case "hear":
+      audio(); hearStimulus(); break;
+    case "answer": {
+      if(session.state === "done") return;
+      session.picked = el.dataset.val;
+      judge(el.dataset.val === session.ex.answer);
+      break;
+    }
+    case "next": nextExercise(); break;
+    case "quit": endTiming(); ladderCat = session.cat; go("ladder"); break;
+    case "again": startSession(session.cat, session.tier); break;
+    case "toladder": ladderCat = session.cat; go("ladder"); break;
+    case "upgrade":
+      S.plus = true; S.cancelPending = false; save();
+      toast("Keyvoria Plus active · 61 keys unlocked");
+      go("menu"); break;
+    case "resume":
+      S.cancelPending = false; save(); toast("Subscription resumed"); render(); break;
+    case "confirmcancel":
+      S.cancelPending = true; save();
+      toast("Cancelled — Plus active until 14 March", true);
+      go("profile"); break;
+    case "reset":
+      if(confirm("Reset all XP, unlocks and practice history?")){
+        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,repeat:1}});
+        save(); toast("Progress reset", true); go("menu");
+      }
+      break;
+  }
+});
+
+/* ============================ boot ============================ */
+load();
+render();
+</script>

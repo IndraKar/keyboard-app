@@ -278,12 +278,17 @@ The tier rule is uniform across all three categories, and seed data must satisfy
 (worth a CHECK constraint or a seed-validation test, since the whole pricing story
 depends on it holding):
 
-| `tier_number` | `xp_cost` | `required_plan` | Unlocked how |
-|---|---|---|---|
-| 1 | `0` | `free` | Pre-unlocked for every user; no purchase row needed |
-| 2 | > 0 | `free` | XP purchase |
-| 3 | > 0 (more than tier 2) | `free` | XP purchase |
-| 4 | > 0 (most expensive) | `premium` | XP purchase **and** active Keyvoria Plus |
+| `tier_number` | `xp_cost` | `xp_per_correct_exercise` | `required_plan` | Unlocked how |
+|---|---|---|---|---|
+| 1 | `0` | `75` | `free` | Pre-unlocked for every user; no purchase row needed |
+| 2 | `750` | `100` | `free` | XP purchase |
+| 3 | `1250` | `125` | `free` | XP purchase |
+| 4 | `2000` | `150` | `premium` | XP purchase **and** active Keyvoria Plus |
+
+`xp_per_correct_exercise` is a column on `category_tiers`, not a constant in client
+code — the whole economy is then tunable by a content migration rather than an app
+release, and the server can validate an award against the tier the exercise actually
+belongs to instead of trusting a client-supplied amount.
 
 Tier 4 is what PRD F-03 calls "premium sits on top of XP, not instead of it": it
 still costs `xp_cost` XP *and* requires the entitlement. It's also the only tier
@@ -312,7 +317,10 @@ effort put in, not currency currently on hand.
 ## 4.10 Gamification
 
 **`xp_events`**
-The **earning** ledger only — spending is tracked separately in
+The **earning** ledger only. One row per *correct exercise*, and nothing else writes
+to it — see PRD F-03's earning rule. `amount` must equal the
+`category_tiers.xp_per_correct_exercise` of the tier the exercise belonged to, checked
+server-side; a client never supplies the number. — spending is tracked separately in
 `user_category_unlocks` (§4.9b), not as a negative row here, so this table never
 needs negative `amount` values and always reads as "here's everything a user has
 ever earned."
@@ -323,7 +331,12 @@ set instead of `attempt_id` for §4.9a sessions; a session with `show_note_names
 still generates one of these per PRD F-02a — the toggle changes nothing about how XP
 is earned), `source` (enum: lesson_complete / daily_challenge / achievement /
 streak_bonus / ear_training_session_complete / repeat_session_complete), `amount`,
-`created_at`. Both a user's spendable balance and lifetime total are always computed
+`created_at`, plus `exercise_correct` (bool — always true in V1, present so a later
+change of policy doesn't require a migration to record graded-but-unrewarded attempts).
+Note the `source` enum above is now narrower in practice than it reads: `streak_bonus`
+and `daily_challenge` are **retired as XP sources** (PRD F-03) and no code path emits
+them; they stay in the enum only so historical rows from earlier builds remain valid.
+Both a user's spendable balance and lifetime total are always computed
 from this table server-side (§4.9b) — never a client-writable counter (per
 architecture §2.7).
 
