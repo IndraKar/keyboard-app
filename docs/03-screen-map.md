@@ -6,14 +6,14 @@
 every platform — iOS, Android, and desktop web are all the full product (architecture
 §2.1), not a mobile app with a companion site.
 
-**The Main Menu is the app's home.** Launching Keyvoria lands on the Main Menu, not on
+**Home is the app's home.** Launching Keyvoria lands on Home, not on
 a dashboard — the first thing a user sees is the choice of which of the four programs
 to work on (PRD §1.4). This replaces an earlier draft's separate Home/Dashboard tab,
-which sat in front of the Main Menu and delayed that choice behind a screen of
+which sat in front of Home and delayed that choice behind a screen of
 summary cards. Two consolidations follow from it:
 
 - The old **Home/Dashboard tab is gone as a destination**. Its momentum features
-  (Continue, Daily Challenge) move onto the Main Menu itself, where resuming is one
+  (Continue, Daily Challenge) move onto Home itself, where resuming is one
   tap from landing (§3.5); its summary/stats content moves to Profile.
 - The old **Profile tab absorbs that stats content** and becomes the user's overview:
   who they are, how much they've practiced, how much XP they've earned, and their
@@ -22,7 +22,7 @@ summary cards. Two consolidations follow from it:
 ```mermaid
 flowchart LR
     subgraph Tabs["Primary navigation"]
-        MainMenu["Main Menu<br/>(home — the 4 programs)"]
+        HomeTab["Home<br/>(profile + the 4 programs)"]
         Library["Library"]
         Profile["Profile<br/>(overview, stats, subscription)"]
     end
@@ -38,7 +38,7 @@ uploads, and the same screen inventory below apply on every platform (architectu
 §2.7) — what changes with viewport width is layout, never which features exist.
 
 Onboarding and the MIDI setup flow sit outside the tab bar (full-screen, linear).
-The Learn My Music upload flow is entered from the Main Menu or Library but opens as
+The Learn My Music upload flow is entered from Home or Library but opens as
 its own modal/stack flow since it has a distinct linear upload → processing → result
 shape.
 
@@ -60,11 +60,11 @@ shape.
 5. **Account creation** — email/social sign-in (needed to persist progress across
    devices); guest mode allowed with a clear "progress stays on this device only"
    notice, upgradeable to an account later without losing local progress.
-6. → lands on the **Main Menu** (§3.3), the app's home.
+6. → lands on the **Home** (§3.3), the app's home.
 
-## 3.3 Tab: Main Menu — the home screen
+## 3.3 Tab: Home
 
-**This is where Keyvoria opens.** The Main Menu is both the app's home screen and its
+**This is where Keyvoria opens.** Home is both the app's home screen and its
 curriculum — the user's first decision is which program to work on, not which summary
 card to read. Exactly **four** tiles, one per category (PRD §1.4):
 
@@ -81,6 +81,12 @@ tile in V1 (PRD §1.4). Every tile leads into
 that category's own space and returns here on exit rather than dead-ending — since
 this is the home screen, "back out of what I was doing" and "go home" are the same
 gesture, and no flow needs a separate route back to a dashboard.
+
+**At the very top, the identity row** (PRD F-12) — avatar initial, the user's nickname
+or name, and whether the profile is Private or Public, tapping through to Account.
+Signed out, the same row reads "Sign in to save your progress · Google, Yahoo or email"
+and leads to sign-in. It is deliberately a single row rather than a banner: Home's job
+is still choosing a program, and identity earns one line, not a hero.
 
 **Above the tiles, one compact momentum strip** — the two things the retired Home tab
 did that a landing screen genuinely needs, kept deliberately small so the four tiles
@@ -237,7 +243,7 @@ Used across all three tiered categories, not owned by any one of them:
   or original-artist attribution, public-domain/license note per F-01 licensing
   requirement).
 
-## 3.6 Learn My Music flow (modal stack, entered from the Main Menu or Library)
+## 3.6 Learn My Music flow (modal stack, entered from Home or Library)
 
 **Upload → Confirm → Tutorial** (PRD F-05). The confirm step sits between the other
 two deliberately: nothing is generated until the user agrees Keyvoria identified the
@@ -306,6 +312,23 @@ into a free MIDI/MusicXML flow and a separate paid MP3 flow; V1 merges them into
    returns to Mode Select, not straight into whichever mode was last used, since
    switching is a core part of this feature.
 
+## 3.6a Sign-in & account (PRD F-12)
+
+1. **Sign in** — three options: *Continue with Google*, *Continue with Yahoo*,
+   *Sign up with email*, plus an explicit **"Keep playing without an account"** exit.
+   Reached from Home's identity row or from Profile; never forced, and never blocking
+   a lesson.
+2. **Your profile** — name and optional nickname, then the visibility choice, on one
+   screen. The visibility control spells out the consequence of each option in place
+   ("Nobody sees your name. Achievement cards read 'A Keyvoria player'…") rather than
+   linking to a policy page, because this is the moment the decision is being made.
+3. **Account** — avatar, current name/nickname, which provider signed you in,
+   visibility, and sign out.
+
+Visibility is **Private by default** and appears in exactly two places: this flow and
+the achievement-card screen (which links back here). One setting, one meaning, no
+per-surface duplicates that can drift apart.
+
 ## 3.7 Achievements & Progress (reached from Profile, §3.8)
 
 - **Achievements screen** — grid of badges, earned/locked, per-badge criteria on tap.
@@ -328,7 +351,7 @@ Home/Dashboard tab and a thin settings-style Profile tab (§3.1).
 since they answer different questions:
 
 - **Total XP earned** — *lifetime* XP, every point ever earned, which only ever goes
-  up. Deliberately distinct from the spendable balance shown on the Main Menu: this is
+  up. Deliberately distinct from the spendable balance shown on Home: this is
   the "how much have I done" number, not the "what can I afford" number (PRD F-03).
   Both appear here, labelled so the difference is legible — lifetime as the headline,
   spendable beneath it as "available to spend."
@@ -404,7 +427,7 @@ See PRD F-08.
   Locked cards render greyed with the requirement in place of the share actions.
   **No account identity appears on a card at any point** — the screen reads only
   `share_preferences` (DB §4.10c), never `users`.
-- **Master Mode** — appears on the Main Menu (§3.3) once any category is mastered,
+- **Master Mode** — appears on Home (§3.3) once any category is mastered,
   never before. Lists each mastered category with its best streak, plus **Mixed** once
   all three are done. A run is endless and ends on the first wrong answer; the
   run-over screen shows streak, XP earned, personal best, and a one-tap rerun.
@@ -412,10 +435,6 @@ See PRD F-08.
   published and that it is reversible. Once on: four ranked metrics (XP, accuracy,
   best streak, achievements) with the user's own row highlighted, and a visible
   "turn off" control on the same screen as the rankings, not buried in settings.
-- **Keyboard themes** — cosmetic list with a live keyboard preview at the bottom of
-  the screen so a theme can be judged before it's applied. Locked themes name the
-  badge that unlocks them.
-
 ### 3.8.2 The rest of Profile
 
 - Account info, sign-out, delete account.
@@ -425,7 +444,7 @@ See PRD F-08.
 
 ## 3.10 Create Music — the composer (Plus, PRD F-11)
 
-Entered from the Main Menu as a fifth tile, shown only when `compose.create` is
+Entered from Home as a fifth tile, shown only when `compose.create` is
 granted (architecture §2.10). Free users see it with a Plus badge and a preview of
 what it does, not a hidden feature — a locked door you can see is a better upsell than
 a door you never knew existed.
@@ -457,7 +476,7 @@ a door you never knew existed.
 
 ## 3.11 Personalized practice (Plus, PRD F-09/F-10)
 
-- **Recommended session card** — appears on the Main Menu momentum strip (§3.3) and on
+- **Recommended session card** — appears on Home momentum strip (§3.3) and on
   Profile, naming what it targets in the user's words: "Diminished chords and tritones
   — 12 exercises." One tap starts it. It is **an offer, never a redirect**: dismissing
   it is one tap and the dismissal is remembered (DB §4.14), so a declined
@@ -475,7 +494,7 @@ a door you never knew existed.
 
 Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Account Creation
 
-Tabs (3): **Main Menu — home** (Ear Training [Tier Ladder, Drill Setup, Drill Screen],
+Tabs (3): **Home — home** (Ear Training [Tier Ladder, Drill Setup, Drill Screen],
 Sight-Reading [Tier Ladder, Sight-Reading Screen], Playback & Repeat [Tier Ladder,
 Difficulty Setup, Repeat Screen], Learn My Music) · Library (Search/Filter, Item
 Detail) · Profile (Overview/Stats, Subscription Management, Cancel Confirmation,
@@ -496,5 +515,5 @@ Create Music (Plus): My Compositions · Composer · Score view · Export sheet
 Personalized practice (Plus): Recommended session card · Skill breakdown · Attempt
 analysis
 
-Retired: **Home / Dashboard** — its start-an-activity content moved to the Main Menu
+Retired: **Home / Dashboard** — its start-an-activity content moved to Home
 (§3.3), its reporting content to Profile (§3.8).

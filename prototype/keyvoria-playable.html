@@ -301,39 +301,6 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .lbrow.me .lbrank{color:var(--accent);}
 .lbval{font-weight:700;}
 
-/* ---------- themes ---------- */
-.themerow{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px;}
-.themerow.on{border-color:var(--accent);background:linear-gradient(140deg,#241a12,#1c1917);}
-.themerow.locked{opacity:.55;}
-.swatch{display:flex;gap:1.5px;width:44px;height:34px;border-radius:6px;overflow:hidden;
-  border:1px solid #0f0d0c;flex-shrink:0;background:#0d0b0a;padding-top:3px;}
-.swatch i{flex:1;border-radius:0 0 2px 2px;}
-.swatch i.k{flex:.6;}
-.swatch.ivory i{background:linear-gradient(180deg,#f4efe6,#e6dfd3);} .swatch.ivory i.k{background:#151211;}
-.swatch.midnight i{background:linear-gradient(180deg,#5b6472,#3b424c);} .swatch.midnight i.k{background:#0d1016;}
-.swatch.ember i{background:linear-gradient(180deg,#f6ddc7,#e9c2a0);} .swatch.ember i.k{background:#3d1f0d;}
-.swatch.gold i{background:linear-gradient(180deg,#f7ebc9,#e6d29a);} .swatch.gold i.k{background:#33280f;}
-
-/* keyboard theming — cosmetic only, never affects grading */
-.kb[data-theme="midnight"] .wk{background:linear-gradient(180deg,#6a7480 78%,#49525d);color:#cdd5df;}
-.kb[data-theme="midnight"] .bk{background:linear-gradient(180deg,#1b2029,#0b0e13 72%);}
-.kb[data-theme="midnight"]{background:linear-gradient(180deg,#2b3a4a 0 7px,#0b0e13 7px);}
-.kb[data-theme="ember"] .wk{background:linear-gradient(180deg,#f8e2ce 78%,#eac7a6);color:#9a6b45;}
-.kb[data-theme="ember"] .bk{background:linear-gradient(180deg,#5a2f14,#2b1408 72%);}
-.kb[data-theme="ember"]{background:linear-gradient(180deg,#8a3d1c 0 7px,#170f09 7px);}
-.kb[data-theme="gold"] .wk{background:linear-gradient(180deg,#faf0d2 78%,#e9d6a2);color:#9c8340;}
-.kb[data-theme="gold"] .bk{background:linear-gradient(180deg,#4a3a17,#231b09 72%);}
-.kb[data-theme="gold"]{background:linear-gradient(180deg,#8a6f22 0 7px,#16130c 7px);}
-
-/* ---------- segmented control (leaderboard tabs, tutorial mode) ---------- */
-.seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);
-  border-radius:14px;padding:4px;}
-.seg-opt{flex:1;text-align:center;padding:9px 4px;border-radius:10px;font-size:12px;
-  font-weight:600;color:var(--text-dim);transition:background .12s,color .12s;}
-.seg-opt:hover{color:var(--text);}
-.seg-opt.active{background:var(--accent);color:#1a0f06;}
-
 /* ---------- Learn My Music ---------- */
 .uploadbox{display:flex;flex-direction:column;align-items:center;text-align:center;
   background:linear-gradient(150deg,#241e14,#1c1917);border:1px dashed #5a4620;
@@ -360,6 +327,39 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .bar.capped{position:relative;}
 .barlock{position:absolute;top:0;bottom:0;right:0;border-left:2px solid var(--gold);
   background:repeating-linear-gradient(115deg,rgba(232,193,90,.22) 0 4px,transparent 4px 9px);}
+
+/* ---------- identity ---------- */
+.idrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:11px 13px;
+  transition:border-color .14s;}
+.idrow:hover{border-color:var(--accent-deep);}
+.idrow.signedout{background:linear-gradient(140deg,#241a12,#1c1917);border-color:#3a2b1c;}
+.idname{display:block;font-size:13.5px;font-weight:600;}
+.idmeta{display:block;font-size:11px;color:var(--faint);margin-top:2px;}
+.avatar{width:38px;height:38px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(140deg,var(--accent),var(--accent-deep));color:#1a0f06;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.02em;}
+.avatar.lg{width:46px;height:46px;border-radius:14px;font-size:16px;}
+.avatar.ghost{background:var(--surface-2);border:1px solid var(--border);color:var(--faint);}
+.provider{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;font-size:13.5px;font-weight:600;transition:border-color .14s;}
+.provider:hover{border-color:var(--faint);}
+.provider.email{background:linear-gradient(140deg,#241a12,#1c1917);border-color:#3a2b1c;}
+.pglyph{width:26px;height:26px;border-radius:8px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+.provider.google .pglyph{background:#f5f1ec;color:#1a1a1a;}
+.provider.yahoo .pglyph{background:#5f01d1;color:#fff;font-size:11px;}
+.provider.email .pglyph{background:var(--accent-soft);color:var(--accent);}
+.visopt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:13px;
+  padding:12px 13px;margin-bottom:8px;transition:border-color .14s,background .14s;}
+.visopt:last-of-type{margin-bottom:0;}
+.visopt.on{border-color:var(--accent);background:var(--accent-soft);}
+.visdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;margin-top:2px;}
+.visopt.on .visdot{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 42%,transparent 45%);}
+.visopt b{font-size:13px;}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
@@ -394,9 +394,9 @@ const DEFAULTS = {
   badges: {},                 /* badge id -> earned timestamp */
   masterBest: { ear:0, sight:0, repeat:0, mixed:0 },
   masterRuns: 0,
-  /* cosmetics & sharing */
-  theme: "ivory",
-  shareName: "",              /* empty = share anonymously */
+  /* account & identity */
+  account: null,              /* {provider, name, nickname, email} — null = signed out */
+  visibility: "private",      /* private | public — governs everything others can see */
   leaderboardOptIn: false
 };
 let S = Object.assign({}, DEFAULTS);
@@ -411,6 +411,7 @@ function load(){
       S.perfectByCat = Object.assign({}, DEFAULTS.perfectByCat, p.perfectByCat || {});
       S.masterBest = Object.assign({}, DEFAULTS.masterBest, p.masterBest || {});
       S.badges     = Object.assign({}, p.badges || {});
+      S.account    = p.account || null;
       S.tierCorrect = { ear:[0,0,0,0], sight:[0,0,0,0], repeat:[0,0,0,0] };
       Object.keys(S.tierCorrect).forEach(k => {
         const src = (p.tierCorrect && p.tierCorrect[k]) || [];
@@ -610,15 +611,26 @@ function evaluateBadges(){
   return fresh;
 }
 
-/* Cosmetics. Each theme is gated on a badge, so cosmetics are a reward channel
-   rather than a second currency. */
-const THEMES = [
-  { id:"ivory",    name:"Classic Ivory", need:null,               blurb:"How Keyvoria ships" },
-  { id:"midnight", name:"Midnight",      need:"perfect_score",    blurb:"Earned with a Perfect Score" },
-  { id:"ember",    name:"Ember",         need:"exceptional_accuracy", blurb:"Earned with Exceptional Accuracy" },
-  { id:"gold",     name:"Master Gold",   need:"keyvoria_master",  blurb:"Earned by Keyvoria Masters" }
+/* ============================ identity & privacy ============================
+   One rule, one function: a private profile shows nobody anything. Everywhere that
+   could expose a name — achievement cards, leaderboards — reads publicName(), never
+   the account directly, so privacy cannot be forgotten at a call site. */
+const PROVIDERS = [
+  { id:"google", label:"Continue with Google", hue:"#e8e6e3" },
+  { id:"yahoo",  label:"Continue with Yahoo",  hue:"#c8a2f0" },
+  { id:"email",  label:"Sign up with email",   hue:"#ff8a3d" }
 ];
-const themeUnlocked = t => !t.need || !!S.badges[t.need];
+const signedIn   = () => !!S.account;
+const isPublic   = () => S.visibility === "public";
+const accountName = () => (S.account && (S.account.nickname || S.account.name)) || "";
+/* The only name any other user can ever see. */
+const publicName = () => (signedIn() && isPublic() && accountName()) ? accountName() : "A Keyvoria player";
+const initials = () => {
+  const n = accountName();
+  if(!n) return "?";
+  const parts = n.trim().split(/\s+/);
+  return ((parts[0][0]||"") + (parts[1] ? parts[1][0] : "")).toUpperCase();
+};
 
 /* ============================ audio ============================ */
 let ctx = null, master = null, audioReady = false;
@@ -709,7 +721,7 @@ function playPhrase(notes){
 function allOff(){ Array.from(voices.keys()).forEach(m => stopNote(m, true)); }
 
 /* ============================ app state ============================ */
-let curScreen = "menu";
+let curScreen = "home";
 let ladderCat = "ear";
 let earModeTier = 1;
 let cardBadge = "keyvoria_master";
@@ -1077,7 +1089,7 @@ function keyboardHTML(opts){
     '<span class="faint">'+(S.noteNames ? "Note names on" : "Note names off")+'</span></div>';
   const inner = fits ? 'width:100%' : 'width:'+(W*WK)+'px';
   return '<div class="kbdock">'+meta+
-    '<div class="kbscroll"><div class="kb'+(opts.mini?" mini":"")+'" id="kb" data-theme="'+S.theme+'" style="'+inner+'">'+html+'</div></div></div>';
+    '<div class="kbscroll"><div class="kb'+(opts.mini?" mini":"")+'" id="kb" style="'+inner+'">'+html+'</div></div></div>';
 }
 document.addEventListener("pointerdown", e => {
   const k = e.target.closest("[data-midi]");
@@ -1215,7 +1227,19 @@ function screenMenu(){
       '<span class="tsub" style="display:block">'+tierProgressLabel(k)+'</span></span>'+
       svg(IC.chev,18)+'</button>';
   };
+  const idRow = signedIn()
+    ? '<button class="idrow" data-go="account">'+
+        '<span class="avatar">'+initials()+'</span>'+
+        '<span class="grow"><span class="idname">'+(S.account.nickname||S.account.name||"Keyvoria player")+'</span>'+
+        '<span class="idmeta">'+(isPublic()?"Public profile":"Private profile")+'</span></span>'+
+        svg(IC.chev,16)+'</button>'
+    : '<button class="idrow signedout" data-go="signin">'+
+        '<span class="avatar ghost">?</span>'+
+        '<span class="grow"><span class="idname">Sign in to save your progress</span>'+
+        '<span class="idmeta">Google, Yahoo or email</span></span>'+
+        svg(IC.chev,16)+'</button>';
   return '<div class="stack">'+
+    idRow+
     '<button class="momentum" data-go="ladder" data-cat="repeat">'+
       '<span class="grow"><span class="molabel" style="display:block">Continue</span>'+
       '<span class="motitle" style="display:block">Playback &amp; Repeat · Tier '+S.unlocked.repeat+'</span></span>'+
@@ -1278,7 +1302,7 @@ function screenLadder(){
             '</'+(done?"button":"div")+'>';
   });
   return '<div class="exhead">'+
-      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">'+c.name+'</div><div style="width:34px"></div></div>'+
     '<div class="faint">Tap an unlocked tier to practise. Correct exercises are the only way to earn XP.</div>'+
     '<div class="stack">'+rows+'</div>';
@@ -1455,6 +1479,15 @@ function screenProfile(){
           '<button class="link" data-go="cancel">Cancel subscription</button>';
   }
   return '<div class="h1">Profile</div>'+
+    (signedIn()
+      ? '<button class="tile" data-go="account"><span class="avatar lg">'+initials()+'</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">'+(S.account.nickname||S.account.name)+'</span>'+
+        '<span class="tsub" style="display:block">'+(isPublic()?"Public profile":"Private profile")+
+        ' \u00b7 '+(S.plus?"Keyvoria Plus":"Free plan")+'</span></span>'+svg(IC.chev,18)+'</button>'
+      : '<button class="tile warm" data-go="signin"><span class="avatar ghost">?</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">Sign in</span>'+
+        '<span class="tsub" style="display:block">Save your progress and sync across devices</span></span>'+
+        svg(IC.chev,18)+'</button>')+
     '<div class="stats">'+
       '<div class="stat"><div class="statnum tnum">'+S.lifetimeXp.toLocaleString()+'</div><div class="statlab">Total XP<br>earned</div></div>'+
       '<div class="stat"><div class="statnum tnum">'+hrs+'</div><div class="statlab">Hours<br>practised</div></div>'+
@@ -1476,10 +1509,6 @@ function screenProfile(){
     '<button class="tile" data-go="leaderboard"><span class="ticon">\u{1F4CA}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Leaderboards</span>'+
       '<span class="tsub" style="display:block">'+(S.leaderboardOptIn?"On":"Off \u00b7 opt in to compare")+'</span></span>'+svg(IC.chev,18)+'</button>'+
-    '<button class="tile" data-go="themes"><span class="ticon">\u{1F3A8}</span>'+
-      '<span class="grow"><span class="ttitle" style="display:block">Keyboard themes</span>'+
-      '<span class="tsub" style="display:block">'+(THEMES.find(t=>t.id===S.theme)||THEMES[0]).name+' \u00b7 '+
-        THEMES.filter(themeUnlocked).length+' of '+THEMES.length+' unlocked</span></span>'+svg(IC.chev,18)+'</button>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
       '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
     '<button class="link" data-act="reset">Reset all progress</button>';
@@ -1534,7 +1563,7 @@ function screenAchievements(){
    optional display name the user types in themselves. */
 function cardHTML(b, forShare){
   const got = !!S.badges[b.id];
-  const who = S.shareName.trim() ? S.shareName.trim() : "A Keyvoria player";
+  const who = publicName();
   const when = got ? new Date(S.badges[b.id]).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}) : "";
   /* A small, correctly-proportioned keyboard rather than a row of blocks:
      14 white keys with the black keys sitting over the right splits. */
@@ -1576,10 +1605,8 @@ function screenCard(){
           '<button class="btn block" data-act="share">Share this achievement</button>'+
           '<button class="btn ghost block" data-act="copycard">Copy share text</button>'+
           '<div class="faint center">Nothing on this card identifies your account — no email, no user ID. '+
-          'The name is whatever you choose below, or nothing at all.</div>'+
-          '<div class="card"><div class="row"><span class="kvk">Name on cards</span></div>'+
-          '<input class="tinput" id="shareName" value="'+S.shareName.replace(/"/g,"&quot;")+'" placeholder="Leave blank to stay anonymous" maxlength="24">'+
-          '<button class="btn sm" data-act="savename" style="margin-top:10px">Save name</button></div>'+
+          'It shows <b>'+publicName()+'</b>'+(isPublic()?'':' because your profile is private')+'.</div>'+
+          '<button class="btn ghost block" data-go="account">'+(isPublic()?'Change what others see':'Make my profile public')+'</button>'+
         '</div>'
       : '<div class="notice">'+b.blurb+'. Earn it and this card becomes shareable.</div>');
 }
@@ -1602,7 +1629,7 @@ function screenMaster(){
       '<span class="pill">Master</span></button>';
   }
   return '<div class="exhead">'+
-      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Master Mode</div><div style="width:34px"></div></div>'+
     '<div class="notice keep">Expert difficulty, generated fresh every time, and it never runs out. '+
       'One wrong answer ends the run — your score is how long you lasted.</div>'+
@@ -1650,7 +1677,7 @@ function screenLeaderboard(){
         '<button class="btn ghost block" data-go="profile">Not now</button>'+
       '</div>';
   }
-  const me = { n:(S.shareName.trim()||"You"), xp:S.lifetimeXp, acc:accuracyPct(),
+  const me = { n:(isPublic() && accountName() ? accountName() : "You (private)"), xp:S.lifetimeXp, acc:accuracyPct(),
                streak:Math.max(S.masterBest.ear,S.masterBest.sight,S.masterBest.repeat,S.masterBest.mixed),
                badges:earnedBadges().length, me:true };
   const metric = lbMetric;
@@ -1672,31 +1699,84 @@ function screenLeaderboard(){
     '<button class="link" data-act="lboff">Turn off leaderboards</button>';
 }
 
-function screenThemes(){
-  let list = "";
-  THEMES.forEach(t => {
-    const open = themeUnlocked(t), on = S.theme === t.id;
-    list += '<'+(open?"button":"div")+' class="themerow'+(on?" on":"")+(open?"":" locked")+'"'+
-      (open?' data-act="settheme" data-theme="'+t.id+'"':"")+'>'+
-      '<span class="swatch '+t.id+'"><i></i><i class="k"></i><i></i></span>'+
-      '<span class="grow"><span class="ttitle" style="display:block">'+t.name+'</span>'+
-      '<span class="tsub" style="display:block">'+(open?t.blurb:"Locked — "+t.blurb)+'</span></span>'+
-      (on?'<span class="pill mastered">On</span>':(open?"":svg(IC.lock,16)))+
-      '</'+(open?"button":"div")+'>';
-  });
+
+/* ============================ account ============================ */
+function screenSignIn(){
+  const btns = PROVIDERS.map(pr =>
+    '<button class="provider '+pr.id+'" data-act="signin" data-p="'+pr.id+'">'+
+      '<span class="pglyph">'+(pr.id==="google"?"G":pr.id==="yahoo"?"Y!":"✉")+'</span>'+
+      '<span class="grow">'+pr.label+'</span></button>').join("");
   return '<div class="exhead">'+
-      '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
-      '<div class="h2">Keyboard themes</div><div style="width:34px"></div></div>'+
-    '<div class="faint">Cosmetic only — themes never change how anything is graded.</div>'+
-    '<div class="stack">'+list+'</div>'+
-    keyboardHTML({});
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Sign in</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="center"><div class="h1">Save your progress</div>'+
+        '<div class="sub" style="margin-top:6px">An account keeps your XP, unlocks and compositions '+
+        'in sync across your phone, tablet and the website.</div></div>'+
+      '<div class="stack" style="gap:9px;margin-top:6px">'+btns+'</div>'+
+      '<div class="notice"><b>Prototype note.</b> Real Google and Yahoo sign-in needs the backend '+
+        '(roadmap M1). In this build these create a local account on this device only — so it asks '+
+        'for a name, and <b>never for a password</b>. Don’t type a real one anywhere in a prototype.</div>'+
+      '<button class="link" data-go="home">Keep playing without an account</button>'+
+    '</div>';
 }
 
+function screenNameSetup(){
+  const a = S.account || {};
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Your profile</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="sub">This is what Keyvoria calls you. A nickname is fine — plenty of people '+
+        'would rather not put their real name on a leaderboard.</div>'+
+      '<div class="card">'+
+        '<div class="eyebrow">Name</div>'+
+        '<input class="tinput" id="accName" value="'+(a.name||"").replace(/"/g,"&quot;")+'" placeholder="Your name" maxlength="32">'+
+        '<div class="eyebrow" style="margin-top:14px">Nickname <span class="faint" style="text-transform:none;letter-spacing:0">— optional, used instead of your name</span></div>'+
+        '<input class="tinput" id="accNick" value="'+(a.nickname||"").replace(/"/g,"&quot;")+'" placeholder="e.g. clefhanger" maxlength="24">'+
+      '</div>'+
+      visibilityCard()+
+      '<button class="btn block" data-act="saveaccount">Save</button>'+
+    '</div>';
+}
 
-/* ============================ Learn My Music ============================
-   Upload -> confirm the song -> tutorial. MIDI files are parsed for real, so the
-   tutorial is genuinely built from the uploaded notes. Audio files cannot be
-   transcribed in the browser, so those take the estimated path and say so. */
+function visibilityCard(){
+  const pub = isPublic();
+  return '<div class="card">'+
+    '<div class="eyebrow" style="margin-bottom:10px">Who can see you</div>'+
+    '<button class="visopt'+(!pub?" on":"")+'" data-act="setvis" data-v="private">'+
+      '<span class="visdot"></span><span class="grow"><b>Private</b>'+
+      '<span class="tsub" style="display:block">Nobody sees your name. Achievement cards read '+
+      '“A Keyvoria player” and you appear on leaderboards anonymously.</span></span></button>'+
+    '<button class="visopt'+(pub?" on":"")+'" data-act="setvis" data-v="public">'+
+      '<span class="visdot"></span><span class="grow"><b>Public</b>'+
+      '<span class="tsub" style="display:block">Your '+(S.account&&S.account.nickname?"nickname":"name")+
+      ' appears on achievement cards and leaderboards.</span></span></button>'+
+    '<div class="faint" style="margin-top:10px">Your email address is never shown to anyone, on either setting.</div>'+
+  '</div>';
+}
+
+function screenAccount(){
+  if(!signedIn()) return screenSignIn();
+  const a = S.account;
+  const prov = a.provider === "google" ? "Google" : a.provider === "yahoo" ? "Yahoo" : "Email";
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Account</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="card"><div class="row">'+
+        '<span class="avatar lg">'+initials()+'</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">'+(a.nickname||a.name||"Keyvoria player")+'</span>'+
+        '<span class="tsub" style="display:block">Signed in with '+prov+'</span></span></div></div>'+
+      '<button class="tile" data-go="namesetup"><span class="ticon">\u{270F}\u{FE0F}</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">Name & nickname</span>'+
+        '<span class="tsub" style="display:block">'+(a.nickname?("Shown as "+a.nickname):(a.name||"Not set"))+'</span></span>'+
+        svg(IC.chev,18)+'</button>'+
+      visibilityCard()+
+      '<button class="link" data-act="signout">Sign out</button>'+
+    '</div>';
+}
+
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 /* Free users get the opening 30 seconds of any upload. Measured on the SONG's own
    timeline, not wall-clock, so slowing the tempo down never shrinks how much music
@@ -1835,7 +1915,7 @@ function handleUpload(file){
 
 function screenUpload(){
   return '<div class="exhead">'+
-      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Learn My Music</div><div style="width:34px"></div></div>'+
     '<div class="stack" style="justify-content:center;flex:1">'+
       '<div class="uploadbox">'+
@@ -1976,7 +2056,7 @@ function tutWire(){
 }
 
 function screenPaywall(){
-  return '<div class="exhead"><button class="iconbtn" data-go="menu" aria-label="Close">'+svg(IC.close,13)+'</button>'+
+  return '<div class="exhead"><button class="iconbtn" data-go="home" aria-label="Close">'+svg(IC.close,13)+'</button>'+
     '<div style="width:34px"></div><div style="width:34px"></div></div>'+
     '<div class="stack center" style="justify-content:center;flex:1">'+
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
@@ -1984,7 +2064,7 @@ function screenPaywall(){
       '<div class="sub">Tiers 1–3 and the 32-key keyboard are always free. Plus adds <b>tier 4</b> in every category, the full <b>61-key</b> keyboard those tiers need, and Learn My Music.</div>'+
       '<div class="card gold"><div class="h2" style="color:var(--gold)">$9.95<span class="sub"> / month</span></div></div>'+
       '<button class="btn gold block" data-act="upgrade">Upgrade now</button>'+
-      '<button class="btn ghost block" data-go="menu">Not now</button>'+
+      '<button class="btn ghost block" data-go="home">Not now</button>'+
     '</div>';
 }
 
@@ -2003,21 +2083,23 @@ function screenCancel(){
 
 /* ============================ render ============================ */
 const SCREENS = {
-  menu:screenMenu, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
+  home:screenMenu,
+  signin:screenSignIn, namesetup:screenNameSetup, account:screenAccount, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   achievements:screenAchievements, card:screenCard,
   upload:screenUpload, confirm:screenConfirm, tutorial:screenTutorial,
   master:screenMaster, masterover:screenMasterOver,
-  leaderboard:screenLeaderboard, themes:screenThemes
+  leaderboard:screenLeaderboard
 };
-const TAB_OF = { menu:"menu", ladder:"menu", earmode:"menu", play:"menu", summary:"menu", paywall:"menu",
-                 master:"menu", masterover:"menu",
-                 upload:"menu", confirm:"menu", tutorial:"menu",
+const TAB_OF = { home:"home", ladder:"home", earmode:"home", play:"home", summary:"home", paywall:"home",
+                 master:"home", masterover:"home",
+                 upload:"home", confirm:"home", tutorial:"home",
                  library:"library", freeplay:"library",
                  profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
-                 leaderboard:"profile", themes:"profile" };
-const SHOW_TABS = { menu:1, library:1, profile:1 };
+                 signin:"profile", namesetup:"profile", account:"profile",
+                 leaderboard:"profile" };
+const SHOW_TABS = { home:1, library:1, profile:1 };
 
 function render(){
   /* Rebuilding the view destroys key elements, so a pointerup can be lost and
@@ -2030,7 +2112,7 @@ function render(){
     tb.style.display = "flex";
     const cur = TAB_OF[curScreen];
     tb.innerHTML =
-      '<button class="tab'+(cur==="menu"?" on":"")+'" data-go="menu">'+svg(IC.home,19)+'Main Menu</button>'+
+      '<button class="tab'+(cur==="home"?" on":"")+'" data-go="home">'+svg(IC.home,19)+'Home</button>'+
       '<button class="tab'+(cur==="library"?" on":"")+'" data-go="library">'+svg(IC.lib,19)+'Library</button>'+
       '<button class="tab'+(cur==="profile"?" on":"")+'" data-go="profile">'+svg(IC.user,19)+'Profile</button>';
   } else tb.style.display = "none";
@@ -2151,7 +2233,7 @@ document.addEventListener("click", e => {
       rebuildUpload();
       toast("Keyvoria Plus active · 61 keys and full songs unlocked");
       if(hadUpload && tut){ tutStop(); tut.pos = 0; go("tutorial"); }
-      else go("menu");
+      else go("home");
       break;
     }
     case "resume":
@@ -2175,15 +2257,32 @@ document.addEventListener("click", e => {
     case "toggleloop":
       tutStop(); tut.loop = !tut.loop; tut.pos = 0; render(); break;
     case "tutplay": tutPlay(); break;
-    case "closetut": tutStop(); go("menu"); break;
+    case "closetut": tutStop(); go("home"); break;
+    case "signin": {
+      const p2 = el.dataset.p;
+      S.account = { provider:p2, name:"", nickname:"", email:"" };
+      S.visibility = "private"; save();
+      go("namesetup"); break;
+    }
+    case "saveaccount": {
+      const n = document.getElementById("accName"), k = document.getElementById("accNick");
+      S.account = Object.assign({}, S.account, {
+        name: (n ? n.value : "").trim().slice(0,32),
+        nickname: (k ? k.value : "").trim().slice(0,24)
+      });
+      if(!S.account.name && !S.account.nickname){ toast("Add a name or a nickname", true); return; }
+      save(); toast("Saved"); go("home"); break;
+    }
+    case "setvis":
+      S.visibility = el.dataset.v; save(); render(); break;
+    case "signout":
+      if(confirm("Sign out? Your progress stays on this device.")){
+        S.account = null; S.visibility = "private"; S.leaderboardOptIn = false;
+        save(); toast("Signed out", true); go("home");
+      }
+      break;
     case "card":
       cardBadge = el.dataset.badge; go("card"); break;
-    case "savename": {
-      const inp = document.getElementById("shareName");
-      S.shareName = (inp ? inp.value : "").slice(0,24); save();
-      toast(S.shareName.trim() ? "Cards will show \u201c"+S.shareName.trim()+"\u201d" : "Cards will stay anonymous");
-      render(); break;
-    }
     case "share": shareBadge(badgeById(cardBadge)); break;
     case "copycard": copyShareText(badgeById(cardBadge)); break;
     case "startmaster": startMaster(el.dataset.cat); break;
@@ -2191,13 +2290,10 @@ document.addEventListener("click", e => {
     case "lbon":  S.leaderboardOptIn = true;  save(); render(); break;
     case "lboff": S.leaderboardOptIn = false; save(); toast("Leaderboards off", true); render(); break;
     case "lbmetric": lbMetric = el.dataset.metric; render(); break;
-    case "settheme":
-      S.theme = el.dataset.theme; save();
-      toast((THEMES.find(t=>t.id===S.theme)||{}).name+" applied"); render(); break;
     case "reset":
       if(confirm("Reset all XP, unlocks and practice history?")){
-        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,repeat:1}});
-        save(); toast("Progress reset", true); go("menu");
+        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,repeat:1}, account:null, visibility:"private"});
+        save(); toast("Progress reset", true); go("home");
       }
       break;
   }
@@ -2208,7 +2304,7 @@ document.addEventListener("click", e => {
    here: the card is rendered large enough to screenshot, and the share text is
    offered through the native share sheet where the browser exposes one. */
 function shareText(b){
-  const who = S.shareName.trim();
+  const who = isPublic() && accountName() ? accountName() : "";
   return (who ? who + " \u2014 " : "") + b.icon + " " + b.title +
          " on Keyvoria. " + b.blurb + ". " + (S.badges[b.id] ? b.line() : "");
 }

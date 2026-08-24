@@ -56,17 +56,22 @@ costs are now settled, see PRD F-03). **No application code is written until thi
 - `services/api` skeleton (Fastify + tRPC) deployed to a dev environment; Supabase
   project provisioned (Postgres + Auth + Storage).
 - Base schema migrations for `users`, `entitlements`, `midi_devices` (§4.2) and auth
-  wired end-to-end (sign up/sign in from the app, same account usable from any
-  platform immediately).
+  wired end-to-end: **email sign-up plus Google and Yahoo OAuth** (PRD F-12), the same
+  account usable from any platform immediately. `users.nickname` and
+  `users.profile_visibility` ship in this migration with visibility defaulting to
+  **private** — retrofitting a privacy default later means deciding what to do with
+  everyone who signed up under the old one.
+- The `public_name()` helper and a test asserting that no card or leaderboard query
+  reads `users.email`, on either visibility setting.
 - CI: typecheck, lint, unit tests, and a build check for all three targets on every PR.
-**Exit criteria:** a fresh install can create an account and see the empty three-tab
-shell (Main Menu / Library / Profile) on all three platforms, in both the mobile and
+**Exit criteria:** a fresh install can sign up with email, Google or Yahoo and see the
+empty three-tab shell (Home / Library / Profile) on all three platforms, in both the mobile and
 desktop chrome layout; signing into the
 same account from a second platform shows the same account state; CI green on main.
 
 ## M2 — Core learning engine (non-MIDI content first)
 **Size:** L
-**Goal:** the Main Menu, its per-category Tier Ladder, and the Lesson Player work
+**Goal:** Home, its per-category Tier Ladder, and the Lesson Player work
 end-to-end for content types that don't require live MIDI input, so the
 category/tier content model can be validated before the harder MIDI-integration
 milestone lands.
@@ -75,7 +80,7 @@ milestone lands.
   and ingestion pipeline from the git-based `content/` directory. Every seeded lesson
   carries a `tier_id`; tier 1 in each category is unlocked by default for every user
   (no purchase flow needed yet — that's M5).
-- **Main Menu screen — the app's home route** (screen map §3.3): exactly four tiles —
+- **Home screen — the app's home route** (screen map §3.3): exactly four tiles —
   Ear Training, Sight-Reading, Playback & Repeat, Learn My Music — wired to whatever's
   built so far and stubbed for the rest. Launch lands here directly; there is no
   dashboard route in front of it, and onboarding exits to it. Includes the
@@ -105,7 +110,7 @@ milestone lands.
 Menu, see that category's Tier Ladder with tier 1 unlocked and later tiers visibly
 locked with a cost, complete a tier-1 theory/ear-training lesson with progress
 persisted (`user_progress`, §4.8), and reach every implemented category from the
-Main Menu — which is also the screen the app opens on, from a cold start and from
+Home — which is also the screen the app opens on, from a cold start and from
 onboarding alike.
 
 ## M3 — MIDI integration
@@ -208,7 +213,7 @@ each category's free tier 1 actually reachable for the first time.
 - The **Unlock** button on each category's Tier Ladder screen (§3.3.1) goes live:
   enabled/disabled based on live balance, a confirmation step before spending
   (spending is permanent per PRD F-03), and the "Tier unlocked!" reveal moment.
-- The Main Menu header's spendable-XP display and Profile's Recommended-next-unlock
+- Home header's spendable-XP display and Profile's Recommended-next-unlock
   card (screen map §3.3, §3.8)
   go live, reading real balance and real tier-cost data instead of placeholders.
 - Progress Analytics' per-category XP balance/spend view (screen map §3.6) goes live
@@ -246,10 +251,8 @@ and give the finished user somewhere to keep playing.
   `master_runs` recording, streak scoring, tier-4 XP per correct challenge.
 - **Leaderboards**: opt-in flow, `leaderboard_entries` materialisation, four metrics,
   and opt-out that **deletes** the row rather than hiding it.
-- **Cosmetics**: four keyboard themes gated on badges, `user_cosmetics`.
 **Exit criteria:** a user who buys every tier but plays nothing holds **zero** mastery;
-a user who clears all twelve tiers earns Keyvoria Master and unlocks Master Mode and
-the gold theme; a Master Mode run ends on the first wrong answer with the streak
+a user who clears all twelve tiers earns Keyvoria Master and unlocks Master Mode; a Master Mode run ends on the first wrong answer with the streak
 recorded; an achievement card renders with no account-identifying data by default and
 with a chosen display name when set; opting out of leaderboards removes the row.
 
@@ -280,7 +283,7 @@ three practice modes.
 - `user_uploads` / `generated_tutorials` / `tutorial_sections` /
   `estimated_chord_labels` tables (§4.11), and manual chord-label correction
   interaction for MP3 uploads.
-- The `entitlements` check (§4.2) in front of the upload endpoint and the Main Menu
+- The `entitlements` check (§4.2) in front of the upload endpoint and Home
   tile for **every** upload type — a non-entitled user sees the Paywall screen
   (screen map §3.6 step 0) instead of Upload, regardless of what format they're
   about to pick.
@@ -386,7 +389,7 @@ rejected server-side even with the client patched.
 - Recommended-session generation reusing the **existing** procedural generators with a
   constrained pool — a recommended session is ordinary exercises, not a new content
   type. That reuse is what keeps this milestone M-sized.
-- Recommended session card on the Main Menu and Profile; dismissal persisted.
+- Recommended session card on Home and Profile; dismissal persisted.
 - Skill breakdown on Progress, with **"Not enough practice yet"** below threshold.
 - `practice_recommendations` lifecycle (offered → accepted/dismissed → completed).
 **Exit criteria:** a user with a deliberately weak skill is offered a session targeting

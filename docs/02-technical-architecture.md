@@ -14,7 +14,7 @@ where web trails mobile in capability: the same Expo Router screens, the same
 `packages/*` business logic, and the same component library render all three targets.
 `apps/app` is the entire product on every platform — desktop web included. It is
 explicitly **not** a landing page: log in from a browser and you get the real Keyvoria
-learning experience (Main Menu, Lesson Player, Ear Training, Sight-Reading, Playback &
+learning experience (Home, Lesson Player, Ear Training, Sight-Reading, Playback &
 Repeat, Learn My Music, Progress Analytics — everything), laid out for a desktop
 viewport rather than simplified or reduced. See "Responsive layout" below for how one
 codebase

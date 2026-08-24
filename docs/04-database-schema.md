@@ -79,10 +79,10 @@ erDiagram
 ## 4.2 Identity & account
 
 **`users`**
-`id`, `email`, `display_name`, `auth_provider`, `created_at`, `last_active_at`,
+`id`, `email`, `display_name`, `auth_provider` (enum: email / google / yahoo), `created_at`, `last_active_at`,
 `onboarding_completed_at`, `initial_goal` (enum: play_songs / theory_reading /
 classical / improvise), `is_guest` (bool), `show_note_names` (bool, default false —
-the Main Menu's global keyboard-label toggle from PRD F-02a; one setting, read by
+Home's global keyboard-label toggle from PRD F-02a; one setting, read by
 every screen that renders a keyboard, not reconfigured per session).
 
 **`entitlements`**
@@ -219,7 +219,7 @@ restarts, which is what makes "which note does this user keep missing" answerabl
 **`ear_training_drills`**
 `id`, `lesson_id → lessons` (nullable — set only for curated, tier-linked stops
 within the Ear Training category; null for an ad-hoc config the user assembles from
-the Main Menu, which spends no XP and unlocks nothing), `drill_type` (enum:
+Home, which spends no XP and unlocks nothing), `drill_type` (enum:
 interval / chord_progression), `stimulus_note_count` (int, 2–8, applicable when
 `drill_type = interval` — 2 = two-note interval, 3 = triad graded by chord quality,
 4–8 = melodic interval-chain dictation), `allowed_qualities` (text[], subset of
@@ -509,17 +509,22 @@ playback_repeat / mixed), `streak` (int — challenges survived), `xp_earned`,
 `started_at`, `ended_at`, `ended_reason` (enum: wrong_answer / quit). Best streak per
 category is `max(streak)` over this table, not a separate column.
 
-**`user_cosmetics`**
-`user_id → users`, `keyboard_theme` (text, default `ivory`), `profile_frame` (text,
-nullable), `unlocked_cosmetics` (text[] — derived from achievements at read time in
-V1, materialised here only if that read ever gets expensive).
+**`user_cosmetics`** — *not in V1.* Keyboard themes were cut (PRD F-08), and no other
+cosmetic shipped, so the table has nothing to hold. Kept here as a named placeholder
+so a later profile frame or background has an obvious home: `user_id → users`,
+`profile_frame`, `background`, `unlocked_cosmetics` (text[]).
 
 **`share_preferences`**
-`user_id → users` (PK), `display_name` (text, nullable — **null means cards render
-"A Keyvoria player"**, and null is the default), `leaderboard_opt_in` (bool, default
-**false**), `opted_in_at` (nullable). Card and leaderboard rendering read *only* this
-table for identity; they must never join to `users`, which is what structurally
-guarantees PRD F-08's privacy rule rather than leaving it to reviewer discipline.
+`user_id → users` (PK), `leaderboard_opt_in` (bool, default **false**), `opted_in_at`
+(nullable). The public *name* is no longer stored here — it is derived from
+`users.nickname` / `users.display_name` gated by `users.profile_visibility` (PRD F-12),
+so there is exactly one place a name can become public. An earlier draft kept a
+separate `display_name` on this table; two copies of "what may others see" is two
+things to keep in sync, and the one that drifts is the one that leaks.
+
+Card and leaderboard rendering must resolve identity through the single
+`public_name(user)` helper — never by reading `users` columns directly. `email` is not
+readable by that path at all, on either visibility setting.
 
 **`leaderboard_entries`** (materialised, refreshed periodically)
 `user_id → users`, `display_name` (snapshot from `share_preferences`), `lifetime_xp`,

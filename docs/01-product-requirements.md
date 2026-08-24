@@ -36,7 +36,7 @@ thin, platform-specific implementations behind a common interface.
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
 
-**The Main Menu is Keyvoria's home screen** (screen map §3.3) — the app opens directly
+**Home is Keyvoria's home screen** (screen map §3.3) — the app opens directly
 onto it, so a user's first interaction is choosing a program rather than reading a
 dashboard. It absorbs both what an earlier draft called the separate "Learn tab"
 (since the four categories below *are* the curriculum) and that draft's Home/Dashboard
@@ -52,7 +52,7 @@ Each category has its own progression, independent of the others (F-03) — a us
 picks which skills to develop rather than being pushed through one linear
 curriculum. There is deliberately no "Beginner/Intermediate/Advanced path" spanning
 all categories at once; the closest earlier draft had one, and it's retired in favor
-of per-category progression. Free/warm-up play remains cut from V1's Main Menu for
+of per-category progression. Free/warm-up play remains cut from V1's Home for
 launch simplicity, revisitable post-V1.
 
 **Free vs. Premium — Keyvoria Plus, $9.95/month.**
@@ -146,7 +146,7 @@ reframed as tags rather than paths.
   two ship together in the same subscription rather than as separate perks.
 
 ### F-02a Ear Training: intervals & chord-quality drills
-A configurable ear-training drill, launched from the Main Menu (screen map §3.3),
+A configurable ear-training drill, launched from Home (screen map §3.3),
 with its own XP-unlocked tier ladder (F-03). Entering a tier presents **two modes as
 an explicit choice** — Note Intervals or Chords — rather than mixing them within one
 session, so a user can drill the skill they actually want:
@@ -234,7 +234,7 @@ passage in front of them, which is the thing that actually builds reading fluenc
 user can see their position in the passage without counting. Clefs are drawn as proper
 treble and bass clef symbols, and the key signature's sharps or flats are engraved at
 the correct staff positions, in the standard order.
-- **No manual setup screen** — tapping Sight-Reading from the Main Menu launches
+- **No manual setup screen** — tapping Sight-Reading from Home launches
   straight into a passage. Clef is picked for the user, randomly, **treble or bass**,
   every time the tile is tapped, so the two get roughly even practice over time without
   the user having to remember to switch. Difficulty is likewise not manually chosen —
@@ -364,7 +364,7 @@ because it makes XP cosmetic. Instead:
 ### F-05 "Learn My Music" / "Submit Your Clip" — free preview, premium in full
 *"Submit Your Clip" is the user-facing label for this feature's entry point; F-05
 remains its ID throughout these documents. One upload pipeline, two names — see F-05a.*
-The fourth Main Menu category, and Keyvoria's main conversion path. **It is no longer
+The fourth Home category, and Keyvoria's main conversion path. **It is no longer
 gated behind a hard paywall.** Anyone can upload a song and get a real tutorial for its
 **first 30 seconds**; Keyvoria Plus unlocks the whole song.
 
@@ -465,7 +465,7 @@ Two naming and scope notes, since both would otherwise create phantom work:
 
 - **"Submit Your Clip" is Learn My Music (F-05), not a second feature.** Same upload,
   same confirmation step, same tutorial. "Submit Your Clip" is the better label for the
-  *entry point* — it says what the user does — so the Main Menu tile and marketing use
+  *entry point* — it says what the user does — so Home tile and marketing use
   it, while F-05 remains the feature ID the other documents reference. There is one
   upload pipeline, not two.
 - **"Tier 4 across all four categories" applies to the three tiered categories.**
@@ -490,7 +490,7 @@ split between a Home/Dashboard tab and a thin settings-style Profile tab.
 
 **Overview stats.** Three headline numbers, shown as equals:
 - **Total XP earned** — lifetime XP, every point ever earned, which only rises.
-  Deliberately distinct from the spendable balance on the Main Menu: this is "how much
+  Deliberately distinct from the spendable balance on Home: this is "how much
   have I done," not "what can I afford." Both appear, labelled so the difference is
   legible (F-03).
 - **Total hours practiced** — cumulative *active* practice time across every category.
@@ -579,11 +579,13 @@ earned. Practice history, uploads, and account details are never published, and 
 opt-in is reversible at any time. Ranking is available across four metrics so a
 careful player and a prolific one both have a board they can win.
 
-**Cosmetic rewards.** Keyboard themes (Classic Ivory, Midnight, Ember, Master Gold),
-each gated behind a specific badge rather than a second currency. Cosmetics never
-affect grading, difficulty, or XP — that separation is what keeps them safe to give
-away generously. Profile frames, backgrounds, and unlock animations extend the same
-pattern post-V1.
+**Cosmetic rewards — deferred.** Keyboard themes were built and then **cut**: they
+added a settings surface and a per-key styling path for a reward nobody had asked for,
+and they competed for attention with the badges, which are the reward that actually
+means something. The *channel* stays open — profile frames, backgrounds and unlock
+animations are the natural candidates post-V1 — under the rule that made themes safe
+in the first place: **cosmetics never affect grading, difficulty or XP**, which is what
+lets them be given away generously without touching the economy.
 
 ### F-09 Advanced performance analysis — Plus
 Free tier reports *what happened*: score, accuracy, XP. Plus explains *why*, using the
@@ -621,7 +623,7 @@ turns F-09's findings into a session.
   actually exercise them, and offer it as one tappable "Recommended session." It pays
   XP at the normal tier rate for the exercises it contains (F-03's earning rule is
   unchanged — nothing here mints XP by itself).
-- **The user can always decline.** A recommendation is an offer on the Main Menu and
+- **The user can always decline.** A recommendation is an offer on Home and
   Profile, never a redirect, and never the only way in. Keyvoria's whole progression
   model is "the user steers" (§1.1); an algorithm that quietly takes the wheel would
   contradict it.
@@ -664,6 +666,47 @@ features must attach to Keyvoria through the capability layer (architecture §2.
 their own packages — not by editing the learning engine. The test for this is
 concrete: adding a future premium feature should require a new capability name, a new
 package, and a new screen, with **no change to grading, XP, or the tier system**.
+
+### F-12 Accounts, identity & privacy
+Home now opens with **who you are**, so identity stops being a settings detail and
+becomes part of the product's first screen.
+
+**Sign-in options.** Email sign-up inside the app, **Continue with Google**, and
+**Continue with Yahoo**. All three produce the same account; the provider is recorded
+but never changes what a user can do. Playing without an account stays possible — the
+sign-in prompt on Home is an offer, not a wall — because forcing registration before
+anyone has heard a note costs more users than it saves.
+
+**Two names, and they do different jobs.**
+- **Name** — what Keyvoria calls you in the interface. From the provider, or typed.
+- **Nickname** — the online persona, optional, and **used instead of the name wherever
+  anyone else could see it**. Plenty of people will happily appear on a leaderboard as
+  *clefhanger* and would not appear at all under their real name. Making the nickname
+  the public identity, rather than a decoration, is what makes the public setting
+  usable.
+
+**Visibility is one setting, and it defaults to Private.**
+
+| | Private *(default)* | Public |
+|---|---|---|
+| Achievement cards | "A Keyvoria player" | Your nickname (or name) |
+| Leaderboards | Anonymous entry | Your nickname (or name) |
+| Email address | Never shown | **Never shown** |
+
+Three rules hold this together, and each exists because the alternative fails quietly:
+
+- **Private is the default**, not an opt-out. A user who never opens settings is
+  private, and nothing they do can publish their name by accident.
+- **The email address is never public on either setting.** It is a credential and a
+  contact route, never an identity others see. This is not a preference.
+- **One function decides what others may see.** Every surface that could expose a
+  name — cards, leaderboards, share text — reads the same `publicName()`; none reads
+  the account directly. Privacy enforced at one call site cannot be forgotten at the
+  next one, which is exactly how these leaks normally happen.
+
+**Signing out keeps local progress** and clears the account, visibility and leaderboard
+opt-in together — leaving a stale opt-in behind after a sign-out would publish a
+stranger's numbers under the previous user's name.
 
 ## 1.5 Non-functional requirements
 
