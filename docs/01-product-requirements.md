@@ -61,15 +61,15 @@ launch simplicity, revisitable post-V1.
 |---|---|---|
 | On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
 | Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
-| Learn My Music (F-05) | Locked (paywall) | Unlocked — Keyvoria's primary premium feature |
+| Learn My Music (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
 
 **The tier rule is fixed and uniform:** every tiered category has exactly **four
 tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start; tiers
 2 and 3 are XP purchases). **Tier 4 is always the premium tier** — it requires an
 active Keyvoria Plus subscription *and* its XP cost. There is no per-category
 variation in where the paywall falls, which keeps the offer explainable in one
-sentence: *tiers 1–3 and 32 keys free; tier 4, the full 61-key keyboard and Learn My
-Music for $9.95/month.*
+sentence: *tiers 1–3, 32 keys and a 30-second song preview are free; tier 4, the full
+61-key keyboard and full-length songs are $9.95/month.*
 
 The billing mechanic is a **$9.95/month subscription**. The XP numbers are now set
 too (F-03) — earning rates and unlock costs are fixed values, not placeholders.
@@ -355,10 +355,26 @@ because it makes XP cosmetic. Instead:
   songs (classical + original), filterable by difficulty, skill tag, genre, duration,
   category, and completion status.
 
-### F-05 "Learn My Music" — Premium
-Keyvoria's **primary premium feature**, and the fourth Main Menu category. Reaching it
-without an active subscription shows the paywall instead of the upload flow
-(`entitlements`, DB §4.2).
+### F-05 "Learn My Music" — free preview, premium in full
+The fourth Main Menu category, and Keyvoria's main conversion path. **It is no longer
+gated behind a hard paywall.** Anyone can upload a song and get a real tutorial for its
+**first 30 seconds**; Keyvoria Plus unlocks the whole song.
+
+This supersedes an earlier draft that locked the category entirely. A paywall in front
+of an unproven feature asks the user to buy something they have never used; letting
+them upload *their own* song and actually play the opening of it is a far stronger case
+for the subscription than any description of the feature could be. It also serves the
+beginner directly: 30 seconds of a song they chose is a complete, achievable practice
+goal, not a teaser.
+
+**The 30 seconds are measured on the song's own timeline, not wall-clock.** Practising
+at 0.5× does not halve the amount of music — the preview is the same 30 seconds of the
+piece however slowly it is played. Tying it to real time would punish exactly the
+beginners who need the slow speeds most.
+
+The preview is otherwise **feature-complete**: all seven playback speeds, all three
+practice modes, section looping and grading. What Plus buys is *length*, not
+capability, which keeps the value proposition honest and easy to state.
 
 **The flow is Upload → Confirm → Tutorial.** The confirmation step is not a
 formality; it is what stops the app from spending analysis effort, and the user's
@@ -367,7 +383,8 @@ patience, on the wrong song:
 1. **Upload.** **MP3 audio** is the headline format (also M4A/WAV/AAC), with
    **MIDI/MusicXML** accepted where the user has them. Available on both the app and
    the website — the upload flow is the same code on every platform (architecture
-   §2.1).
+   §2.1). The upload screen states the 30-second free limit *before* the user picks a
+   file, not after.
 2. **Confirm the song.** Keyvoria identifies what it thinks was uploaded — title and
    artist from audio fingerprinting/metadata, or the track name from a MIDI file —
    and **asks the user to confirm or correct it before building anything**. The user
@@ -375,7 +392,12 @@ patience, on the wrong song:
    labelled with someone else's song, which is worse than asking.
 3. **Tutorial generation.** Difficulty analysis (note density, hand span, tempo,
    rhythmic and chord complexity), phrase segmentation for looping, and a gradable
-   note sequence for the shared `grading-engine`.
+   note sequence for the shared `grading-engine`. The confirm screen shows exactly how
+   much the user will get — "First 30 seconds · 69 of 83 notes" or "The whole song".
+   The tutorial itself carries a preview banner with an inline upgrade action, and its
+   progress bar marks where the preview ends. **Upgrading from inside a tutorial
+   unlocks the rest of that song in place**, returning the user to what they were
+   playing rather than dumping them back at the menu.
 
 **Playback speed is a fixed set of seven steps**, not a continuous slider. This
 supersedes an earlier draft's "0.25×–2× continuous, YouTube-style":
@@ -403,9 +425,9 @@ switch freely:
   2. **Synthesia-style falling notes** — for users who don't read music.
   3. **Auto-Play** — Keyvoria plays it back so the user can listen and follow.
 
-**Format determines confidence, not entitlement.** Every format is behind the same
-paywall, but an **audio-sourced** tutorial carries a persistent *Estimated
-transcription* banner because audio-to-score is best-effort; MIDI/MusicXML uploads are
+**Format determines confidence, not entitlement.** Every format follows the same
+free-preview/full-song rule, but an **audio-sourced** tutorial carries a persistent
+*Estimated transcription* banner because audio-to-score is best-effort; MIDI/MusicXML uploads are
 exact and carry no banner. V1 does not attempt full generalized transcription of dense
 polyphonic recordings (§1.6).
 

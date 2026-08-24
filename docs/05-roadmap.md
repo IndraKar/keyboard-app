@@ -254,7 +254,8 @@ difficulty, skill tag, genre, duration, and completion status; a locked item cor
 routes the user toward unlocking it rather than a dead end.
 
 ## M7 — Learn My Music (Premium)
-**Size:** XL — this is Keyvoria's primary premium feature (PRD F-05) and the
+**Size:** XL — this is Keyvoria's main conversion path (PRD F-05: free 30-second
+preview, full song on Plus) and the
 single most complex milestone content-wise; a prior draft split this into two
 milestones (a free MIDI/MusicXML one and a paid MP3 one) — merged into one here
 since the feature itself merged.
@@ -281,6 +282,11 @@ three practice modes.
 - The persistent **Estimated** banner on MP3-sourced tutorials only (`is_estimated`,
   §4.11) — MIDI/MusicXML-sourced tutorials show no such banner, since PRD F-05 is
   explicit that format determines confidence, not entitlement.
+- **The 30-second free preview** (PRD F-05): applied at read time from `entitlements`,
+  measured on the song's timeline rather than wall-clock, with the preview banner,
+  the marked cut-off on the progress bar, and an upgrade path that returns the user to
+  the tutorial they were already in. This is the milestone's main conversion surface —
+  it is what makes the paywall an informed choice rather than a blind one.
 - The full **subscription lifecycle**, not just the purchase (architecture §2.6a,
   DB §4.10b): buy at $9.95/month on all three storefronts, provider webhooks driving
   `subscriptions` and `entitlements`, and **cancellation** — Stripe cancelled in-app,
@@ -291,7 +297,10 @@ three practice modes.
   against a manually-granted `entitlements` row for beta testers if the billing
   integration lags, but it cannot ship to real users without the cancel path — an
   app that can only be subscribed to is not shippable to either store.
-**Exit criteria:** a subscription can be purchased, seen from a *different* platform
+**Exit criteria:** a free user can upload a song and play its first 30 seconds with
+every speed and practice mode available, and sees clearly where the preview ends;
+upgrading from inside that tutorial unlocks the remainder in place; a subscription can
+be purchased, seen from a *different* platform
 than it was bought on, cancelled, and confirmed to retain access until period end and
 to relock tier 4 / the 61-key keyboard / Learn My Music only after it — with XP,
 tier 1-3 unlocks, progress and uploaded files all intact afterwards; a non-entitled

@@ -239,7 +239,8 @@ Used across all three tiered categories, not owned by any one of them:
 two deliberately: nothing is generated until the user agrees Keyvoria identified the
 right song.
 
-0. **Paywall** — shown instead of Upload when the user has no active subscription.
+0. *(No paywall gate.)* Every user enters at Upload — the free tier gets the opening
+   30 seconds (PRD F-05). The paywall is reached only by tapping *Unlock full song*.
 1. **Upload** — file picker accepting MP3/M4A/WAV and MIDI/MusicXML, on app and web
    alike. Copy states plainly that MIDI is exact and audio is best-effort.
 2. **Confirm the song** — the detected title (editable inline), the file name, notes
@@ -252,6 +253,10 @@ right song.
    (§3.3.1a) docked below. On the 61-key board the view scrolls to the song's own
    range rather than stranding the user at the bottom octave.
    An audio-sourced tutorial carries a persistent *Estimated transcription* banner.
+   A free user's tutorial also carries a **Free preview · first 30 seconds** banner with
+   an inline *Unlock full song* action, and the progress bar shows a marked, hatched
+   region for the part still locked. Upgrading returns to the same tutorial with the
+   rest of the song unlocked.
 
 
 See PRD F-05 for the underlying analysis/labeling requirements — Keyvoria's one

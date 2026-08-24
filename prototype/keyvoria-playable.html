@@ -353,6 +353,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .nchip{min-width:30px;text-align:center;padding:7px 9px;border-radius:9px;background:var(--surface);
   border:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text-dim);}
 .nchip.now{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+
+.prevbanner{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--gold-soft);border:1px solid rgba(232,193,90,.42);border-radius:12px;
+  padding:9px 10px 9px 13px;font-size:11.5px;font-weight:700;color:var(--gold);}
+.bar.capped{position:relative;}
+.barlock{position:absolute;top:0;bottom:0;right:0;border-left:2px solid var(--gold);
+  background:repeating-linear-gradient(115deg,rgba(232,193,90,.22) 0 4px,transparent 4px 9px);}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
@@ -1221,8 +1228,10 @@ function screenMenu(){
     '<button class="tile gold" data-act="learnmusic">'+
       '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Learn My Music</span>'+
-      '<span class="tsub" style="display:block">Upload a song, we’ll build the tutorial</span></span>'+
-      (S.plus ? '' : '<span class="pill">Premium</span>')+'</button>'+
+      '<span class="tsub" style="display:block">'+
+        (S.plus ? 'Upload a song, we’ll build the full tutorial'
+                : 'Upload a song — first 30 seconds free')+'</span></span>'+
+      (S.plus ? '' : '<span class="pill">30s free</span>')+'</button>'+
     (masteredCats().length
       ? '<button class="tile master" data-go="master">'+
           '<span class="ticon gold" style="font-size:22px">\u{1F3B9}</span>'+
@@ -1689,6 +1698,10 @@ function screenThemes(){
    tutorial is genuinely built from the uploaded notes. Audio files cannot be
    transcribed in the browser, so those take the estimated path and say so. */
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+/* Free users get the opening 30 seconds of any upload. Measured on the SONG's own
+   timeline, not wall-clock, so slowing the tempo down never shrinks how much music
+   you get — a learner practising at 0.25x still gets the full 30 seconds of material. */
+const PREVIEW_MS = 30000;
 
 function parseMidiFile(buf){
   const dv = new DataView(buf);
@@ -1756,8 +1769,10 @@ function parseMidiFile(buf){
 
 /* Fallback melody for audio uploads, which the browser cannot transcribe. */
 function demoTranscription(){
-  const seq = [64,62,60,62,64,64,64,62,62,62,64,67,67,64,62,60,62,64,64,64,62,62,64,62,60];
-  return { notes: seq.map((m,i)=>({midi:m, at:i*430, dur:380})), name:"", bpm:100, estimated:true };
+  const a = [64,62,60,62,64,64,64,62,62,62,64,67,67,64,62,60,62,64,64,64,62,62,64,62,60];
+  const b = [67,67,69,67,65,64,62,60,62,64,64,62,62,64,62,60,60,62,64,65,67,67,65,64,62];
+  const seq = a.concat(b, a, [60,64,67,72,71,67,64,60]);
+  return { notes: seq.map((m,i)=>({midi:m, at:i*440, dur:390})), name:"", bpm:100, estimated:true };
 }
 
 function fitToKeyboard(notes){
@@ -1770,7 +1785,19 @@ function fitToKeyboard(notes){
   });
 }
 
-let upload = null;          /* {fileName, title, notes, estimated, bpm} */
+let upload = null;          /* {fileName, title, raw, notes, estimated, bpm} */
+
+/* The playable note list is always derived from `raw`, never edited in place, so an
+   upgrade mid-tutorial can widen the keyboard AND lift the preview cap in one call. */
+function rebuildUpload(){
+  if(!upload) return;
+  const limited = S.plus ? upload.raw : upload.raw.filter(n => n.at < PREVIEW_MS);
+  upload.notes = fitToKeyboard(limited.length ? limited : upload.raw.slice(0,1));
+  upload.fullCount = upload.raw.length;
+  upload.songMs = upload.raw.length
+    ? upload.raw[upload.raw.length-1].at + upload.raw[upload.raw.length-1].dur : 0;
+  upload.isPreview = !S.plus && upload.notes.length < upload.raw.length;
+}
 let tut = null;             /* {speed, mode, loop, pos, playing, timers} */
 
 function titleFromFile(name){
@@ -1786,9 +1813,10 @@ function handleUpload(file){
     upload = {
       fileName: file.name,
       title: (data.name && data.name.length > 1 ? data.name : titleFromFile(file.name)),
-      notes: fitToKeyboard(data.notes),
+      raw: data.notes,
       bpm: data.bpm, estimated: !!data.estimated, isMidi
     };
+    rebuildUpload();
     go("confirm");
   };
   if(isMidi){
@@ -1814,6 +1842,9 @@ function screenUpload(){
         '<div class="upicon">'+svg(IC.gold,30)+'</div>'+
         '<div class="h2" style="margin-top:10px">Upload a song</div>'+
         '<div class="sub center" style="margin-top:6px">MP3, M4A or WAV — or a MIDI file for an exact transcription.</div>'+
+        '<div class="faint center" style="margin-top:8px">'+
+          (S.plus ? 'Keyvoria Plus — full-length tutorials'
+                  : 'Free: the first 30 seconds of any song. Plus unlocks the whole thing.')+'</div>'+
         '<label class="btn gold" style="margin-top:16px;cursor:pointer">Choose a file'+
           '<input type="file" id="songFile" accept=".mp3,.m4a,.wav,.aac,.ogg,.mid,.midi,audio/*" style="display:none">'+
         '</label>'+
@@ -1838,6 +1869,9 @@ function screenConfirm(){
         '<div class="kv"><span class="kvk">Notes found</span><span class="kvv tnum">'+u.notes.length+'</span></div>'+
         '<div class="kv"><span class="kvk">Tempo</span><span class="kvv tnum">'+u.bpm+' BPM</span></div>'+
         '<div class="kv"><span class="kvk">Source</span><span class="kvv">'+(u.estimated?"Estimated from audio":"Exact, from MIDI")+'</span></div>'+
+        '<div class="kv"><span class="kvk">You’ll get</span><span class="kvv"'+(u.isPreview?' style="color:var(--accent)"':'')+'>'+
+          (u.isPreview ? 'First 30 seconds · '+u.notes.length+' of '+u.fullCount+' notes'
+                       : 'The whole song · '+u.notes.length+' notes')+'</span></div>'+
       '</div>'+
       (u.estimated
         ? '<div class="notice"><b>Estimated transcription.</b> Audio is best-effort, so expect wrong notes in places. A MIDI or MusicXML upload is exact.</div>'
@@ -1855,7 +1889,7 @@ function screenTutorial(){
     '<button class="spd'+(t.speed===v?" on":"")+(v<1?" slow":"")+'" data-act="speed" data-v="'+v+'">'+
       (v===1?"1×":v+"×")+'</button>').join("");
   const total = u.notes.length;
-  const loopLabel = t.loop ? "Looping first 8 notes" : "Whole song";
+  const loopLabel = t.loop ? "Looping first 8 notes" : (u.isPreview ? "Whole preview" : "Whole song");
   const upcoming = u.notes.slice(t.pos, t.pos+8).map((n,i) =>
     '<span class="nchip'+(i===0?" now":"")+'">'+midiShort(n.midi)+'</span>').join("");
   return '<div class="exhead">'+
@@ -1863,6 +1897,10 @@ function screenTutorial(){
       '<div class="h2" style="flex:1;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+u.title+'</div>'+
       '<div style="width:34px"></div></div>'+
     '<div class="exbody">'+
+      (u.isPreview
+        ? '<div class="prevbanner"><span>Free preview · first 30 seconds</span>'+
+          '<button class="btn sm gold" data-act="unlockfull">Unlock full song</button></div>'
+        : '')+
       (u.estimated ? '<div class="estbanner">Estimated transcription · expect some wrong notes</div>' : '')+
       '<div class="seg">'+
         '<button class="seg-opt'+(t.mode==="listen"?" active":"")+'" data-act="tutmode" data-m="listen">Listen</button>'+
@@ -1876,10 +1914,14 @@ function screenTutorial(){
       '</div>'+
       '<div class="card">'+
         '<div class="row"><span class="kvk">'+loopLabel+'</span>'+
-          '<button class="btn sm ghost" data-act="toggleloop">'+(t.loop?"Play whole song":"Loop the opening")+'</button></div>'+
-        '<div class="bar" style="margin-top:10px"><div class="barfill" style="width:'+
-          Math.round(t.pos/Math.max(1,total)*100)+'%"></div></div>'+
-        '<div class="faint" style="margin-top:7px">Note '+Math.min(t.pos+1,total)+' of '+total+'</div>'+
+          '<button class="btn sm ghost" data-act="toggleloop">'+(t.loop?(u.isPreview?"Play whole preview":"Play whole song"):"Loop the opening")+'</button></div>'+
+        '<div class="bar'+(u.isPreview?" capped":"")+'" style="margin-top:10px">'+
+          '<div class="barfill" style="width:'+Math.round(t.pos/Math.max(1,total)*100)+'%"></div>'+
+          (u.isPreview ? '<div class="barlock" style="left:'+
+            Math.round(total/Math.max(1,u.fullCount)*100)+'%"></div>' : '')+
+        '</div>'+
+        '<div class="faint" style="margin-top:7px">Note '+Math.min(t.pos+1,total)+' of '+total+
+          (u.isPreview ? ' · '+(u.fullCount-total)+' more with Plus' : '')+'</div>'+
       '</div>'+
       '<div class="nchips">'+upcoming+'</div>'+
       (t.mode==="listen"
@@ -2103,19 +2145,23 @@ document.addEventListener("click", e => {
     case "quit": endTiming(); ladderCat = session.cat; go("ladder"); break;
     case "again": startSession(session.cat, session.tier, session.mode); break;
     case "toladder": ladderCat = session.cat; go("ladder"); break;
-    case "upgrade":
+    case "upgrade": {
+      const hadUpload = !!upload;
       S.plus = true; S.cancelPending = false; save();
-      toast("Keyvoria Plus active · 61 keys unlocked");
-      go("menu"); break;
+      rebuildUpload();
+      toast("Keyvoria Plus active · 61 keys and full songs unlocked");
+      if(hadUpload && tut){ tutStop(); tut.pos = 0; go("tutorial"); }
+      else go("menu");
+      break;
+    }
     case "resume":
       S.cancelPending = false; save(); toast("Subscription resumed"); render(); break;
     case "confirmcancel":
       S.cancelPending = true; save();
       toast("Cancelled — Plus active until 14 March", true);
       go("profile"); break;
-    case "learnmusic":
-      if(S.plus) go("upload"); else go("paywall");
-      break;
+    case "learnmusic": go("upload"); break;
+    case "unlockfull": go("paywall"); break;
     case "confirmsong": {
       const ti = document.getElementById("songTitle");
       if(ti && ti.value.trim()) upload.title = ti.value.trim().slice(0,48);

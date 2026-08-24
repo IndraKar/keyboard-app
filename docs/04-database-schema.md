@@ -535,6 +535,11 @@ serving a `generated_tutorials` row, regardless of `upload_type`.
 until `confirmed_at` is set** — that ordering is the point of the step, since building
 against a misidentified song wastes the analysis and mislabels the result.
 
+`generated_tutorials` are built **in full regardless of plan** — the 30-second free
+limit (PRD F-05) is applied at *read* time from `entitlements`, never by truncating
+what is stored. Storing a truncated tutorial would mean regenerating it on upgrade,
+which is both slower and a worse moment to fail.
+
 **`generated_tutorials`**
 `id`, `user_upload_id → user_uploads`, `title` (from filename or embedded metadata),
 `difficulty_rating` (1–10, from the `analysis` package heuristic), `difficulty_factors`
