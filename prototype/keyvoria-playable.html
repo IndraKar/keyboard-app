@@ -231,6 +231,100 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .notice{background:var(--accent-soft);border:1px solid rgba(255,138,61,.3);border-radius:12px;padding:11px 13px;font-size:11.5px;color:var(--dim);line-height:1.55;}
 .notice.keep{background:var(--good-soft);border-color:rgba(94,230,165,.3);}
 .notice b{color:var(--text);}
+
+/* ---------- mastery ---------- */
+.pill.mastered{background:var(--good-soft);border-color:rgba(94,230,165,.45);color:var(--good);}
+.tile.master{background:linear-gradient(140deg,#2b2113,#1c1917);border-color:#5a4620;}
+.card.master{background:linear-gradient(140deg,#2b2113,#1c1917);border-color:#5a4620;}
+.mastertitle{font-family:var(--display);font-size:15px;font-weight:700;color:var(--gold);}
+.tcells{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.tcell{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px 6px;text-align:center;}
+.tcell.done{background:var(--good-soft);border-color:rgba(94,230,165,.4);}
+.tcell.locked{opacity:.45;}
+.tcellbar{height:4px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-bottom:5px;}
+.tcellfill{height:100%;background:var(--accent);border-radius:999px;}
+.tcell.done .tcellfill{background:var(--good);}
+.tcellnum{font-size:9.5px;color:var(--text-dim);font-weight:600;}
+.tcell.done .tcellnum{color:var(--good);}
+.streakpill{background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);
+  font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:999px;}
+
+/* ---------- badges ---------- */
+.badgegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.badgecard{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 10px;
+  transition:border-color .14s,transform .1s;}
+.badgecard:hover{border-color:var(--accent-deep);}
+.badgecard:active{transform:scale(.98);}
+.badgecard.got{background:linear-gradient(150deg,#241a12,#1c1917);border-color:#4a3520;}
+.badgeicon{font-size:28px;line-height:1;filter:grayscale(1) opacity(.4);}
+.badgecard.got .badgeicon{filter:none;}
+.badgename{font-size:11.5px;font-weight:600;line-height:1.3;}
+.badgestate{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;font-weight:700;}
+.badgecard.got .badgestate{color:var(--good);}
+
+/* ---------- share card ---------- */
+.cardwrap{display:flex;justify-content:center;padding:4px 0 2px;}
+.sharecard{
+  width:300px;border-radius:22px;padding:24px 22px 18px;
+  background:radial-gradient(120% 90% at 50% 0%,#2e2013 0%,#171412 62%,#121010 100%);
+  border:1px solid #4a3520;box-shadow:0 18px 44px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;align-items:center;gap:11px;position:relative;overflow:hidden;
+}
+.sharecard.headline{border-color:var(--gold);
+  background:radial-gradient(120% 90% at 50% 0%,#3a2a12 0%,#1a1512 62%,#121010 100%);}
+.sharecard.pending{filter:saturate(.35);opacity:.75;}
+.scbrand{display:flex;align-items:center;gap:6px;font-family:var(--display);font-weight:700;
+  font-size:10.5px;letter-spacing:.16em;color:var(--text-dim);}
+.scicon{font-size:52px;line-height:1;margin-top:2px;}
+.sharecard.pending .scicon{filter:grayscale(1);}
+.sctitle{font-family:var(--display);font-size:20px;font-weight:700;text-align:center;line-height:1.2;text-wrap:balance;}
+.sharecard.headline .sctitle{color:var(--gold);}
+.scblurb{font-size:11.5px;color:var(--dim);text-align:center;line-height:1.5;max-width:230px;}
+.scstat{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.02em;
+  background:var(--accent-soft);border:1px solid rgba(255,138,61,.35);padding:5px 13px;border-radius:999px;}
+.sharecard.headline .scstat{color:var(--gold);background:var(--gold-soft);border-color:rgba(232,193,90,.4);}
+.sckeys{width:100%;margin-top:8px;border-radius:5px;overflow:hidden;opacity:.85;line-height:0;
+  box-shadow:0 -1px 0 rgba(255,255,255,.06);}
+.scfoot{display:flex;justify-content:space-between;width:100%;font-size:9.5px;color:var(--faint);
+  border-top:1px solid rgba(255,255,255,.07);padding-top:9px;margin-top:2px;}
+.tinput{width:100%;margin-top:9px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:10px;padding:11px 12px;color:var(--text);font-family:var(--body);font-size:13px;}
+.tinput::placeholder{color:var(--faint);}
+
+/* ---------- leaderboard ---------- */
+.lbrow{display:flex;align-items:center;gap:11px;padding:10px 4px;font-size:12.5px;
+  border-bottom:1px solid var(--border-soft);}
+.lbrow:last-child{border-bottom:none;}
+.lbrow.me{color:var(--accent);font-weight:700;}
+.lbrank{width:20px;color:var(--faint);font-size:11px;font-weight:700;}
+.lbrow.me .lbrank{color:var(--accent);}
+.lbval{font-weight:700;}
+
+/* ---------- themes ---------- */
+.themerow{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px;}
+.themerow.on{border-color:var(--accent);background:linear-gradient(140deg,#241a12,#1c1917);}
+.themerow.locked{opacity:.55;}
+.swatch{display:flex;gap:1.5px;width:44px;height:34px;border-radius:6px;overflow:hidden;
+  border:1px solid #0f0d0c;flex-shrink:0;background:#0d0b0a;padding-top:3px;}
+.swatch i{flex:1;border-radius:0 0 2px 2px;}
+.swatch i.k{flex:.6;}
+.swatch.ivory i{background:linear-gradient(180deg,#f4efe6,#e6dfd3);} .swatch.ivory i.k{background:#151211;}
+.swatch.midnight i{background:linear-gradient(180deg,#5b6472,#3b424c);} .swatch.midnight i.k{background:#0d1016;}
+.swatch.ember i{background:linear-gradient(180deg,#f6ddc7,#e9c2a0);} .swatch.ember i.k{background:#3d1f0d;}
+.swatch.gold i{background:linear-gradient(180deg,#f7ebc9,#e6d29a);} .swatch.gold i.k{background:#33280f;}
+
+/* keyboard theming — cosmetic only, never affects grading */
+.kb[data-theme="midnight"] .wk{background:linear-gradient(180deg,#6a7480 78%,#49525d);color:#cdd5df;}
+.kb[data-theme="midnight"] .bk{background:linear-gradient(180deg,#1b2029,#0b0e13 72%);}
+.kb[data-theme="midnight"]{background:linear-gradient(180deg,#2b3a4a 0 7px,#0b0e13 7px);}
+.kb[data-theme="ember"] .wk{background:linear-gradient(180deg,#f8e2ce 78%,#eac7a6);color:#9a6b45;}
+.kb[data-theme="ember"] .bk{background:linear-gradient(180deg,#5a2f14,#2b1408 72%);}
+.kb[data-theme="ember"]{background:linear-gradient(180deg,#8a3d1c 0 7px,#170f09 7px);}
+.kb[data-theme="gold"] .wk{background:linear-gradient(180deg,#faf0d2 78%,#e9d6a2);color:#9c8340;}
+.kb[data-theme="gold"] .bk{background:linear-gradient(180deg,#4a3a17,#231b09 72%);}
+.kb[data-theme="gold"]{background:linear-gradient(180deg,#8a6f22 0 7px,#16130c 7px);}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
@@ -257,7 +351,18 @@ const DEFAULTS = {
   unlocked: { ear: 1, sight: 1, repeat: 1 },
   plus: false, cancelPending: false,
   noteNames: true,
-  exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0
+  exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
+  /* mastery */
+  tierCorrect: { ear:[0,0,0,0], sight:[0,0,0,0], repeat:[0,0,0,0] },
+  perfectByCat: { ear:0, sight:0, repeat:0 },
+  perfectSessions: 0,
+  badges: {},                 /* badge id -> earned timestamp */
+  masterBest: { ear:0, sight:0, repeat:0, mixed:0 },
+  masterRuns: 0,
+  /* cosmetics & sharing */
+  theme: "ivory",
+  shareName: "",              /* empty = share anonymously */
+  leaderboardOptIn: false
 };
 let S = Object.assign({}, DEFAULTS);
 
@@ -267,7 +372,15 @@ function load(){
     if(raw){
       const p = JSON.parse(raw);
       S = Object.assign({}, DEFAULTS, p);
-      S.unlocked = Object.assign({}, DEFAULTS.unlocked, p.unlocked || {});
+      S.unlocked   = Object.assign({}, DEFAULTS.unlocked, p.unlocked || {});
+      S.perfectByCat = Object.assign({}, DEFAULTS.perfectByCat, p.perfectByCat || {});
+      S.masterBest = Object.assign({}, DEFAULTS.masterBest, p.masterBest || {});
+      S.badges     = Object.assign({}, p.badges || {});
+      S.tierCorrect = { ear:[0,0,0,0], sight:[0,0,0,0], repeat:[0,0,0,0] };
+      Object.keys(S.tierCorrect).forEach(k => {
+        const src = (p.tierCorrect && p.tierCorrect[k]) || [];
+        for(let i=0;i<4;i++) S.tierCorrect[k][i] = src[i] || 0;
+      });
     }
   }catch(e){ /* private mode / blocked storage — run with defaults */ }
 }
@@ -395,6 +508,79 @@ const CATS = {
 const tierOf = (catKey,n) => CATS[catKey].tiers[n-1];
 const EXERCISES_PER_SESSION = 5;
 
+/* ============================ mastery ============================
+   A tier is *cleared* by playing it, not by paying for it: unlocking costs XP,
+   but clearing needs correct exercises. That keeps Master status something you
+   earn at the keyboard rather than something a big XP balance can buy. */
+const TIER_CLEAR_TARGET = 12;
+const CAT_KEYS = ["ear","sight","repeat"];
+
+const tierProgress = (cat,n) => Math.min(TIER_CLEAR_TARGET, S.tierCorrect[cat][n-1]);
+const tierCleared  = (cat,n) => S.unlocked[cat] >= n && S.tierCorrect[cat][n-1] >= TIER_CLEAR_TARGET;
+const categoryMastered = cat => [1,2,3,4].every(n => tierCleared(cat,n));
+const masteredCats = () => CAT_KEYS.filter(categoryMastered);
+const isKeyvoriaMaster = () => CAT_KEYS.every(categoryMastered);
+const curriculumPct = () => {
+  let done = 0;
+  CAT_KEYS.forEach(c => [1,2,3,4].forEach(n => { done += tierProgress(c,n); }));
+  return done / (CAT_KEYS.length * 4 * TIER_CLEAR_TARGET);
+};
+const accuracyPct = () => S.exercisesDone ? S.exercisesCorrect / S.exercisesDone : 0;
+
+/* Badges. `test` is pure — evaluated after every graded exercise. */
+const BADGES = [
+  { id:"ear_master",    icon:"🎧", title:"Ear Training Master",
+    blurb:"Cleared all four Ear Training tiers",
+    line:()=>"All four tiers cleared",
+    test:()=>categoryMastered("ear") },
+  { id:"sight_master",  icon:"📖", title:"Sight-Reading Master",
+    blurb:"Cleared all four Sight-Reading tiers",
+    line:()=>"All four tiers cleared",
+    test:()=>categoryMastered("sight") },
+  { id:"repeat_master", icon:"🔄", title:"Playback & Repeat Master",
+    blurb:"Cleared all four Playback & Repeat tiers",
+    line:()=>"All four tiers cleared",
+    test:()=>categoryMastered("repeat") },
+  { id:"keyvoria_master", icon:"🎹", title:"Keyvoria Master",
+    blurb:"Mastered every category in Keyvoria",
+    line:()=>S.lifetimeXp.toLocaleString()+" XP earned",
+    headline:true,
+    test:()=>isKeyvoriaMaster() },
+  { id:"completion_100", icon:"💯", title:"100% Curriculum Completion",
+    blurb:"Every tier cleared, and a flawless session in all three categories",
+    line:()=>"12 of 12 tiers cleared",
+    test:()=>isKeyvoriaMaster() && CAT_KEYS.every(c => S.perfectByCat[c] > 0) },
+  { id:"perfect_score", icon:"🏆", title:"Perfect Score",
+    blurb:"Five out of five in a single session",
+    line:()=>S.perfectSessions+" perfect session"+(S.perfectSessions===1?"":"s"),
+    test:()=>S.perfectSessions > 0 },
+  { id:"exceptional_accuracy", icon:"✨", title:"Exceptional Accuracy",
+    blurb:"95% correct across 50 or more exercises",
+    line:()=>Math.round(accuracyPct()*100)+"% across "+S.exercisesDone+" exercises",
+    test:()=>S.exercisesDone >= 50 && accuracyPct() >= 0.95 }
+];
+const badgeById = id => BADGES.find(b => b.id === id);
+const earnedBadges = () => BADGES.filter(b => S.badges[b.id]);
+
+function evaluateBadges(){
+  const fresh = [];
+  BADGES.forEach(b => {
+    if(!S.badges[b.id] && b.test()){ S.badges[b.id] = Date.now(); fresh.push(b); }
+  });
+  if(fresh.length) save();
+  return fresh;
+}
+
+/* Cosmetics. Each theme is gated on a badge, so cosmetics are a reward channel
+   rather than a second currency. */
+const THEMES = [
+  { id:"ivory",    name:"Classic Ivory", need:null,               blurb:"How Keyvoria ships" },
+  { id:"midnight", name:"Midnight",      need:"perfect_score",    blurb:"Earned with a Perfect Score" },
+  { id:"ember",    name:"Ember",         need:"exceptional_accuracy", blurb:"Earned with Exceptional Accuracy" },
+  { id:"gold",     name:"Master Gold",   need:"keyvoria_master",  blurb:"Earned by Keyvoria Masters" }
+];
+const themeUnlocked = t => !t.need || !!S.badges[t.need];
+
 /* ============================ audio ============================ */
 let ctx = null, master = null, audioReady = false;
 const voices = new Map();
@@ -487,6 +673,8 @@ function allOff(){ Array.from(voices.keys()).forEach(m => stopNote(m, true)); }
 let curScreen = "menu";
 let ladderCat = "ear";
 let earModeTier = 1;
+let cardBadge = "keyvoria_master";
+let lbMetric = "xp";
 let session = null;
 let toastTimer = null;
 let noteHook = null;      /* fn(midi) while an exercise is listening */
@@ -660,6 +848,16 @@ function genRepeat(tier){
   };
 }
 
+/* ---- Master Mode --------------------------------------------------------
+   Post-curriculum. Endless, expert difficulty, and it ends the moment you get
+   one wrong — so the score is a streak, which is the thing worth ranking. */
+function genMaster(catKey){
+  const cat = catKey === "mixed" ? pick(masteredCats().length ? masteredCats() : CAT_KEYS) : catKey;
+  if(cat === "ear")   return Object.assign(genEar(4, Math.random()<0.5 ? "interval" : "chord"), {masterCat:cat});
+  if(cat === "sight") return Object.assign(genSight(4), {masterCat:cat});
+  return Object.assign(genRepeat(4), {masterCat:cat});
+}
+
 function genExercise(catKey, tier, mode){
   if(catKey === "ear")   return genEar(tier, mode);
   if(catKey === "sight") return genSight(tier);
@@ -670,15 +868,44 @@ function startSession(catKey, tier, mode){
   session = {
     cat:catKey, tier, mode: mode || "interval", idx:0, correct:0, xp:0,
     results:[], ex:genExercise(catKey, tier, mode),
-    state:"ready", picked:null
+    state:"ready", picked:null, master:false
   };
   beginTiming();
   go("play");
   if(catKey === "ear") setTimeout(hearStimulus, 300);
 }
+
+function startMaster(catKey){
+  const ex = genMaster(catKey);
+  session = {
+    cat:catKey, tier:4, mode:null, idx:0, correct:0, xp:0,
+    results:[], ex, state:"ready", picked:null,
+    master:true, streak:0
+  };
+  S.masterRuns++; save();
+  beginTiming();
+  go("play");
+  if(ex.kind === "ear") setTimeout(hearStimulus, 300);
+}
+function nextMaster(){
+  session.ex = genMaster(session.cat);
+  session.state = "ready"; session.picked = null;
+  render();
+  if(session.ex.kind === "ear") setTimeout(hearStimulus, 260);
+}
 function nextExercise(){
   session.idx++;
-  if(session.idx >= EXERCISES_PER_SESSION){ endTiming(); go("summary"); return; }
+  if(session.idx >= EXERCISES_PER_SESSION){
+    if(session.correct === EXERCISES_PER_SESSION){
+      S.perfectSessions++;
+      S.perfectByCat[session.cat] = (S.perfectByCat[session.cat]||0) + 1;
+      save();
+    }
+    const fresh = evaluateBadges();
+    endTiming(); go("summary");
+    if(fresh.length) announceBadges(fresh);
+    return;
+  }
   session.ex = genExercise(session.cat, session.tier, session.mode);
   session.state = "ready"; session.picked = null;
   render();
@@ -687,13 +914,44 @@ function nextExercise(){
 function judge(ok){
   if(session.state === "done") return;
   session.state = "done";
-  session.results.push(ok);
   S.exercisesDone++;
+
+  if(session.master){
+    if(ok){
+      const amt = awardCorrectExercise(4);
+      session.streak++; session.xp += amt;
+      const key = session.cat;
+      if(session.streak > (S.masterBest[key]||0)) S.masterBest[key] = session.streak;
+      save();
+      const fresh = evaluateBadges();
+      if(fresh.length) announceBadges(fresh);
+      nextMaster();
+      return;
+    }
+    endTiming(); save();
+    go("masterover");
+    return;
+  }
+
+  session.results.push(ok);
   if(ok){
     const amt = awardCorrectExercise(session.tier);
     session.correct++; session.xp += amt;
-  } else { save(); }
+    /* Clearing a tier is measured in correct exercises played at that tier. */
+    S.tierCorrect[session.cat][session.tier-1]++;
+  }
+  save();
+  const fresh = evaluateBadges();
   render();
+  if(fresh.length) announceBadges(fresh);
+}
+
+let badgeQueue = [];
+function announceBadges(list){
+  badgeQueue = badgeQueue.concat(list);
+  toast(list.length === 1
+    ? list[0].icon + "  " + list[0].title + " unlocked"
+    : list.length + " new achievements unlocked");
 }
 
 /* ============================ keyboard input ============================ */
@@ -780,7 +1038,7 @@ function keyboardHTML(opts){
     '<span class="faint">'+(S.noteNames ? "Note names on" : "Note names off")+'</span></div>';
   const inner = fits ? 'width:100%' : 'width:'+(W*WK)+'px';
   return '<div class="kbdock">'+meta+
-    '<div class="kbscroll"><div class="kb'+(opts.mini?" mini":"")+'" id="kb" style="'+inner+'">'+html+'</div></div></div>';
+    '<div class="kbscroll"><div class="kb'+(opts.mini?" mini":"")+'" id="kb" data-theme="'+S.theme+'" style="'+inner+'">'+html+'</div></div></div>';
 }
 document.addEventListener("pointerdown", e => {
   const k = e.target.closest("[data-midi]");
@@ -933,6 +1191,14 @@ function screenMenu(){
       '<span class="grow"><span class="ttitle" style="display:block">Learn My Music</span>'+
       '<span class="tsub" style="display:block">Upload an MP3 or MIDI file, we’ll teach it</span></span>'+
       '<span class="pill">Premium</span></button>'+
+    (masteredCats().length
+      ? '<button class="tile master" data-go="master">'+
+          '<span class="ticon gold" style="font-size:22px">\u{1F3B9}</span>'+
+          '<span class="grow"><span class="ttitle" style="display:block">Master Mode</span>'+
+          '<span class="tsub" style="display:block">Endless expert challenges · best streak '+
+            Math.max(S.masterBest.ear,S.masterBest.sight,S.masterBest.repeat,S.masterBest.mixed)+'</span></span>'+
+          '<span class="pill mastered">Unlocked</span></button>'
+      : '')+
   '</div>';
 }
 
@@ -1007,10 +1273,15 @@ function screenPlay(){
     const cls = i < session.results.length ? (r ? "ok" : "no") : (i === session.idx ? "now" : "");
     dots += '<span class="dot '+cls+'"></span>';
   }
-  const head = '<div class="exhead">'+
-    '<button class="iconbtn" data-act="quit" aria-label="End session">'+svg(IC.close,13)+'</button>'+
-    '<div class="dots" aria-label="Exercise '+(session.idx+1)+' of '+EXERCISES_PER_SESSION+'">'+dots+'</div>'+
-    '<div class="faint tnum">'+TIER_XP[session.tier]+' XP</div></div>';
+  const head = session.master
+    ? '<div class="exhead">'+
+        '<button class="iconbtn" data-act="quitmaster" aria-label="End run">'+svg(IC.close,13)+'</button>'+
+        '<div class="streakpill tnum">\u{1F525} '+session.streak+' in a row</div>'+
+        '<div class="faint tnum">'+TIER_XP[4]+' XP</div></div>'
+    : '<div class="exhead">'+
+        '<button class="iconbtn" data-act="quit" aria-label="End session">'+svg(IC.close,13)+'</button>'+
+        '<div class="dots" aria-label="Exercise '+(session.idx+1)+' of '+EXERCISES_PER_SESSION+'">'+dots+'</div>'+
+        '<div class="faint tnum">'+TIER_XP[session.tier]+' XP</div></div>';
 
   let body = "";
   if(ex.kind === "ear"){
@@ -1055,7 +1326,7 @@ function screenPlay(){
   }
 
   let footer = "";
-  if(session.state === "done"){
+  if(session.state === "done" && !session.master){
     const ok = session.results[session.results.length-1];
     footer = '<div class="verdict '+(ok?"ok":"no")+'">'+
       (ok ? "Correct · +"+TIER_XP[session.tier]+" XP" : "Not quite · no XP for this one")+'</div>'+
@@ -1152,9 +1423,232 @@ function screenProfile(){
     '<div class="card"><div class="h2" style="margin-bottom:8px">Progress by category</div>'+cats+
       '<div class="kv"><span class="kvk">Exercises completed</span><span class="kvv tnum">'+S.exercisesDone+'</span></div></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:8px">Subscription</div>'+sub+'</div>'+
+    (isKeyvoriaMaster()
+      ? '<div class="card master"><div class="row"><span><span class="mastertitle">\u{1F3B9} Keyvoria Master</span>'+
+        '<span class="sub" style="display:block;margin-top:3px">Every category mastered</span></span>'+
+        '<span class="pill mastered">Earned</span></div></div>'
+      : '')+
+    '<button class="tile" data-go="achievements"><span class="ticon">\u{1F3C6}</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Achievements</span>'+
+      '<span class="tsub" style="display:block">'+earnedBadges().length+' of '+BADGES.length+' earned \u00b7 '+
+        Math.round(curriculumPct()*100)+'% of the curriculum</span></span>'+svg(IC.chev,18)+'</button>'+
+    '<button class="tile" data-go="leaderboard"><span class="ticon">\u{1F4CA}</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Leaderboards</span>'+
+      '<span class="tsub" style="display:block">'+(S.leaderboardOptIn?"On":"Off \u00b7 opt in to compare")+'</span></span>'+svg(IC.chev,18)+'</button>'+
+    '<button class="tile" data-go="themes"><span class="ticon">\u{1F3A8}</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Keyboard themes</span>'+
+      '<span class="tsub" style="display:block">'+(THEMES.find(t=>t.id===S.theme)||THEMES[0]).name+' \u00b7 '+
+        THEMES.filter(themeUnlocked).length+' of '+THEMES.length+' unlocked</span></span>'+svg(IC.chev,18)+'</button>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
       '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
     '<button class="link" data-act="reset">Reset all progress</button>';
+}
+
+
+/* ============================ mastery screens ============================ */
+function masteryRow(cat){
+  const c = CATS[cat], done = categoryMastered(cat);
+  let cells = "";
+  [1,2,3,4].forEach(n => {
+    const p = tierProgress(cat,n), cl = tierCleared(cat,n);
+    const locked = S.unlocked[cat] < n;
+    cells += '<div class="tcell'+(cl?" done":locked?" locked":"")+'" title="Tier '+n+'">'+
+             '<div class="tcellbar"><div class="tcellfill" style="width:'+Math.round(p/TIER_CLEAR_TARGET*100)+'%"></div></div>'+
+             '<div class="tcellnum tnum">'+(cl?"✓":p+"/"+TIER_CLEAR_TARGET)+'</div></div>';
+  });
+  return '<div class="card"><div class="row" style="margin-bottom:9px">'+
+    '<span class="ttitle">'+c.name+'</span>'+
+    (done ? '<span class="pill mastered">Mastered</span>'
+          : '<span class="faint">Tier '+S.unlocked[cat]+' of 4</span>')+'</div>'+
+    '<div class="tcells">'+cells+'</div></div>';
+}
+
+function screenAchievements(){
+  const pct = Math.round(curriculumPct()*100);
+  const earned = earnedBadges().length;
+  let grid = "";
+  BADGES.forEach(b => {
+    const got = !!S.badges[b.id];
+    grid += '<button class="badgecard'+(got?" got":"")+'" data-act="card" data-badge="'+b.id+'">'+
+      '<span class="badgeicon">'+b.icon+'</span>'+
+      '<span class="badgename">'+b.title+'</span>'+
+      '<span class="badgestate">'+(got?"Earned":"Locked")+'</span></button>';
+  });
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Achievements</div><div style="width:34px"></div></div>'+
+    '<div class="card warm">'+
+      '<div class="row"><span class="eyebrow">Curriculum</span>'+
+      '<span class="cost tnum">'+pct+'%</span></div>'+
+      '<div class="bar" style="margin-top:9px"><div class="barfill" style="width:'+pct+'%"></div></div>'+
+      '<div class="faint" style="margin-top:8px">'+earned+' of '+BADGES.length+' achievements earned'+
+      (isKeyvoriaMaster()?' · <b style="color:var(--gold)">Keyvoria Master</b>':'')+'</div>'+
+    '</div>'+
+    CAT_KEYS.map(masteryRow).join("")+
+    '<div class="faint">Tap any achievement to see its card. Earned cards can be shared.</div>'+
+    '<div class="badgegrid">'+grid+'</div>';
+}
+
+/* The shareable card. Deliberately carries no account identity beyond an
+   optional display name the user types in themselves. */
+function cardHTML(b, forShare){
+  const got = !!S.badges[b.id];
+  const who = S.shareName.trim() ? S.shareName.trim() : "A Keyvoria player";
+  const when = got ? new Date(S.badges[b.id]).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}) : "";
+  /* A small, correctly-proportioned keyboard rather than a row of blocks:
+     14 white keys with the black keys sitting over the right splits. */
+  const KW = 18, KH = 21, BW = 8.5, BH = 12.5;
+  let wk = "", bk = "";
+  for(let i=0;i<14;i++){
+    wk += '<rect x="'+(i*KW)+'" y="0" width="'+(KW-1)+'" height="'+KH+'" rx="1.5" fill="url(#ivory)"/>';
+  }
+  [0,1,3,4,5,7,8,10,11,12].forEach(i => {
+    bk += '<rect x="'+(i*KW + KW - BW/2 - 0.5)+'" y="0" width="'+BW+'" height="'+BH+'" rx="1.2" fill="#15110f"/>';
+  });
+  const keys = '<svg width="100%" height="'+(KH+3)+'" viewBox="0 0 '+(14*KW)+' '+(KH+3)+'" preserveAspectRatio="none" aria-hidden="true">'+
+    '<rect x="0" y="0" width="'+(14*KW)+'" height="3" fill="#7d2230"/><g transform="translate(0,3)">'+
+    '<defs><linearGradient id="ivory" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#f4efe4"/><stop offset="1" stop-color="#cfc6b6"/></linearGradient></defs>'+
+    wk + bk + '</g></svg>';
+  return '<div class="sharecard'+(b.headline?" headline":"")+(got?"":" pending")+'">'+
+    '<div class="scbrand"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+
+      '<rect x="3" y="14" width="3" height="7" rx="1" fill="#ff8a3d"/><rect x="9" y="9" width="3" height="12" rx="1" fill="#ff8a3d"/>'+
+      '<rect x="15" y="4" width="3" height="17" rx="1" fill="#ff8a3d"/></svg><span>KEYVORIA</span></div>'+
+    '<div class="scicon">'+b.icon+'</div>'+
+    '<div class="sctitle">'+b.title+'</div>'+
+    '<div class="scblurb">'+b.blurb+'</div>'+
+    '<div class="scstat tnum">'+(got ? b.line() : "Not earned yet")+'</div>'+
+    '<div class="sckeys">'+keys+'</div>'+
+    '<div class="scfoot"><span>'+who+'</span><span>'+(when||"—")+'</span></div>'+
+  '</div>';
+}
+
+function screenCard(){
+  const b = badgeById(cardBadge) || BADGES[0];
+  const got = !!S.badges[b.id];
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="achievements" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">'+(got?"Achievement":"Locked")+'</div><div style="width:34px"></div></div>'+
+    '<div class="cardwrap">'+cardHTML(b)+'</div>'+
+    (got
+      ? '<div class="stack">'+
+          '<button class="btn block" data-act="share">Share this achievement</button>'+
+          '<button class="btn ghost block" data-act="copycard">Copy share text</button>'+
+          '<div class="faint center">Nothing on this card identifies your account — no email, no user ID. '+
+          'The name is whatever you choose below, or nothing at all.</div>'+
+          '<div class="card"><div class="row"><span class="kvk">Name on cards</span></div>'+
+          '<input class="tinput" id="shareName" value="'+S.shareName.replace(/"/g,"&quot;")+'" placeholder="Leave blank to stay anonymous" maxlength="24">'+
+          '<button class="btn sm" data-act="savename" style="margin-top:10px">Save name</button></div>'+
+        '</div>'
+      : '<div class="notice">'+b.blurb+'. Earn it and this card becomes shareable.</div>');
+}
+
+function screenMaster(){
+  const done = masteredCats();
+  let tiles = "";
+  done.forEach(c => {
+    tiles += '<button class="tile warm" data-act="startmaster" data-cat="'+c+'">'+
+      '<span class="ticon">'+svg(CATS[c].icon,23)+'</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">'+CATS[c].name+'</span>'+
+      '<span class="tsub" style="display:block">Best streak '+(S.masterBest[c]||0)+'</span></span>'+
+      svg(IC.chev,18)+'</button>';
+  });
+  if(done.length === CAT_KEYS.length){
+    tiles += '<button class="tile gold" data-act="startmaster" data-cat="mixed">'+
+      '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Mixed — all categories</span>'+
+      '<span class="tsub" style="display:block">Best streak '+(S.masterBest.mixed||0)+'</span></span>'+
+      '<span class="pill">Master</span></button>';
+  }
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Master Mode</div><div style="width:34px"></div></div>'+
+    '<div class="notice keep">Expert difficulty, generated fresh every time, and it never runs out. '+
+      'One wrong answer ends the run — your score is how long you lasted.</div>'+
+    '<div class="stack">'+tiles+'</div>'+
+    '<div class="faint">Every correct challenge still pays '+TIER_XP[4]+' XP.</div>';
+}
+
+function screenMasterOver(){
+  const key = session.cat;
+  const best = S.masterBest[key]||0;
+  const isBest = session.streak >= best && session.streak > 0;
+  return '<div class="stack center" style="justify-content:center;flex:1">'+
+    '<div class="eyebrow">Master Mode · '+(key==="mixed"?"Mixed":CATS[key].name)+'</div>'+
+    '<div class="bigxp tnum">'+session.streak+'</div>'+
+    '<div class="sub">'+(session.streak===1?"challenge":"challenges")+' in a row</div>'+
+    (isBest ? '<div class="notice keep">New personal best.</div>'
+            : '<div class="faint">Personal best: '+best+'</div>')+
+    '<div class="card" style="text-align:left">'+
+      '<div class="kv"><span class="kvk">XP earned this run</span><span class="kvv tnum">'+session.xp+'</span></div>'+
+      '<div class="kv"><span class="kvk">Spendable XP now</span><span class="kvv tnum">'+S.xp.toLocaleString()+'</span></div>'+
+    '</div>'+
+    '<button class="btn block" data-act="startmaster" data-cat="'+key+'">Run it again</button>'+
+    '<button class="btn ghost block" data-go="master">Master Mode menu</button>'+
+  '</div>';
+}
+
+/* Leaderboards are opt-in, and rank a pseudonym — never an account identity. */
+const LB_SAMPLE = [
+  {n:"Nocturne_88", xp:14820, acc:0.94, streak:41, badges:6},
+  {n:"pedalpoint",  xp:11240, acc:0.91, streak:33, badges:5},
+  {n:"Mira K.",     xp: 9310, acc:0.97, streak:28, badges:5},
+  {n:"tritone_dad", xp: 7460, acc:0.88, streak:19, badges:3},
+  {n:"clefhanger",  xp: 5120, acc:0.90, streak:14, badges:3}
+];
+function screenLeaderboard(){
+  if(!S.leaderboardOptIn){
+    return '<div class="exhead">'+
+        '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+        '<div class="h2">Leaderboards</div><div style="width:34px"></div></div>'+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="notice">Leaderboards are <b>off by default</b>. Turn them on and Keyvoria publishes '+
+        'four numbers under a name you choose: XP, accuracy, best Master Mode streak, and achievements earned. '+
+        'Your email, your practice history and your uploads are never published, and you can turn this off again at any time.</div>'+
+        '<button class="btn block" data-act="lbon">Turn on leaderboards</button>'+
+        '<button class="btn ghost block" data-go="profile">Not now</button>'+
+      '</div>';
+  }
+  const me = { n:(S.shareName.trim()||"You"), xp:S.lifetimeXp, acc:accuracyPct(),
+               streak:Math.max(S.masterBest.ear,S.masterBest.sight,S.masterBest.repeat,S.masterBest.mixed),
+               badges:earnedBadges().length, me:true };
+  const metric = lbMetric;
+  const rows = LB_SAMPLE.concat([me]).sort((a,b)=>b[metric]-a[metric]);
+  const fmt = v => metric==="acc" ? Math.round(v*100)+"%" : v.toLocaleString();
+  let html = "";
+  rows.forEach((r,i) => {
+    html += '<div class="lbrow'+(r.me?" me":"")+'"><span class="lbrank tnum">'+(i+1)+'</span>'+
+      '<span class="grow">'+r.n+'</span><span class="lbval tnum">'+fmt(r[metric])+'</span></div>';
+  });
+  const tab = (id,label) => '<button class="seg-opt'+(metric===id?" active":"")+'" data-act="lbmetric" data-metric="'+id+'">'+label+'</button>';
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Leaderboards</div><div style="width:34px"></div></div>'+
+    '<div class="seg">'+tab("xp","XP")+tab("acc","Accuracy")+tab("streak","Streak")+tab("badges","Mastery")+'</div>'+
+    '<div class="card" style="padding:8px 12px">'+html+'</div>'+
+    '<div class="notice">Everyone but you is sample data in this build — real rankings need the server. '+
+      'Your row shows your actual numbers.</div>'+
+    '<button class="link" data-act="lboff">Turn off leaderboards</button>';
+}
+
+function screenThemes(){
+  let list = "";
+  THEMES.forEach(t => {
+    const open = themeUnlocked(t), on = S.theme === t.id;
+    list += '<'+(open?"button":"div")+' class="themerow'+(on?" on":"")+(open?"":" locked")+'"'+
+      (open?' data-act="settheme" data-theme="'+t.id+'"':"")+'>'+
+      '<span class="swatch '+t.id+'"><i></i><i class="k"></i><i></i></span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">'+t.name+'</span>'+
+      '<span class="tsub" style="display:block">'+(open?t.blurb:"Locked — "+t.blurb)+'</span></span>'+
+      (on?'<span class="pill mastered">On</span>':(open?"":svg(IC.lock,16)))+
+      '</'+(open?"button":"div")+'>';
+  });
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Keyboard themes</div><div style="width:34px"></div></div>'+
+    '<div class="faint">Cosmetic only — themes never change how anything is graded.</div>'+
+    '<div class="stack">'+list+'</div>'+
+    keyboardHTML({});
 }
 
 function screenPaywall(){
@@ -1187,10 +1681,16 @@ function screenCancel(){
 const SCREENS = {
   menu:screenMenu, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
-  paywall:screenPaywall, cancel:screenCancel
+  paywall:screenPaywall, cancel:screenCancel,
+  achievements:screenAchievements, card:screenCard,
+  master:screenMaster, masterover:screenMasterOver,
+  leaderboard:screenLeaderboard, themes:screenThemes
 };
 const TAB_OF = { menu:"menu", ladder:"menu", earmode:"menu", play:"menu", summary:"menu", paywall:"menu",
-                 library:"library", freeplay:"library", profile:"profile", cancel:"profile" };
+                 master:"menu", masterover:"menu",
+                 library:"library", freeplay:"library",
+                 profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
+                 leaderboard:"profile", themes:"profile" };
 const SHOW_TABS = { menu:1, library:1, profile:1 };
 
 function render(){
@@ -1312,6 +1812,24 @@ document.addEventListener("click", e => {
       S.cancelPending = true; save();
       toast("Cancelled — Plus active until 14 March", true);
       go("profile"); break;
+    case "card":
+      cardBadge = el.dataset.badge; go("card"); break;
+    case "savename": {
+      const inp = document.getElementById("shareName");
+      S.shareName = (inp ? inp.value : "").slice(0,24); save();
+      toast(S.shareName.trim() ? "Cards will show \u201c"+S.shareName.trim()+"\u201d" : "Cards will stay anonymous");
+      render(); break;
+    }
+    case "share": shareBadge(badgeById(cardBadge)); break;
+    case "copycard": copyShareText(badgeById(cardBadge)); break;
+    case "startmaster": startMaster(el.dataset.cat); break;
+    case "quitmaster": endTiming(); go("masterover"); break;
+    case "lbon":  S.leaderboardOptIn = true;  save(); render(); break;
+    case "lboff": S.leaderboardOptIn = false; save(); toast("Leaderboards off", true); render(); break;
+    case "lbmetric": lbMetric = el.dataset.metric; render(); break;
+    case "settheme":
+      S.theme = el.dataset.theme; save();
+      toast((THEMES.find(t=>t.id===S.theme)||{}).name+" applied"); render(); break;
     case "reset":
       if(confirm("Reset all XP, unlocks and practice history?")){
         S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,repeat:1}});
@@ -1320,6 +1838,42 @@ document.addEventListener("click", e => {
       break;
   }
 });
+
+/* ---- sharing -------------------------------------------------------------
+   The sandbox this runs in blocks file downloads, so there is no PNG export
+   here: the card is rendered large enough to screenshot, and the share text is
+   offered through the native share sheet where the browser exposes one. */
+function shareText(b){
+  const who = S.shareName.trim();
+  return (who ? who + " \u2014 " : "") + b.icon + " " + b.title +
+         " on Keyvoria. " + b.blurb + ". " + (S.badges[b.id] ? b.line() : "");
+}
+function shareBadge(b){
+  if(!b || !S.badges[b.id]) return;
+  const text = shareText(b);
+  if(navigator.share){
+    navigator.share({ title:"Keyvoria \u2014 "+b.title, text }).catch(()=>{});
+    return;
+  }
+  copyShareText(b, "No share sheet here \u2014 text copied instead");
+}
+function copyShareText(b, msg){
+  if(!b || !S.badges[b.id]) return;
+  const text = shareText(b);
+  const ok = () => toast(msg || "Share text copied");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(ok).catch(()=>fallbackCopy(text, ok));
+  } else fallbackCopy(text, ok);
+}
+function fallbackCopy(text, ok){
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly","");
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove(); ok();
+  }catch(e){ toast("Screenshot the card to share it", true); }
+}
 
 /* ============================ boot ============================ */
 load();

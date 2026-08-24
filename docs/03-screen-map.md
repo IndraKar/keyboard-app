@@ -360,6 +360,34 @@ on, this section says where to cancel instead of offering a button that can't wo
 e.g. "Purchased through the App Store. Manage it on your iPhone or at
 reportaproblem.apple.com." Silently showing a dead button is the failure mode here.
 
+### 3.8.1a Achievements & mastery (reached from Profile)
+
+See PRD F-08.
+
+- **Achievements screen** — curriculum-completion percentage at the top, then a
+  per-category mastery strip showing all four tiers as cells (progress toward each
+  tier's clear target, ticked when cleared), then the badge grid. **Locked badges are
+  visible and tappable**, not hidden — a user should be able to see what they're
+  working toward and open its card to read the requirement.
+- **Achievement card** — the shareable artifact (F-08). Full-bleed branded card:
+  Keyvoria wordmark, badge icon, title, one real statistic, keyboard motif, optional
+  display name, date earned. Below it: *Share* (native share sheet where the platform
+  offers one, image export on native), *Copy share text*, and the display-name field.
+  Locked cards render greyed with the requirement in place of the share actions.
+  **No account identity appears on a card at any point** — the screen reads only
+  `share_preferences` (DB §4.10c), never `users`.
+- **Master Mode** — appears on the Main Menu (§3.3) once any category is mastered,
+  never before. Lists each mastered category with its best streak, plus **Mixed** once
+  all three are done. A run is endless and ends on the first wrong answer; the
+  run-over screen shows streak, XP earned, personal best, and a one-tap rerun.
+- **Leaderboards** — opt-in screen first, explaining exactly which four numbers get
+  published and that it is reversible. Once on: four ranked metrics (XP, accuracy,
+  best streak, achievements) with the user's own row highlighted, and a visible
+  "turn off" control on the same screen as the rankings, not buried in settings.
+- **Keyboard themes** — cosmetic list with a live keyboard preview at the bottom of
+  the screen so a theme can be judged before it's applied. Locked themes name the
+  badge that unlocks them.
+
 ### 3.8.2 The rest of Profile
 
 - Account info, sign-out, delete account.

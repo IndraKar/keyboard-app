@@ -14,7 +14,8 @@ flowchart TD
     M2 --> M5["M5 · The XP economy"]
     M4 --> M6["M6 · Library & search"]
     M3 --> M7["M7 · Learn My Music (Premium)"]
-    M5 --> M8["M8 · Polish, accessibility, QA"]
+    M5 --> M5b["M5b · Mastery & Master Mode"]
+    M5b --> M8["M8 · Polish, accessibility, QA"]
     M6 --> M8
     M7 --> M8
     M8 --> M9["M9 · Beta launch prep"]
@@ -213,6 +214,33 @@ categories and immediately access it; attempting to unlock a `required_plan =
 premium` tier without an entitlement is correctly blocked regardless of balance;
 streak state updates daily with freeze behavior; a first batch of achievement rules
 fire correctly; Progress Analytics reflects real balance, spend, and accuracy data.
+
+## M5b — Mastery, Master Mode & achievements
+**Size:** M
+**Goal:** PRD F-08 — make finishing the curriculum an accomplishment worth displaying,
+and give the finished user somewhere to keep playing.
+**Deliverables:**
+- `user_tier_clears` + `category_tiers.clear_target` (§4.10c). Clears are counted from
+  correct exercises, **never** inferred from XP spend — that split is what stops
+  "Keyvoria Master" from being purchasable, and it is the one thing in this milestone
+  that must not be simplified away under time pressure.
+- Mastery computation (tier cleared → category mastered → Keyvoria Master), derived at
+  read time rather than stored as flags, so retuning `clear_target` can't strand a
+  user holding a badge the new rule wouldn't grant.
+- The seven V1 badges (F-08) and their evaluation after every graded exercise.
+- **Achievement cards**: shared card component, native share sheet, and image export
+  on native platforms. Card rendering reads `share_preferences` only — enforce this
+  with a test that fails if the card query joins `users`.
+- **Master Mode**: endless generator at expert difficulty per category plus Mixed,
+  `master_runs` recording, streak scoring, tier-4 XP per correct challenge.
+- **Leaderboards**: opt-in flow, `leaderboard_entries` materialisation, four metrics,
+  and opt-out that **deletes** the row rather than hiding it.
+- **Cosmetics**: four keyboard themes gated on badges, `user_cosmetics`.
+**Exit criteria:** a user who buys every tier but plays nothing holds **zero** mastery;
+a user who clears all twelve tiers earns Keyvoria Master and unlocks Master Mode and
+the gold theme; a Master Mode run ends on the first wrong answer with the streak
+recorded; an achievement card renders with no account-identifying data by default and
+with a chosen display name when set; opting out of leaderboards removes the row.
 
 ## M6 — Library & search
 **Size:** S

@@ -56,6 +56,13 @@ erDiagram
 
     USERS ||--o{ PRACTICE_INTERVALS : accrues
     USERS ||--|| USER_STATS : "rolled up into"
+
+    USERS ||--o{ USER_TIER_CLEARS : clears
+    CATEGORY_TIERS ||--o{ USER_TIER_CLEARS : "cleared as"
+    USERS ||--o{ MASTER_RUNS : plays
+    USERS ||--|| USER_COSMETICS : equips
+    USERS ||--|| SHARE_PREFERENCES : controls
+    SHARE_PREFERENCES ||--o| LEADERBOARD_ENTRIES : publishes
 ```
 
 ## 4.2 Identity & account
@@ -463,6 +470,51 @@ Notes that matter for the cancel flow:
   entitlement is gating — tier 4 becomes unpurchasable/unenterable, the keyboard
   renders 2 octaves, Learn My Music locks. Resubscribing restores access with nothing
   to rebuild.
+
+## 4.10c Mastery, achievements & Master Mode
+
+Supports PRD F-08. The central rule — mastery is played, not purchased — is enforced
+by keeping *clears* in their own table rather than inferring them from
+`user_category_unlocks` (which only records XP spend).
+
+**`user_tier_clears`**
+`user_id → users`, `tier_id → category_tiers`, `correct_count` (int, incremented once
+per correct exercise attributed to that tier), `cleared_at` (nullable — stamped when
+`correct_count` first reaches the tier's `clear_target`). Primary key
+`(user_id, tier_id)`. `category_tiers` gains `clear_target` (int, default 12) so the
+requirement is content data, tunable per tier without a release.
+
+A category is mastered when all four of its tiers have a non-null `cleared_at`.
+Keyvoria Master is all three. Both are **computed, never stored as a flag** — a stored
+flag drifts the moment `clear_target` is retuned.
+
+**`achievements`** (extends §4.10) gains `share_icon` (text, the emoji), `share_blurb`
+(text), and `is_headline` (bool — the Keyvoria Master card is styled differently).
+`user_achievements` already carries `unlocked_at`, which is what the card prints.
+
+**`master_runs`**
+`id`, `user_id → users`, `category` (enum: ear_training / sight_reading /
+playback_repeat / mixed), `streak` (int — challenges survived), `xp_earned`,
+`started_at`, `ended_at`, `ended_reason` (enum: wrong_answer / quit). Best streak per
+category is `max(streak)` over this table, not a separate column.
+
+**`user_cosmetics`**
+`user_id → users`, `keyboard_theme` (text, default `ivory`), `profile_frame` (text,
+nullable), `unlocked_cosmetics` (text[] — derived from achievements at read time in
+V1, materialised here only if that read ever gets expensive).
+
+**`share_preferences`**
+`user_id → users` (PK), `display_name` (text, nullable — **null means cards render
+"A Keyvoria player"**, and null is the default), `leaderboard_opt_in` (bool, default
+**false**), `opted_in_at` (nullable). Card and leaderboard rendering read *only* this
+table for identity; they must never join to `users`, which is what structurally
+guarantees PRD F-08's privacy rule rather than leaving it to reviewer discipline.
+
+**`leaderboard_entries`** (materialised, refreshed periodically)
+`user_id → users`, `display_name` (snapshot from `share_preferences`), `lifetime_xp`,
+`accuracy_pct`, `best_master_streak`, `achievement_count`, `updated_at`. Rows exist
+**only** for users with `leaderboard_opt_in = true`; opting out deletes the row rather
+than hiding it.
 
 ## 4.11 Learn My Music
 

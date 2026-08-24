@@ -437,6 +437,64 @@ Subscription** action:
   platform other than the one they bought on, this section says where to cancel rather
   than offering a button that cannot work.
 
+### F-08 Mastery, Master Mode & achievements
+The endgame. F-03's XP economy answers "what do I unlock next"; this answers "what
+happens when there's nothing left to unlock," and it has to make finishing Keyvoria
+feel like an accomplishment rather than an ending.
+
+**Mastery is earned at the keyboard, not bought.** This is the load-bearing decision
+in the whole section. Unlocking a tier costs XP; **clearing** a tier costs correct
+exercises — a fixed number of them played at that tier (suggest **12**, tunable). A
+user with a huge XP balance can buy every tier in an afternoon and still hold no
+mastery at all. Without this split, "Keyvoria Master" would be a purchase, and a
+badge you can buy is worth nothing to the person who earned it.
+
+| Award | Requirement |
+|---|---|
+| **Tier cleared** | Tier unlocked *and* 12 correct exercises played at that tier |
+| **🎧 / 📖 / 🔄 Category Master** | All four tiers cleared in that category |
+| **🎹 Keyvoria Master** | All three Category Masters. Requires Plus, since tier 4 is premium |
+| **💯 100% Curriculum Completion** | Keyvoria Master *and* at least one flawless (5/5) session in each category |
+| **🏆 Perfect Score** | Any session answered 5 out of 5 |
+| **✨ Exceptional Accuracy** | 95% or better across 50+ exercises |
+
+100% Completion is deliberately *not* a synonym for Keyvoria Master: Master means you
+finished everything, 100% means you also proved you could play each category
+flawlessly at least once. Two different claims, so two different badges.
+
+**Master Mode** unlocks per category the moment that category is mastered, plus a
+**Mixed** mode once all three are. It is procedurally generated at expert difficulty
+and never repeats a fixed set, so it does not run out:
+- **Endless, streak-scored.** One wrong answer ends the run; the score is how many
+  challenges you survived. This is what gives the endgame a number worth chasing and
+  gives leaderboards something meaningful to rank.
+- Correct challenges still pay tier-4 XP (F-03's earning rule is unchanged), so
+  Master Mode keeps feeding lifetime XP after every tier is bought.
+- It does **not** count toward tier clears — it sits after the curriculum, not inside
+  it.
+
+**Shareable achievement cards.** Every badge has a card: branded, dark, the
+achievement's icon and title, one real statistic, and a Keyvoria keyboard motif.
+Two rules govern them:
+- **Nothing on a card identifies the account.** No email, no user ID, no handle
+  derived from either. The only identity is a display name the user types themselves,
+  and the default is no name at all ("A Keyvoria player"). Sharing an achievement must
+  never be a privacy decision made on the user's behalf.
+- **Locked cards are viewable but not shareable** — a user can see what they're
+  working toward, greyed and marked, which is a better motivator than an empty slot.
+
+**Leaderboards are opt-in and off by default.** Turning them on publishes exactly four
+numbers under a chosen name: XP, accuracy, best Master Mode streak, and achievements
+earned. Practice history, uploads, and account details are never published, and the
+opt-in is reversible at any time. Ranking is available across four metrics so a
+careful player and a prolific one both have a board they can win.
+
+**Cosmetic rewards.** Keyboard themes (Classic Ivory, Midnight, Ember, Master Gold),
+each gated behind a specific badge rather than a second currency. Cosmetics never
+affect grading, difficulty, or XP — that separation is what keeps them safe to give
+away generously. Profile frames, backgrounds, and unlock animations extend the same
+pattern post-V1.
+
 ## 1.5 Non-functional requirements
 
 - **Latency:** MIDI note-to-feedback round trip must feel instantaneous for rhythm
