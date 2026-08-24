@@ -134,13 +134,16 @@ reframed as tags rather than paths.
 
 ### F-02a Ear Training: intervals & chord-quality drills
 A configurable ear-training drill, launched from the Main Menu (screen map §3.3),
-with its own XP-unlocked tier ladder (F-03) rather than being a fixed stop on a
-cross-category path. Two drill types, both configured before the session starts:
+with its own XP-unlocked tier ladder (F-03). Entering a tier presents **two modes as
+an explicit choice** — Note Intervals or Chords — rather than mixing them within one
+session, so a user can drill the skill they actually want:
 
 - **Note Intervals** — the system plays a stimulus of **2 to 8 notes**, chosen by the
   user with a stepper/slider:
   - **2 notes**: classic two-note interval identification (answer: interval name,
-    e.g. major third, perfect fifth).
+    e.g. major third, perfect fifth). **Tier 1 is two-note intervals only** — every
+    exercise in a tier-1 interval session is exactly two notes, drawn from a small
+    wide-and-obvious pool (major 3rd, perfect 4th, perfect 5th, octave).
   - **3 notes**: a triad, graded by chord quality (see quality pool below).
   - **4–8 notes**: a short note sequence (played melodically); the user identifies
     the full chain of intervals between consecutive notes — this scales the same
@@ -150,12 +153,18 @@ cross-category path. Two drill types, both configured before the session starts:
     distractor choices, and adjusts playback tempo — so, for example, a 2-note drill
     at Difficulty 1 stays within an octave with obviously-different answer choices,
     while Difficulty 5 spans wider intervals with tighter distractors.
-- **Chord Progressions** — the system plays a short sequence of chords; the user
-  identifies each chord's quality in order. Quality pool is a multi-select over
-  exactly four qualities: **Major, Minor, Augmented, Diminished** (chords are built
-  only from selected qualities, so a beginner can start with Major vs. Minor and add
-  Augmented/Diminished later). The same Difficulty 1–5 setting adjusts progression
-  length and voicing complexity.
+- **Chords** — the system plays a triad (three notes, sounded together) and the user
+  names its quality. **The pool widens by tier rather than by a setting**, which is
+  what makes the tier ladder mean something here:
+
+  | Tier | Chord qualities offered |
+  |---|---|
+  | 1 | **Major, Minor** — a two-way choice, the smallest useful discrimination |
+  | 2+ | **Major, Minor, Augmented, Diminished** |
+
+  Tier 1 deliberately asks only "major or minor?". A beginner who cannot yet hear a
+  third reliably gets a question they can actually answer, and the answer set grows
+  once they've bought their way past it.
 
 Mechanics common to both: each round plays the stimulus (repeatable via a "play
 again" control) and presents multiple-choice answers; the session is self-graded, so
@@ -184,6 +193,33 @@ keyboard or the on-screen keyboard (2 octaves free / 61 keys premium), which sit
 directly below the staff on this screen. Tiers 1–3 passages are written to stay
 within the 2-octave range so a free user with no hardware can read and play every
 one of them.
+
+**Passage shape and reading difficulty by tier:**
+
+| Tier | Notes | Key signature | Motion |
+|---|---|---|---|
+| 1 | **5** | C major only — no accidentals | Stepwise |
+| 2 | 5 | **G, D, F or B♭** — the user must play the sharps or flats the key implies | Small leaps |
+| 3 | 6 | Up to three accidentals | Wider leaps |
+| 4 | 6 | Same, beyond the 2-octave range | Wide |
+
+**A key signature changes what you play, not just what you see.** From tier 2, a
+passage in G major draws an F on the staff and expects F♯ from the keyboard — the
+accidental is applied by the key, not written next to the note. This is the point of
+the tier: reading a key signature is a distinct skill from reading note positions, and
+it's why tier 2 is where the black keys first become mandatory.
+
+**A wrong note restarts the passage; it does not end the exercise.** The user plays
+from the first note again, and can keep going until they get through. Only a **clean
+run — every note right, first time — earns the XP** (F-03). An earlier build ended the
+exercise outright on the first wrong note, which made a single slip read as "everything
+I press is wrong" and gave the user nothing to practise against. Restarting keeps the
+passage in front of them, which is the thing that actually builds reading fluency.
+
+**Each note lights up as it is played** — green on the staff and on the key — so the
+user can see their position in the passage without counting. Clefs are drawn as proper
+treble and bass clef symbols, and the key signature's sharps or flats are engraved at
+the correct staff positions, in the standard order.
 - **No manual setup screen** — tapping Sight-Reading from the Main Menu launches
   straight into a passage. Clef is picked for the user, randomly, **treble or bass**,
   every time the tile is tapped, so the two get roughly even practice over time without

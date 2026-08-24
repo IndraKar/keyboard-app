@@ -146,8 +146,12 @@ screens are laid out around it rather than reflowing when no hardware is present
 
 ### 3.3.2 Ear Training
 
-See PRD F-02a. From the Tier Ladder, the procedurally-generated drill opens:
-1. **Drill Setup** — choose *Note Intervals* or *Chord Progressions*.
+See PRD F-02a. From the Tier Ladder, an unlocked tier opens a **mode picker** before
+any drill starts — two tiles, *Note Intervals* and *Chords* — so the user chooses which
+skill this session trains rather than getting a mix. The chord tile names the qualities
+that tier will ask about ("Major or minor" at tier 1, all four from tier 2), so the
+choice is informed before it costs a session.
+1. **Drill Setup** — options for the chosen mode.
    - Note Intervals: a **2–8 notes** stepper (2 = interval, 3 = triad, 4–8 =
      interval-chain dictation) plus a **Difficulty 1–5** slider.
    - Chord Progressions: a 4-way multi-select chip row for chord quality —
@@ -167,10 +171,14 @@ See PRD F-02b. No setup screen — tapping into an unlocked Sight-Reading tier
 immediately opens a passage from that tier with a randomly chosen clef badge (Treble
 or Bass) at the top.
 1. **Sight-Reading Screen** — curated passage rendered via the `notation` package,
-   with the shared on-screen keyboard (§3.3.1a) directly below the staff and a live
-   grading overlay above it. The user plays the passage by tapping that keyboard or
-   on connected hardware — either works. Sight-read-once by default with an optional
-   practice-first toggle.
+   with the shared on-screen keyboard (§3.3.1a) directly below the staff. The header
+   names the clef and, from tier 2, the key signature. The user plays the passage by
+   tapping that keyboard or on connected hardware — either works.
+   - **Each correct note lights green**, on the staff and on the key, so position in
+     the passage is visible without counting.
+   - **A wrong note restarts the passage** rather than ending the exercise (PRD
+     F-02b), with a plain "Wrong note — start the passage again" line. The user can
+     keep going as long as they like; only a clean run earns XP.
 2. **Session Summary** (§3.4) — note accuracy and rhythm/timing breakdown.
 
 ### 3.3.4 Playback & Repeat

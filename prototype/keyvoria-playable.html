@@ -188,6 +188,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 }
 .wk.down{background:linear-gradient(180deg,#ffc79b,#f0a878);box-shadow:inset 0 3px 7px rgba(90,40,0,.3);}
 .wk.hint{background:linear-gradient(180deg,#bff3da,#8fe3bf);}
+.wk.miss{background:linear-gradient(180deg,#ffb3b3,#f08080);}
 .bk{
   position:absolute;top:7px;height:58%;
   background:linear-gradient(180deg,#2c2725,#121010 72%);
@@ -199,6 +200,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 }
 .bk.down{background:linear-gradient(180deg,#d9853f,#a85f27);box-shadow:0 2px 3px rgba(0,0,0,.5);}
 .bk.hint{background:linear-gradient(180deg,#4bbd90,#2f8e69);}
+.bk.miss{background:linear-gradient(180deg,#c25a5a,#933d3d);}
 
 /* ---------- stats ---------- */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
@@ -223,6 +225,9 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   max-width:88vw;text-align:center;
 }
 .toast.warn{background:var(--accent);color:#1a0f06;}
+.sndbadge{position:fixed;left:50%;transform:translateX(-50%);bottom:74px;z-index:55;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--dim);
+  font-size:11px;font-weight:600;padding:7px 14px;border-radius:999px;pointer-events:none;}
 .notice{background:var(--accent-soft);border:1px solid rgba(255,138,61,.3);border-radius:12px;padding:11px 13px;font-size:11.5px;color:var(--dim);line-height:1.55;}
 .notice.keep{background:var(--good-soft);border-color:rgba(94,230,165,.3);}
 .notice b{color:var(--text);}
@@ -238,6 +243,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
     <div class="xppill tnum"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2C12 2 6 9 6 14a6 6 0 0012 0c0-2-1-3.5-2-5 0 2-1 3-2 3-1.5 0-2-1.5-1-3.5C13.5 6 12 4 12 2z" fill="#ff8a3d"/></svg><span id="xpLabel">0</span> XP</div>
   </div>
   <div class="view" id="view"></div>
+  <div id="sndBadge" class="sndbadge">Tap anywhere to enable sound</div>
   <nav class="tabbar" id="tabbar"></nav>
 </div>
 
@@ -281,6 +287,47 @@ function diatonicIndex(m){
   const step = DIATONIC[pc] !== undefined ? DIATONIC[pc] : DIATONIC[pc-1];
   return oct*7 + step;
 }
+/* Staff position (diatonic index) -> sounding pitch, honouring a key signature.
+   A note keeps its staff position when sharpened/flattened: F# still sits on the F line. */
+const LETTER_PC = [0,2,4,5,7,9,11];      /* C D E F G A B */
+const LETTERS = "CDEFGAB";
+function diaToMidi(dia, alter){
+  const oct = Math.floor(dia/7), step = ((dia%7)+7)%7;
+  let m = (oct+1)*12 + LETTER_PC[step];
+  const a = alter && alter[LETTERS[step]];
+  if(a) m += a;
+  return m;
+}
+/* Key signatures: accidental order is fixed, so the glyph list is derived, not hand-listed. */
+const SHARP_ORDER = ["F","C","G","D","A","E","B"];
+const FLAT_ORDER  = ["B","E","A","D","G","C","F"];
+const KEYS = {
+  C:  {name:"C major",  sharps:0, flats:0},
+  G:  {name:"G major",  sharps:1, flats:0},
+  D:  {name:"D major",  sharps:2, flats:0},
+  A:  {name:"A major",  sharps:3, flats:0},
+  F:  {name:"F major",  sharps:0, flats:1},
+  Bb: {name:"B♭ major", sharps:0, flats:2},
+  Eb: {name:"E♭ major", sharps:0, flats:3}
+};
+function keyAlter(k){
+  const K = KEYS[k], out = {};
+  for(let i=0;i<K.sharps;i++) out[SHARP_ORDER[i]] = 1;
+  for(let i=0;i<K.flats;i++)  out[FLAT_ORDER[i]]  = -1;
+  return out;
+}
+function keyGlyphs(k){
+  const K = KEYS[k], out = [];
+  for(let i=0;i<K.sharps;i++) out.push({letter:SHARP_ORDER[i], sign:"sharp", i:i});
+  for(let i=0;i<K.flats;i++)  out.push({letter:FLAT_ORDER[i],  sign:"flat",  i:i});
+  return out;
+}
+/* Where each key-signature accidental sits, by clef. Standard engraving positions. */
+const KS_DIA = {
+  treble:{ sharp:{F:38,C:35,G:39,D:36,A:33,E:37,B:34}, flat:{B:34,E:37,A:33,D:36,G:32,C:35,F:31} },
+  bass:  { sharp:{F:24,C:21,G:25,D:22,A:19,E:23,B:20}, flat:{B:20,E:23,A:19,D:22,G:18,C:21,F:17} }
+};
+
 const INTERVALS = [
   {s:1,  n:"Minor 2nd"},  {s:2,  n:"Major 2nd"}, {s:3,  n:"Minor 3rd"},
   {s:4,  n:"Major 3rd"},  {s:5,  n:"Perfect 4th"}, {s:6, n:"Tritone"},
@@ -349,8 +396,29 @@ const tierOf = (catKey,n) => CATS[catKey].tiers[n-1];
 const EXERCISES_PER_SESSION = 5;
 
 /* ============================ audio ============================ */
-let ctx = null, master = null;
+let ctx = null, master = null, audioReady = false;
 const voices = new Map();
+
+/* Mobile browsers only let an AudioContext start inside a real user gesture, and
+   a context created before that stays suspended — which is silence, not an error.
+   So prime it on the first interaction of any kind and remember that it worked. */
+function unlockAudio(){
+  const c = audio();
+  if(!c) return;
+  const done = () => {
+    if(c.state === "running" && !audioReady){
+      audioReady = true;
+      const b = c.createBuffer(1,1,22050);
+      const src = c.createBufferSource(); src.buffer = b;
+      src.connect(c.destination); src.start(0);
+      const badge = document.getElementById("sndBadge");
+      if(badge) badge.remove();
+    }
+  };
+  if(c.state === "suspended"){ c.resume().then(done).catch(()=>{}); } else done();
+}
+["pointerdown","keydown","touchstart"].forEach(ev =>
+  document.addEventListener(ev, unlockAudio, {passive:true}));
 
 function audio(){
   if(!ctx){
@@ -361,7 +429,7 @@ function audio(){
     master.gain.value = 0.85;
     master.connect(ctx.destination);
   }
-  if(ctx.state === "suspended") ctx.resume();
+  if(ctx.state === "suspended") { try{ ctx.resume(); }catch(e){} }
   return ctx;
 }
 function freq(m){ return 440 * Math.pow(2,(m-69)/12); }
@@ -418,6 +486,7 @@ function allOff(){ Array.from(voices.keys()).forEach(m => stopNote(m, true)); }
 /* ============================ app state ============================ */
 let curScreen = "menu";
 let ladderCat = "ear";
+let earModeTier = 1;
 let session = null;
 let toastTimer = null;
 let noteHook = null;      /* fn(midi) while an exercise is listening */
@@ -477,62 +546,104 @@ function whiteNotesIn(lo, hi){
   return out;
 }
 
-function genEar(tier){
-  const useChord = tier >= 2 && Math.random() < (tier >= 3 ? 0.5 : 0.35);
-  const lo = tier === 4 ? PLUS_LO+12 : 52, hi = tier === 4 ? PLUS_HI-12 : 67;
+/* ---- Ear Training -------------------------------------------------------
+   Two modes the user picks between: intervals, or chord quality.
+   Chord quality pool widens at tier 2 from Major/Minor to all four triads. */
+const EAR_INTERVALS = {
+  1:[4,7,12,5],                          /* wide and obvious */
+  2:[2,3,4,5,7,9,12],
+  3:[1,2,3,4,5,6,7,8,9,10,11,12],
+  4:[1,2,3,4,5,6,7,8,9,10,11,12]
+};
+const EAR_QUALITIES = {
+  1:["Major","Minor"],
+  2:["Major","Minor","Augmented","Diminished"],
+  3:["Major","Minor","Augmented","Diminished"],
+  4:["Major","Minor","Augmented","Diminished"]
+};
 
-  if(useChord){
-    const qualities = tier >= 3 ? ["Major","Minor","Augmented","Diminished"] : ["Major","Minor"];
-    const q = pick(qualities);
-    const root = 48 + rand(13);
-    const notes = CHORDS[q].map(iv => root + iv);
-    return {
-      kind:"ear", mode:"chord",
-      prompt:"Which chord quality is this?",
-      answer:q,
-      options: shuffle(qualities.slice()),
-      phrase: notes.map(m => ({midi:m, at:0, dur:1500}))
-    };
-  }
-  let pool;
-  if(tier === 1)      pool = [4,7,12,5];
-  else if(tier === 2) pool = [2,3,4,5,7,9,12];
-  else                pool = [1,2,3,4,5,6,7,8,9,10,11,12];
+function genEarInterval(tier){
+  const pool = EAR_INTERVALS[tier];
+  const lo = tier === 4 ? 48 : 55, hi = tier === 4 ? 79 : 67;
   const s = pick(pool);
   const root = lo + rand(Math.max(1, hi - lo - s));
   const wrongs = shuffle(pool.filter(x => x !== s)).slice(0,3).map(x => byStep(x).n);
   return {
     kind:"ear", mode:"interval",
     prompt:"Which interval is this?",
+    hint:"Two notes, played one after the other",
     answer: byStep(s).n,
     options: shuffle([byStep(s).n].concat(wrongs)),
     phrase: [
-      {midi:root,   at:0,   dur:620},
-      {midi:root+s, at:700, dur:620},
-      {midi:root,   at:1500, dur:900},
-      {midi:root+s, at:1500, dur:900}
+      {midi:root,   at:0,    dur:640},
+      {midi:root+s, at:720,  dur:640},
+      {midi:root,   at:1560, dur:950},
+      {midi:root+s, at:1560, dur:950}
     ]
   };
 }
+function genEarChord(tier){
+  const pool = EAR_QUALITIES[tier];
+  const q = pick(pool);
+  const root = 52 + rand(12);
+  const notes = CHORDS[q].map(iv => root + iv);
+  return {
+    kind:"ear", mode:"chord",
+    prompt:"Major or minor?",
+    hint:"Three notes, played together",
+    answer:q,
+    options: pool.slice(),
+    phrase: notes.map((m,i) => [{midi:m, at:i*260, dur:1100-i*260},
+                                {midi:m, at:1500,  dur:1300}]).flat()
+  };
+}
+function genEar(tier, mode){
+  const ex = mode === "chord" ? genEarChord(tier) : genEarInterval(tier);
+  if(ex.mode === "chord" && ex.options.length > 2) ex.prompt = "Which chord quality is this?";
+  return ex;
+}
+
+/* ---- Sight-Reading ------------------------------------------------------
+   Notes are generated as staff positions, then sounded through the key
+   signature, so a passage in G major really does ask for F#. */
+const SIGHT_KEYS = { 1:["C"], 2:["G","F","D","Bb"], 3:["G","D","A","F","Bb","Eb"], 4:["G","D","A","F","Bb","Eb"] };
+const SIGHT_COUNT = { 1:5, 2:5, 3:6, 4:6 };
 
 function genSight(tier){
-  const count = tier === 1 ? 4 : tier === 2 ? 5 : 6;
-  const clef = tier >= 3 || Math.random() < 0.5 ? (Math.random() < 0.5 ? "treble" : "bass") : "treble";
-  let lo, hi;
-  if(tier === 4){ lo = clef === "treble" ? 60 : 43; hi = clef === "treble" ? 84 : 64; }
-  else { lo = clef === "treble" ? 60 : 48; hi = clef === "treble" ? 72 : 60; }
-  const scale = whiteNotesIn(lo, hi);
-  const maxLeap = tier === 1 ? 1 : tier === 2 ? 2 : 4;
+  const count = SIGHT_COUNT[tier];
+  const clef = Math.random() < 0.5 ? "treble" : "bass";
+  const key = pick(SIGHT_KEYS[tier]);
+  const alter = keyAlter(key);
 
-  const notes = [];
-  let idx = rand(scale.length);
+  /* Staff-position window, chosen so every note lands inside the free 2-octave
+     keyboard (C3-C5) and needs at most one ledger line. */
+  let loDia, hiDia;
+  if(clef === "treble"){ loDia = 28; hiDia = 35; }   /* C4 - C5 */
+  else                 { loDia = 21; hiDia = 28; }   /* C3 - C4 */
+  if(tier === 4){ if(clef === "treble"){ hiDia = 39; } else { loDia = 17; } }
+
+  const span = hiDia - loDia;
+  const maxLeap = tier === 1 ? 1 : tier === 2 ? 2 : 3;
+
+  const dias = [];
+  let d = loDia + rand(span+1);
   for(let i=0;i<count;i++){
-    notes.push(scale[idx]);
+    dias.push(d);
     let step = 0;
     while(step === 0) step = rand(maxLeap*2+1) - maxLeap;
-    idx = Math.max(0, Math.min(scale.length-1, idx + step));
+    d += step;
+    /* Reflect off the window edges instead of clamping — clamping made passages
+       stick to the top or bottom key and repeat the same two notes. */
+    if(d > hiDia) d = hiDia - (d - hiDia);
+    if(d < loDia) d = loDia + (loDia - d);
+    d = Math.max(loDia, Math.min(hiDia, d));
   }
-  return { kind:"sight", clef, notes, pos:0, prompt:"Play the passage, left to right" };
+  return {
+    kind:"sight", clef, key, alter, dias,
+    notes: dias.map(x => diaToMidi(x, alter)),
+    pos:0, flawed:false, wrongFlash:false,
+    prompt:"Play the passage, left to right"
+  };
 }
 
 function genRepeat(tier){
@@ -549,27 +660,29 @@ function genRepeat(tier){
   };
 }
 
-function genExercise(catKey, tier){
-  if(catKey === "ear")   return genEar(tier);
+function genExercise(catKey, tier, mode){
+  if(catKey === "ear")   return genEar(tier, mode);
   if(catKey === "sight") return genSight(tier);
   return genRepeat(tier);
 }
 
-function startSession(catKey, tier){
+function startSession(catKey, tier, mode){
   session = {
-    cat:catKey, tier, idx:0, correct:0, xp:0,
-    results:[], ex:genExercise(catKey, tier),
+    cat:catKey, tier, mode: mode || "interval", idx:0, correct:0, xp:0,
+    results:[], ex:genExercise(catKey, tier, mode),
     state:"ready", picked:null
   };
   beginTiming();
   go("play");
+  if(catKey === "ear") setTimeout(hearStimulus, 300);
 }
 function nextExercise(){
   session.idx++;
   if(session.idx >= EXERCISES_PER_SESSION){ endTiming(); go("summary"); return; }
-  session.ex = genExercise(session.cat, session.tier);
+  session.ex = genExercise(session.cat, session.tier, session.mode);
   session.state = "ready"; session.picked = null;
   render();
+  if(session.cat === "ear") setTimeout(hearStimulus, 260);
 }
 function judge(ok){
   if(session.state === "done") return;
@@ -680,45 +793,96 @@ document.addEventListener("pointerenter", e => {
 }, true);
 
 /* ============================ staff rendering ============================ */
-function staffSVG(ex){
-  const W = Math.max(300, 60 + ex.notes.length*52), H = 150;
-  const LS = 13, Y0 = 96;               /* bottom line */
-  const bottomDia = ex.clef === "treble" ? diatonicIndex(64) : diatonicIndex(43);
-  const y = m => Y0 - (diatonicIndex(m) - bottomDia) * (LS/2);
+/* Clefs drawn as paths so they never depend on a music font being present.
+   Both are authored against a 4-space staff and scaled to LS. */
+function trebleClef(x, Y0, LS){
+  /* Authored in staff-space units around the G4 line, which is where a G clef
+     takes its name and its spiral centre. */
+  const cy = Y0 - LS;                       /* G4 = 2nd line up */
+  const P = (px,py) => (x + px*LS).toFixed(2) + "," + (cy + py*LS).toFixed(2);
+  const curl =
+    "M" + P(0.30,-3.55) +
+    "C" + P(-0.72,-2.95) + " " + P(-0.72,-1.80) + " " + P(0.10,-1.10) +
+    "C" + P(1.00,-0.62) + " " + P(1.14, 0.38) + " " + P(0.30, 1.06) +
+    "C" + P(-0.44, 1.62) + " " + P(-1.26, 1.06) + " " + P(-1.21, 0.24) +
+    "C" + P(-1.16,-0.42) + " " + P(-0.54,-0.70) + " " + P(0.05,-0.42);
+  const stem =
+    "M" + P(0.26,-3.55) +
+    "C" + P(0.60,-2.10) + " " + P(0.66, 1.25) + " " + P(0.44, 2.85) +
+    "C" + P(0.34, 3.62) + " " + P(-0.34, 3.82) + " " + P(-0.68, 3.28);
+  const st = 'fill="none" stroke="#d8cec3" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+  return '<path d="'+curl+'" '+st+'/><path d="'+stem+'" '+st+'/>';
+}
+function bassClef(x, Y0, LS){
+  /* The head and the two dots straddle F3 — the 4th line up — hence "F clef". */
+  const cy = Y0 - 3*LS;
+  const P = (px,py) => (x + px*LS).toFixed(2) + "," + (cy + py*LS).toFixed(2);
+  const arc =
+    "M" + P(0.05,-0.32) +
+    "C" + P(1.16,-0.58) + " " + P(1.78, 0.34) + " " + P(1.70, 1.22) +
+    "C" + P(1.60, 2.36) + " " + P(0.62, 3.16) + " " + P(-0.58, 3.55);
+  return '<circle cx="'+(x).toFixed(2)+'" cy="'+cy.toFixed(2)+'" r="'+(LS*0.34).toFixed(2)+'" fill="#d8cec3"/>'+
+    '<path d="'+arc+'" fill="none" stroke="#d8cec3" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy-LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="#d8cec3"/>'+
+    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy+LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="#d8cec3"/>';
+}
+function sharpGlyph(x,y,LS){
+  const h = LS*1.5, w = LS*0.62;
+  return '<g stroke="#d8cec3" fill="none" stroke-linecap="round">'+
+    '<line x1="'+(x-w*0.22)+'" y1="'+(y-h*0.46)+'" x2="'+(x-w*0.22)+'" y2="'+(y+h*0.40)+'" stroke-width="1.5"/>'+
+    '<line x1="'+(x+w*0.26)+'" y1="'+(y-h*0.54)+'" x2="'+(x+w*0.26)+'" y2="'+(y+h*0.32)+'" stroke-width="1.5"/>'+
+    '<line x1="'+(x-w*0.6)+'" y1="'+(y-h*0.10)+'" x2="'+(x+w*0.6)+'" y2="'+(y-h*0.22)+'" stroke-width="2.1"/>'+
+    '<line x1="'+(x-w*0.6)+'" y1="'+(y+h*0.20)+'" x2="'+(x+w*0.6)+'" y2="'+(y+h*0.08)+'" stroke-width="2.1"/></g>';
+}
+function flatGlyph(x,y,LS){
+  const h = LS*1.6;
+  return '<g stroke="#d8cec3" fill="none" stroke-linecap="round" stroke-linejoin="round">'+
+    '<line x1="'+(x-LS*0.20)+'" y1="'+(y-h*0.62)+'" x2="'+(x-LS*0.20)+'" y2="'+(y+LS*0.34)+'" stroke-width="1.6"/>'+
+    '<path d="M'+(x-LS*0.20)+','+(y+LS*0.34)+'C'+(x+LS*0.5)+','+(y+LS*0.02)+' '+(x+LS*0.46)+','+(y-LS*0.42)+' '+(x-LS*0.20)+','+(y-LS*0.06)+'" stroke-width="1.7"/></g>';
+}
 
-  let s = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Music passage">';
+function staffSVG(ex){
+  const LS = 13, Y0 = 96;
+  const bottomDia = ex.clef === "treble" ? diatonicIndex(64) : diatonicIndex(43);
+  const yOf = dia => Y0 - (dia - bottomDia) * (LS/2);
+
+  const glyphs = ex.key ? keyGlyphs(ex.key) : [];
+  const ksX = ex.clef === "treble" ? 60 : 74;   /* clear the bass clef's dots */
+  const ksW = glyphs.length * (LS*0.78);
+  const x0 = ksX + ksW + 16;                       /* first notehead */
+  const gapX = 46;
+  const W = Math.max(310, x0 + ex.notes.length*gapX + 16);
+  const H = 152;
+
+  let s = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Passage in '+
+          (ex.key?KEYS[ex.key].name:"C major")+', '+ex.clef+' clef">';
   for(let i=0;i<5;i++){
     const ly = Y0 - i*LS;
-    s += '<line x1="14" y1="'+ly+'" x2="'+(W-14)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
+    s += '<line x1="12" y1="'+ly+'" x2="'+(W-12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
   }
-  if(ex.clef === "treble"){
-    s += '<path d="M34 '+(Y0-38)+'c-9 4-9 16 0 22 8 6 8 16-1 22-7 5-7 14-1 19M33 '+(Y0-38)+'c6 3 6 46 0 63" stroke="#c7bcb1" stroke-width="2.3" fill="none" stroke-linecap="round"/>';
-  } else {
-    s += '<circle cx="33" cy="'+(Y0-3*LS)+'" r="4.4" fill="#c7bcb1"/>';
-    s += '<path d="M33 '+(Y0-3*LS-4)+'c11 0 17 9 17 17 0 13-12 22-24 27" stroke="#c7bcb1" stroke-width="2.6" fill="none" stroke-linecap="round"/>';
-    s += '<circle cx="56" cy="'+(Y0-2.5*LS)+'" r="1.9" fill="#c7bcb1"/><circle cx="56" cy="'+(Y0-1.5*LS)+'" r="1.9" fill="#c7bcb1"/>';
-  }
-  ex.notes.forEach((m,i) => {
-    const cx = 72 + i*52, cy = y(m);
+  s += ex.clef === "treble" ? trebleClef(34, Y0, LS) : bassClef(28, Y0, LS);
+
+  glyphs.forEach((g,i) => {
+    const dia = KS_DIA[ex.clef][g.sign][g.letter];
+    const gx = ksX + i*(LS*0.78), gy = yOf(dia);
+    s += g.sign === "sharp" ? sharpGlyph(gx, gy, LS) : flatGlyph(gx, gy, LS);
+  });
+
+  ex.dias.forEach((dia,i) => {
+    const cx = x0 + i*gapX, cy = yOf(dia);
     const state = i < ex.pos ? "done" : (i === ex.pos ? "now" : "todo");
-    const fill = state === "done" ? "#5ee6a5" : state === "now" ? "#ff8a3d" : "#f5f1ec";
-    const dia = diatonicIndex(m);
-    for(let d = bottomDia-2; d >= dia; d -= 2){
-      const ly = Y0 - (d - bottomDia)*(LS/2);
-      s += '<line x1="'+(cx-12)+'" y1="'+ly+'" x2="'+(cx+12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
-    }
-    for(let d = bottomDia+10; d <= dia; d += 2){
-      const ly = Y0 - (d - bottomDia)*(LS/2);
-      s += '<line x1="'+(cx-12)+'" y1="'+ly+'" x2="'+(cx+12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.2"/>';
-    }
-    s += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="7" ry="5.4" transform="rotate(-18 '+cx+' '+cy+')" fill="'+fill+'"/>';
+    const fill = state === "done" ? "#5ee6a5" : state === "now" ? "#ff8a3d" : "#efe9e0";
+    for(let d = bottomDia-2; d >= dia; d -= 2)
+      s += '<line x1="'+(cx-11)+'" y1="'+yOf(d)+'" x2="'+(cx+11)+'" y2="'+yOf(d)+'" stroke="#4a4038" stroke-width="1.2"/>';
+    for(let d = bottomDia+10; d <= dia; d += 2)
+      s += '<line x1="'+(cx-11)+'" y1="'+yOf(d)+'" x2="'+(cx+11)+'" y2="'+yOf(d)+'" stroke="#4a4038" stroke-width="1.2"/>';
+    if(state === "now")
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="13.5" fill="none" stroke="#ff8a3d" stroke-width="1" opacity=".5"/>';
+    s += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="6.9" ry="5.3" transform="rotate(-18 '+cx+' '+cy+')" fill="'+fill+'"/>';
     const up = cy > Y0 - 2*LS;
     s += up
-      ? '<line x1="'+(cx+6.6)+'" y1="'+(cy-2)+'" x2="'+(cx+6.6)+'" y2="'+(cy-34)+'" stroke="'+fill+'" stroke-width="1.7"/>'
-      : '<line x1="'+(cx-6.6)+'" y1="'+(cy+2)+'" x2="'+(cx-6.6)+'" y2="'+(cy+34)+'" stroke="'+fill+'" stroke-width="1.7"/>';
-    if(state === "now"){
-      s += '<circle cx="'+cx+'" cy="'+cy+'" r="14" fill="none" stroke="#ff8a3d" stroke-width="1" opacity=".45"/>';
-    }
+      ? '<line x1="'+(cx+6.5)+'" y1="'+(cy-2)+'" x2="'+(cx+6.5)+'" y2="'+(cy-33)+'" stroke="'+fill+'" stroke-width="1.7"/>'
+      : '<line x1="'+(cx-6.5)+'" y1="'+(cy+2)+'" x2="'+(cx-6.5)+'" y2="'+(cy+33)+'" stroke="'+fill+'" stroke-width="1.7"/>';
   });
   return s + '</svg>';
 }
@@ -796,7 +960,11 @@ function screenLadder(){
     } else {
       body += '<div class="unlockrow"><span class="cost short">'+cost.toLocaleString()+' XP'+(t.n===4?" + Keyvoria Plus":"")+'</span></div>';
     }
-    const attrs = done ? ' data-act="practise" data-cat="'+ladderCat+'" data-tier="'+t.n+'"' : "";
+    const attrs = done
+      ? (ladderCat === "ear"
+          ? ' data-act="earmode" data-tier="'+t.n+'"'
+          : ' data-act="practise" data-cat="'+ladderCat+'" data-tier="'+t.n+'"')
+      : "";
     rows += '<'+(done?"button":"div")+' class="'+cls+'"'+attrs+' style="width:100%;text-align:left">'+
               '<span class="node '+node+'">'+(done?"✓":t.n)+'</span>'+
               '<span class="grow">'+body+'</span>'+
@@ -807,6 +975,28 @@ function screenLadder(){
       '<div class="h2">'+c.name+'</div><div style="width:34px"></div></div>'+
     '<div class="faint">Tap an unlocked tier to practise. Correct exercises are the only way to earn XP.</div>'+
     '<div class="stack">'+rows+'</div>';
+}
+
+function screenEarMode(){
+  const t = earModeTier;
+  const quals = EAR_QUALITIES[t];
+  const qtext = quals.length === 2 ? "Major or minor" : quals.join(" · ");
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="ladder" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Ear Training · Tier '+t+'</div><div style="width:34px"></div></div>'+
+    '<div class="faint">Pick what you want to train. Five exercises either way, '+TIER_XP[t]+' XP for each one you get right.</div>'+
+    '<div class="stack">'+
+      '<button class="tile warm" data-act="practise" data-cat="ear" data-tier="'+t+'" data-mode="interval">'+
+        '<span class="ticon">'+svg('<path d="M12 3v11.5" stroke="#ff8a3d" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="17.5" r="2.5" stroke="#ff8a3d" stroke-width="2"/><circle cx="18" cy="15.5" r="2.5" stroke="#ff8a3d" stroke-width="2"/>',23)+'</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">Note intervals</span>'+
+        '<span class="tsub" style="display:block">Two notes, one after the other — name the distance between them</span></span>'+
+        svg(IC.chev,18)+'</button>'+
+      '<button class="tile" data-act="practise" data-cat="ear" data-tier="'+t+'" data-mode="chord">'+
+        '<span class="ticon">'+svg('<circle cx="12" cy="7" r="2.4" stroke="#ff8a3d" stroke-width="1.8" fill="none"/><circle cx="12" cy="12.5" r="2.4" stroke="#ff8a3d" stroke-width="1.8" fill="none"/><circle cx="12" cy="18" r="2.4" stroke="#ff8a3d" stroke-width="1.8" fill="none"/>',23)+'</span>'+
+        '<span class="grow"><span class="ttitle" style="display:block">Chords</span>'+
+        '<span class="tsub" style="display:block">Three notes together — '+qtext+'</span></span>'+
+        svg(IC.chev,18)+'</button>'+
+    '</div>';
 }
 
 function screenPlay(){
@@ -836,15 +1026,21 @@ function screenPlay(){
               (session.state==="done" && o===ex.answer ? "✓" : "")+'</button>';
     });
     body = '<div class="prompt">'+ex.prompt+'</div>'+
+      '<div class="faint center">'+ex.hint+'</div>'+
       '<button class="playbtn" data-act="hear" aria-label="Play the sound">'+svg(IC.play,30)+'</button>'+
       '<div class="faint center">Tap to hear it again</div>'+
       '<div class="opts">'+opts+'</div>';
   }
   else if(ex.kind === "sight"){
-    body = '<div class="row"><span class="eyebrow">'+(ex.clef==="treble"?"Treble clef":"Bass clef")+'</span>'+
+    const keyName = ex.key && ex.key !== "C" ? " · " + KEYS[ex.key].name : "";
+    body = '<div class="row"><span class="eyebrow">'+(ex.clef==="treble"?"Treble clef":"Bass clef")+keyName+'</span>'+
            '<span class="faint">Note '+Math.min(ex.pos+1,ex.notes.length)+' of '+ex.notes.length+'</span></div>'+
            '<div class="staffcard">'+staffSVG(ex)+'</div>'+
-           '<div class="faint center">'+ex.prompt+' — play it on the keyboard below</div>';
+           (ex.wrongFlash
+             ? '<div class="verdict no">Wrong note — start the passage again</div>'
+             : ex.flawed
+               ? '<div class="faint center">Playing it through — a clean run earns the XP</div>'
+               : '<div class="faint center">'+ex.prompt+'</div>');
   }
   else {
     let seq = "";
@@ -989,15 +1185,18 @@ function screenCancel(){
 
 /* ============================ render ============================ */
 const SCREENS = {
-  menu:screenMenu, ladder:screenLadder, play:screenPlay, summary:screenSummary,
+  menu:screenMenu, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel
 };
-const TAB_OF = { menu:"menu", ladder:"menu", play:"menu", summary:"menu", paywall:"menu",
+const TAB_OF = { menu:"menu", ladder:"menu", earmode:"menu", play:"menu", summary:"menu", paywall:"menu",
                  library:"library", freeplay:"library", profile:"profile", cancel:"profile" };
 const SHOW_TABS = { menu:1, library:1, profile:1 };
 
 function render(){
+  /* Rebuilding the view destroys key elements, so a pointerup can be lost and
+     leave a note stuck in `held` — which would silently make that key dead. */
+  held.clear();
   document.getElementById("xpLabel").textContent = S.xp.toLocaleString();
   document.getElementById("view").innerHTML = SCREENS[curScreen]();
   const tb = document.getElementById("tabbar");
@@ -1024,11 +1223,16 @@ function wirePlay(){
       const want = ex.notes[ex.pos];
       if(m === want){
         ex.pos++;
-        flashKey(m, "hint", 220);
-        if(ex.pos >= ex.notes.length){ judge(true); return; }
+        ex.wrongFlash = false;
+        if(ex.pos >= ex.notes.length){ judge(!ex.flawed); return; }
         render();
+        flashKey(m, "hint", 260);
       } else {
-        judge(false);
+        /* A wrong note restarts the passage rather than ending the exercise —
+           you can always finish it, but only a clean run earns XP. */
+        ex.flawed = true; ex.wrongFlash = true; ex.pos = 0;
+        render();
+        flashKey(m, "miss", 420);
       }
     };
   }
@@ -1082,8 +1286,10 @@ document.addEventListener("click", e => {
       S.noteNames = !S.noteNames; save(); render(); break;
     case "unlock":
       tryUnlock(el.dataset.cat, parseInt(el.dataset.tier,10)); break;
+    case "earmode":
+      earModeTier = parseInt(el.dataset.tier,10); go("earmode"); break;
     case "practise":
-      startSession(el.dataset.cat, parseInt(el.dataset.tier,10)); break;
+      startSession(el.dataset.cat, parseInt(el.dataset.tier,10), el.dataset.mode); break;
     case "hear":
       audio(); hearStimulus(); break;
     case "answer": {
@@ -1094,7 +1300,7 @@ document.addEventListener("click", e => {
     }
     case "next": nextExercise(); break;
     case "quit": endTiming(); ladderCat = session.cat; go("ladder"); break;
-    case "again": startSession(session.cat, session.tier); break;
+    case "again": startSession(session.cat, session.tier, session.mode); break;
     case "toladder": ladderCat = session.cat; go("ladder"); break;
     case "upgrade":
       S.plus = true; S.cancelPending = false; save();

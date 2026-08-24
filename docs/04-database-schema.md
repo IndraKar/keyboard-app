@@ -124,9 +124,14 @@ not procedurally generated.
 
 **`sight_reading_passages`**
 `id`, `lesson_id → lessons`, `clef` (enum: treble / bass / grand_staff),
-`musicxml_asset_id → media_assets`, `midi_reference_asset_id → media_assets`
-(expected note/timing sequence for grading, same role as
-`exercises.midi_reference_asset_id`), `measure_count`, `difficulty` (1–10). The Main
+`key_signature` (enum: C / G / D / A / E / F / Bb / Eb / Ab — tier 1 passages are
+always `C`; from tier 2 the key is what forces sharps or flats onto the keyboard, per
+PRD F-02b, so this is a difficulty axis in its own right and not just engraving
+metadata), `note_count`, `musicxml_asset_id → media_assets`,
+`midi_reference_asset_id → media_assets` (expected note/timing sequence for grading,
+same role as `exercises.midi_reference_asset_id` — note this stores *sounding* pitch,
+so a passage in G major stores F♯ even though the score draws a plain F),
+`measure_count`, `difficulty` (1–10). The Main
 Menu's Sight-Reading tile (screen map §3.3) queries `WHERE clef IN ('treble', 'bass')
 AND lesson.tier_id IN <the user's currently-unlocked Sight-Reading tiers>` and picks
 one at random — `grand_staff` passages exist in this table for tiers that
@@ -186,6 +191,12 @@ under different timing tolerances, so the attempt records which one produced it)
 Supports PRD F-02a. Unlike exercises/songs/progressions, most sessions here are
 user-configured at play time rather than pre-authored, so the schema models a
 *drill configuration* plus a *played session* separately.
+
+Sight-reading grading is **restart-on-error, not fail-on-error** (PRD F-02b): a wrong
+note resets the passage to its first note and sets a "flawed" flag on the attempt.
+The attempt still completes and is still recorded; only a run with no wrong notes
+awards XP. `attempts.note_events` therefore records every wrong note across all
+restarts, which is what makes "which note does this user keep missing" answerable.
 
 **`ear_training_drills`**
 `id`, `lesson_id → lessons` (nullable — set only for curated, tier-linked stops
