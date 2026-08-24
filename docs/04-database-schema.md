@@ -84,7 +84,7 @@ changes that table, and only the period-end job changes this one.
 Gates three things: F-05 Learn My Music in full (see `generated_tutorials` §4.11 for
 exactly where that check happens — every upload type now, not just audio), the
 on-screen keyboard's key range (the shared component reads `plan` at mount —
-`plan = free` → 2 octaves, otherwise → 61 keys, not a value stored per-user
+`plan = free` → 32 keys (F2–C5), otherwise → 61 keys, not a value stored per-user
 elsewhere; note this gates *range only*, never the keyboard's presence, which is
 unconditional on every play screen per PRD F-02), and every category's **tier 4**
 (`category_tiers.required_plan = premium`, §4.9b) — a free user can hold any amount
@@ -310,7 +310,7 @@ belongs to instead of trusting a client-supplied amount.
 
 Tier 4 is what PRD F-03 calls "premium sits on top of XP, not instead of it": it
 still costs `xp_cost` XP *and* requires the entitlement. It's also the only tier
-whose content may exceed the 2-octave range, which is why it pairs with the 61-key
+whose content may exceed the 32-key range, which is why it pairs with the 61-key
 keyboard the same subscription unlocks.
 
 **`user_category_unlocks`**
@@ -468,7 +468,7 @@ Notes that matter for the cancel flow:
   `user_category_unlocks` for tiers 1-3, `user_progress`, `streaks`, and
   `generated_tutorials`/uploaded files all survive. The only effect of an expired
   entitlement is gating — tier 4 becomes unpurchasable/unenterable, the keyboard
-  renders 2 octaves, Learn My Music locks. Resubscribing restores access with nothing
+  renders 32 keys, Learn My Music locks. Resubscribing restores access with nothing
   to rebuild.
 
 ## 4.10c Mastery, achievements & Master Mode
@@ -527,6 +527,13 @@ serving a `generated_tutorials` row, regardless of `upload_type`.
 `id`, `user_id → users`, `upload_type` (enum: midi / musicxml / audio),
 `original_filename`, `storage_path`, `status` (enum: processing / ready / failed),
 `created_at`.
+
+**`user_uploads`** gains the confirmation step from PRD F-05: `detected_title`,
+`detected_artist` (both nullable — what identification proposed), `confirmed_title`
+(text, set by the user on the confirm screen), `confirmed_at` (nullable), and
+`source_format` (enum: audio / midi / musicxml). **Tutorial generation does not start
+until `confirmed_at` is set** — that ordering is the point of the step, since building
+against a misidentified song wastes the analysis and mislabels the result.
 
 **`generated_tutorials`**
 `id`, `user_upload_id → user_uploads`, `title` (from filename or embedded metadata),

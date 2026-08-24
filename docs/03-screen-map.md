@@ -54,7 +54,7 @@ shape.
    instead of every category always starting at tier 1.
 4. **MIDI setup** — detect/pair a MIDI keyboard; explicit "I don't have one yet, use
    on-screen keyboard" fallback that doesn't dead-end the flow. A free-tier user
-   choosing the fallback sees a 2-octave on-screen keyboard (PRD §1.4's Free vs.
+   choosing the fallback sees a 32-key on-screen keyboard (PRD §1.4's Free vs.
    Premium table); this isn't a paywall moment during onboarding, just how the
    keyboard renders — the upgrade CTA lives in Profile/paywall screens, not here.
 5. **Account creation** — email/social sign-in (needed to persist progress across
@@ -135,7 +135,7 @@ Training's drill screen, Sight-Reading, the Repeat drill, the Lesson Player, and
 Practice Screen. It is not a per-mode fallback; it's the default instrument, and the
 screens are laid out around it rather than reflowing when no hardware is present.
 
-- **Range is entitlement-driven, not screen-driven**: 2 octaves on Free, 61 keys on
+- **Range is entitlement-driven, not screen-driven**: 32 keys (F2–C5) on Free, 61 keys on
   Keyvoria Plus (PRD F-02, §1.4). The same component, one range prop.
 - **Show Note Names** (§3.5) applies to it on every screen identically.
 - When real MIDI hardware is connected, the on-screen keyboard stays visible and
@@ -234,6 +234,25 @@ Used across all three tiered categories, not owned by any one of them:
   requirement).
 
 ## 3.6 Learn My Music flow (modal stack, entered from the Main Menu or Library)
+
+**Upload → Confirm → Tutorial** (PRD F-05). The confirm step sits between the other
+two deliberately: nothing is generated until the user agrees Keyvoria identified the
+right song.
+
+0. **Paywall** — shown instead of Upload when the user has no active subscription.
+1. **Upload** — file picker accepting MP3/M4A/WAV and MIDI/MusicXML, on app and web
+   alike. Copy states plainly that MIDI is exact and audio is best-effort.
+2. **Confirm the song** — the detected title (editable inline), the file name, notes
+   found, detected tempo, and whether the source is exact or estimated. Two actions:
+   *Yes, build my tutorial* and *No, upload a different file*.
+3. **Processing** — analysis progress.
+4. **Tutorial** — mode switch (Sheet Music / Falling notes / Auto-Play), the
+   **seven-step speed control** (0.25× 0.5× 0.75× 1× 1.25× 1.5× 2×) with a live BPM
+   readout, section looping, progress through the piece, and the shared keyboard
+   (§3.3.1a) docked below. On the 61-key board the view scrolls to the song's own
+   range rather than stranding the user at the bottom octave.
+   An audio-sourced tutorial carries a persistent *Estimated transcription* banner.
+
 
 See PRD F-05 for the underlying analysis/labeling requirements — Keyvoria's one
 premium feature, and its only entitlement-gated flow. An earlier draft split this
@@ -336,7 +355,7 @@ action. Cancelling is explicit about what it does and doesn't do:
   revokes Plus mid-cycle. The screen then reads "Plus until 14 March," and a
   **Resume Subscription** action replaces Cancel for the rest of that window.
 - The confirmation names what lapses at period end: tier 4 relocks in all three
-  categories, the on-screen keyboard returns to 2 octaves, and Learn My Music uploads
+  categories, the on-screen keyboard returns to 32 keys, and Learn My Music uploads
   become inaccessible. It also names what does *not*: **XP, unlocked tiers 1–3,
   progress, streaks, and achievements are untouched, and uploaded files are retained,
   not deleted** — resubscribing restores access rather than starting over. Users

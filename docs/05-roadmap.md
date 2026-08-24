@@ -109,7 +109,7 @@ rhythm/timing feedback.
 - **On-screen keyboard component** — shared infrastructure, not a per-mode fallback.
   It renders on *every* play surface built from here on (Exercises, Sight-Reading,
   the Repeat drill, Ear Training, the Practice Screen), emits the same note events
-  the `midi` package does, and reads `entitlements.plan` to render 2 octaves (free)
+  the `midi` package does, and reads `entitlements.plan` to render 32 keys (free)
   or 61 keys (premium) — see PRD §1.4 and DB schema §4.2. Build it *before* the
   lesson types below, since they all mount it. Real MIDI input through the `midi`
   package is never range-limited, at any tier.
@@ -135,7 +135,7 @@ rhythm/timing feedback.
 connected on each platform, drives correct hit/miss/early/late feedback on a simple
 exercise, with latency that feels responsive (architecture §2.6 budget). (2) **With
 no hardware connected at all**, the same exercise, a Sight-Reading passage, and a
-Repeat round are each completable end to end by tapping the 2-octave on-screen
+Repeat round are each completable end to end by tapping the 32-key on-screen
 keyboard, graded by the same engine — this is the free-user path and it must work
 before M4 authors content against it.
 
@@ -167,10 +167,10 @@ into actual numbers per tier, tuned by whoever's authoring the content.
   enough distinct exercises that they aren't repeating the same handful on the way
   through. Treat "exercises per tier" as a number to check against these costs during
   authoring, not an afterthought.
-- **The 2-octave rule is a hard authoring constraint for tiers 1–3** in all three
+- **The 32-key range is a hard authoring constraint for tiers 1–3** in all three
   categories — every passage, exercise, song arrangement, and generated sequence in
-  those tiers must be playable within 2 octaves, verified by the content linter, not
-  by reviewer judgement. Tier 4 is the only place content may span the full 61 keys,
+  those tiers must be playable within the free 32-key range (F2–C5), verified by the content linter, not
+  by reviewer judgement. Tier 4 is the only place content may span the full 61 keys, which only Keyvoria Plus provides,
   which is what makes the premium tier and the premium keyboard one coherent offer.
 - Genre tags (Pop/Rock, Jazz-basics, etc. — confirm which 2+ per PRD F-01's
   `DECISION NEEDED`) applied to Playback & Repeat / Library content.
@@ -178,7 +178,7 @@ into actual numbers per tier, tuned by whoever's authoring the content.
 content and real XP costs, not placeholders; a content-linting CI check (schema
 validation on the `content/` directory, including "every lesson has a valid
 `tier_id`", "every category has exactly tiers 1–4 with only tier 4 premium", and
-"every tier 1–3 item fits within 2 octaves") passes.
+"every tier 1–3 item fits within the 32-key range") passes.
 
 ## M5 — The XP economy
 **Size:** L — this is Keyvoria's primary progression system (PRD F-03), not a
@@ -276,7 +276,7 @@ three practice modes.
   working off one analysis pass — Sheet Music (via the `notation` package, gated by
   `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
   falling-notes surface and `grading-engine` from M3), and Auto-Play (synthesized
-  piano playback with pause/scrub) — plus 0.25×–2× continuous speed control and
+  piano playback with pause/scrub) — plus the seven fixed speed steps (0.25×–2×) and
   hands-separate practice across all three modes.
 - The persistent **Estimated** banner on MP3-sourced tutorials only (`is_estimated`,
   §4.11) — MIDI/MusicXML-sourced tutorials show no such banner, since PRD F-05 is

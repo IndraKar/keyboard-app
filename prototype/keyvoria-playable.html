@@ -325,6 +325,34 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .kb[data-theme="gold"] .wk{background:linear-gradient(180deg,#faf0d2 78%,#e9d6a2);color:#9c8340;}
 .kb[data-theme="gold"] .bk{background:linear-gradient(180deg,#4a3a17,#231b09 72%);}
 .kb[data-theme="gold"]{background:linear-gradient(180deg,#8a6f22 0 7px,#16130c 7px);}
+
+/* ---------- segmented control (leaderboard tabs, tutorial mode) ---------- */
+.seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:4px;}
+.seg-opt{flex:1;text-align:center;padding:9px 4px;border-radius:10px;font-size:12px;
+  font-weight:600;color:var(--text-dim);transition:background .12s,color .12s;}
+.seg-opt:hover{color:var(--text);}
+.seg-opt.active{background:var(--accent);color:#1a0f06;}
+
+/* ---------- Learn My Music ---------- */
+.uploadbox{display:flex;flex-direction:column;align-items:center;text-align:center;
+  background:linear-gradient(150deg,#241e14,#1c1917);border:1px dashed #5a4620;
+  border-radius:20px;padding:30px 22px;}
+.upicon{width:62px;height:62px;border-radius:18px;background:var(--gold-soft);
+  display:flex;align-items:center;justify-content:center;}
+.estbanner{background:var(--accent-soft);border:1px solid rgba(255,138,61,.4);color:var(--accent);
+  font-size:11px;font-weight:700;padding:8px 12px;border-radius:10px;text-align:center;}
+.spdrow{display:flex;gap:5px;margin-top:10px;flex-wrap:nowrap;}
+.spd{flex:1;padding:9px 0;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-dim);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;transition:background .12s;}
+.spd.slow{color:var(--faint);}
+.spd:hover{border-color:var(--accent-deep);}
+.spd.on{background:var(--accent);border-color:var(--accent);color:#1a0f06;}
+.spd.slow.on{background:var(--good);border-color:var(--good);color:#0b2b1c;}
+.nchips{display:flex;gap:6px;flex-wrap:wrap;}
+.nchip{min-width:30px;text-align:center;padding:7px 9px;border-radius:9px;background:var(--surface);
+  border:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text-dim);}
+.nchip.now{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
@@ -452,9 +480,13 @@ const CHORDS = {
   Major:[0,4,7], Minor:[0,3,7], Augmented:[0,4,8], Diminished:[0,3,6]
 };
 
-/* Free keyboard: C3-C5 (25 keys). Plus: C2-C7 (61 keys). */
-const FREE_LO = 48, FREE_HI = 72;
+/* Free keyboard: F2-C5 = 32 keys (19 white, 13 black).
+   Chosen so the free range spans the entire bass staff (G2-A3) and the treble
+   staff's lower octave (C4-C5) — the old 25-key C3-C5 squeezed bass passages into
+   the top of their staff. Plus: C2-C7 = 61 keys. */
+const FREE_LO = 41, FREE_HI = 72;
 const PLUS_LO = 36, PLUS_HI = 96;
+const keyCount = () => (S.plus ? PLUS_HI - PLUS_LO : FREE_HI - FREE_LO) + 1;
 const kbLo = () => S.plus ? PLUS_LO : FREE_LO;
 const kbHi = () => S.plus ? PLUS_HI : FREE_HI;
 
@@ -692,6 +724,7 @@ function endTiming(){
 
 function go(next){
   if(curScreen === "play" && next !== "play") endTiming();
+  if(curScreen === "tutorial" && next !== "tutorial") tutStop();
   curScreen = next; noteHook = null; allOff(); held.clear();
   window.scrollTo(0,0);
   render();
@@ -803,11 +836,12 @@ function genSight(tier){
   const key = pick(SIGHT_KEYS[tier]);
   const alter = keyAlter(key);
 
-  /* Staff-position window, chosen so every note lands inside the free 2-octave
-     keyboard (C3-C5) and needs at most one ledger line. */
+  /* Staff-position window, chosen so every note lands inside the free 32-key
+     keyboard (F2-C5) and needs at most one ledger line. The bass window is now the
+     actual bass staff (G2-A3) rather than the cramped C3-C4 the 25-key range forced. */
   let loDia, hiDia;
   if(clef === "treble"){ loDia = 28; hiDia = 35; }   /* C4 - C5 */
-  else                 { loDia = 21; hiDia = 28; }   /* C3 - C4 */
+  else                 { loDia = 18; hiDia = 26; }   /* G2 - A3, the full bass staff */
   if(tier === 4){ if(clef === "treble"){ hiDia = 39; } else { loDia = 17; } }
 
   const span = hiDia - loDia;
@@ -984,15 +1018,13 @@ document.addEventListener("keydown", e => {
   if(e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
   const off = KEYMAP[e.key.toLowerCase()];
   if(off === undefined) return;
-  const base = S.plus ? 60 : FREE_LO + 12;
-  const m = base + off;
+  const m = 60 + off;                       /* middle C, in range on both keyboards */
   if(m >= kbLo() && m <= kbHi()){ e.preventDefault(); userNoteOn(m); }
 });
 document.addEventListener("keyup", e => {
   const off = KEYMAP[e.key.toLowerCase()];
   if(off === undefined) return;
-  const base = S.plus ? 60 : FREE_LO + 12;
-  userNoteOff(base + off);
+  userNoteOff(60 + off);
 });
 document.addEventListener("pointerup", () => { Array.from(held).forEach(userNoteOff); });
 document.addEventListener("pointercancel", () => { Array.from(held).forEach(userNoteOff); });
@@ -1005,9 +1037,9 @@ function keyboardHTML(opts){
   const whites = [];
   for(let m=lo;m<=hi;m++) if(!isBlack(m)) whites.push(m);
   const W = whites.length;
-  /* A 2-octave range fits any phone, so size it to the viewport and never scroll.
+  /* The free range fits any phone, so size it to the viewport and never scroll.
      The 61-key range cannot fit, so it falls back to fixed keys and scrolls. */
-  const fits = W <= 16;
+  const fits = W <= 20;   /* 19 white keys (32-key free range) still fit a phone */
   const wPct = 100 / W;
   const bwPct = wPct * 0.62;
   const WK = 34, BW = Math.round(WK*0.62);
@@ -1032,7 +1064,7 @@ function keyboardHTML(opts){
     html += '<div class="bk" data-midi="'+m+'" role="button" aria-label="'+midiName(m)+'"'+
             ' style="left:'+unit(left)+';width:'+unit(bkW)+'"></div>';
   }
-  const rangeLabel = S.plus ? "61 keys · Keyvoria Plus · scroll for more" : "2 octaves · Free";
+  const rangeLabel = S.plus ? "61 keys · Keyvoria Plus · scroll for more" : "32 keys · Free";
   const meta = opts.meta === false ? "" :
     '<div class="kbmeta"><span class="faint">'+rangeLabel+'</span>'+
     '<span class="faint">'+(S.noteNames ? "Note names on" : "Note names off")+'</span></div>';
@@ -1186,11 +1218,11 @@ function screenMenu(){
       'Show note names</span>'+
       '<button class="tg'+(S.noteNames?" on":"")+'" data-act="names" role="switch" aria-checked="'+S.noteNames+'" aria-label="Show note names"><span class="knob"></span></button></div>'+
     t("ear")+t("sight")+t("repeat")+
-    '<button class="tile gold" data-go="paywall">'+
+    '<button class="tile gold" data-act="learnmusic">'+
       '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Learn My Music</span>'+
-      '<span class="tsub" style="display:block">Upload an MP3 or MIDI file, we’ll teach it</span></span>'+
-      '<span class="pill">Premium</span></button>'+
+      '<span class="tsub" style="display:block">Upload a song, we’ll build the tutorial</span></span>'+
+      (S.plus ? '' : '<span class="pill">Premium</span>')+'</button>'+
     (masteredCats().length
       ? '<button class="tile master" data-go="master">'+
           '<span class="ticon gold" style="font-size:22px">\u{1F3B9}</span>'+
@@ -1400,7 +1432,7 @@ function screenProfile(){
   });
   let sub;
   if(!S.plus){
-    sub = '<div class="sub" style="margin-bottom:11px">You’re on the <b>Free</b> plan — tiers 1–3 in every category, 2-octave keyboard.</div>'+
+    sub = '<div class="sub" style="margin-bottom:11px">You’re on the <b>Free</b> plan — tiers 1–3 in every category, 32-key keyboard.</div>'+
           '<button class="btn gold block" data-go="paywall">Upgrade · $9.95/month</button>';
   } else if(S.cancelPending){
     sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--accent)">Plus until 14 March</span></div>'+
@@ -1651,13 +1683,263 @@ function screenThemes(){
     keyboardHTML({});
 }
 
+
+/* ============================ Learn My Music ============================
+   Upload -> confirm the song -> tutorial. MIDI files are parsed for real, so the
+   tutorial is genuinely built from the uploaded notes. Audio files cannot be
+   transcribed in the browser, so those take the estimated path and say so. */
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+
+function parseMidiFile(buf){
+  const dv = new DataView(buf);
+  let p = 0;
+  const tag = () => { let s=""; for(let i=0;i<4;i++) s += String.fromCharCode(dv.getUint8(p++)); return s; };
+  const u32 = () => { const v = dv.getUint32(p); p += 4; return v; };
+  const u16 = () => { const v = dv.getUint16(p); p += 2; return v; };
+  const varlen = () => { let v = 0, b; do { b = dv.getUint8(p++); v = (v<<7) | (b & 0x7f); } while(b & 0x80); return v; };
+
+  if(tag() !== "MThd") throw new Error("not-midi");
+  u32(); u16();
+  const ntrks = u16(), division = u16();
+  if(division & 0x8000) throw new Error("smpte");
+  const ppq = division || 480;
+
+  const on = [], off = [];
+  let usPerBeat = 500000, name = "";
+  for(let t=0; t<ntrks && p < dv.byteLength; t++){
+    if(tag() !== "MTrk") break;
+    const len = u32(), end = Math.min(p + len, dv.byteLength);
+    let tick = 0, running = 0;
+    while(p < end){
+      tick += varlen();
+      let status = dv.getUint8(p);
+      if(status & 0x80){ p++; running = status; } else status = running;
+      if(status === 0xff){
+        const meta = dv.getUint8(p++), l = varlen();
+        if(meta === 0x51 && l === 3) usPerBeat = (dv.getUint8(p)<<16) | (dv.getUint8(p+1)<<8) | dv.getUint8(p+2);
+        if((meta === 0x03 || meta === 0x01) && !name && l > 0 && l < 64){
+          let str2 = ""; for(let i=0;i<l;i++) str2 += String.fromCharCode(dv.getUint8(p+i));
+          if(/[A-Za-z]/.test(str2)) name = str2.trim();
+        }
+        p += l;
+      } else if(status === 0xf0 || status === 0xf7){ p += varlen(); }
+      else {
+        const type = status & 0xf0;
+        if(type === 0xc0 || type === 0xd0){ p += 1; }
+        else {
+          const note = dv.getUint8(p), vel = dv.getUint8(p+1); p += 2;
+          if(type === 0x90 && vel > 0) on.push({tick, note});
+          else if(type === 0x80 || type === 0x90) off.push({tick, note});
+        }
+      }
+    }
+    p = end;
+  }
+  if(!on.length) throw new Error("empty");
+
+  const msPerTick = (usPerBeat / 1000) / ppq;
+  /* One note per onset: the melody is the top voice, which is what a learner follows. */
+  const byTick = new Map();
+  on.forEach(e => { const k = Math.round(e.tick/ (ppq/8)); const cur = byTick.get(k);
+    if(!cur || e.note > cur.note) byTick.set(k, e); });
+  const picked = Array.from(byTick.values()).sort((a,b)=>a.tick-b.tick).slice(0, 64);
+  const t0 = picked[0].tick;
+  const notes = picked.map((e,i) => {
+    const nextTick = picked[i+1] ? picked[i+1].tick : e.tick + ppq/2;
+    const endEv = off.find(o => o.note === e.note && o.tick > e.tick);
+    const rawDur = Math.min(endEv ? endEv.tick - e.tick : ppq/2, nextTick - e.tick) || ppq/4;
+    return { midi: e.note, at: Math.round((e.tick - t0) * msPerTick),
+             dur: Math.max(120, Math.round(rawDur * msPerTick)) };
+  });
+  return { notes, name, bpm: Math.round(60000000 / usPerBeat) };
+}
+
+/* Fallback melody for audio uploads, which the browser cannot transcribe. */
+function demoTranscription(){
+  const seq = [64,62,60,62,64,64,64,62,62,62,64,67,67,64,62,60,62,64,64,64,62,62,64,62,60];
+  return { notes: seq.map((m,i)=>({midi:m, at:i*430, dur:380})), name:"", bpm:100, estimated:true };
+}
+
+function fitToKeyboard(notes){
+  const lo = kbLo(), hi = kbHi();
+  return notes.map(n => {
+    let m = n.midi;
+    while(m < lo) m += 12;
+    while(m > hi) m -= 12;
+    return Object.assign({}, n, { midi: Math.max(lo, Math.min(hi, m)) });
+  });
+}
+
+let upload = null;          /* {fileName, title, notes, estimated, bpm} */
+let tut = null;             /* {speed, mode, loop, pos, playing, timers} */
+
+function titleFromFile(name){
+  return name.replace(/\.[^.]+$/, "").replace(/[_-]+/g," ")
+             .replace(/\b\d{1,3}\s?(kbps|bpm)\b/ig,"").trim()
+             .replace(/\b\w/g, c => c.toUpperCase()).slice(0,48) || "Untitled";
+}
+
+function handleUpload(file){
+  if(!file) return;
+  const isMidi = /\.midi?$/i.test(file.name);
+  const done = data => {
+    upload = {
+      fileName: file.name,
+      title: (data.name && data.name.length > 1 ? data.name : titleFromFile(file.name)),
+      notes: fitToKeyboard(data.notes),
+      bpm: data.bpm, estimated: !!data.estimated, isMidi
+    };
+    go("confirm");
+  };
+  if(isMidi){
+    const r = new FileReader();
+    r.onload = () => {
+      try { done(parseMidiFile(r.result)); }
+      catch(e){ toast("That MIDI file could not be read — using an estimate", true); done(demoTranscription()); }
+    };
+    r.onerror = () => { toast("Could not read that file", true); done(demoTranscription()); };
+    r.readAsArrayBuffer(file);
+  } else {
+    /* Audio: real transcription is a server job (PRD F-05). */
+    done(demoTranscription());
+  }
+}
+
+function screenUpload(){
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="menu" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Learn My Music</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="uploadbox">'+
+        '<div class="upicon">'+svg(IC.gold,30)+'</div>'+
+        '<div class="h2" style="margin-top:10px">Upload a song</div>'+
+        '<div class="sub center" style="margin-top:6px">MP3, M4A or WAV — or a MIDI file for an exact transcription.</div>'+
+        '<label class="btn gold" style="margin-top:16px;cursor:pointer">Choose a file'+
+          '<input type="file" id="songFile" accept=".mp3,.m4a,.wav,.aac,.ogg,.mid,.midi,audio/*" style="display:none">'+
+        '</label>'+
+      '</div>'+
+      '<div class="notice"><b>MIDI files are transcribed exactly</b> in this build — the tutorial is built from the real notes in your file. '+
+        'Audio transcription runs on the server in the shipping app; here an audio upload produces a demo tutorial so you can try the flow.</div>'+
+    '</div>';
+}
+
+function screenConfirm(){
+  const u = upload;
+  if(!u) return screenUpload();
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="upload" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Is this right?</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="sub">We read your file and think it’s this. Correct it if we got it wrong — the tutorial is built from what you confirm here.</div>'+
+      '<div class="card">'+
+        '<div class="eyebrow">Detected</div>'+
+        '<input class="tinput" id="songTitle" value="'+u.title.replace(/"/g,"&quot;")+'" maxlength="48">'+
+        '<div class="kv" style="margin-top:12px"><span class="kvk">File</span><span class="kvv">'+u.fileName.slice(0,28)+'</span></div>'+
+        '<div class="kv"><span class="kvk">Notes found</span><span class="kvv tnum">'+u.notes.length+'</span></div>'+
+        '<div class="kv"><span class="kvk">Tempo</span><span class="kvv tnum">'+u.bpm+' BPM</span></div>'+
+        '<div class="kv"><span class="kvk">Source</span><span class="kvv">'+(u.estimated?"Estimated from audio":"Exact, from MIDI")+'</span></div>'+
+      '</div>'+
+      (u.estimated
+        ? '<div class="notice"><b>Estimated transcription.</b> Audio is best-effort, so expect wrong notes in places. A MIDI or MusicXML upload is exact.</div>'
+        : '<div class="notice keep"><b>Exact transcription.</b> Read directly from your MIDI file.</div>')+
+      '<button class="btn block" data-act="confirmsong">Yes, build my tutorial</button>'+
+      '<button class="btn ghost block" data-go="upload">No, upload a different file</button>'+
+    '</div>';
+}
+
+function screenTutorial(){
+  const u = upload;
+  if(!u) return screenUpload();
+  const t = tut;
+  const speedBtns = SPEEDS.map(v =>
+    '<button class="spd'+(t.speed===v?" on":"")+(v<1?" slow":"")+'" data-act="speed" data-v="'+v+'">'+
+      (v===1?"1×":v+"×")+'</button>').join("");
+  const total = u.notes.length;
+  const loopLabel = t.loop ? "Looping first 8 notes" : "Whole song";
+  const upcoming = u.notes.slice(t.pos, t.pos+8).map((n,i) =>
+    '<span class="nchip'+(i===0?" now":"")+'">'+midiShort(n.midi)+'</span>').join("");
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="closetut" aria-label="Close">'+svg(IC.close,13)+'</button>'+
+      '<div class="h2" style="flex:1;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+u.title+'</div>'+
+      '<div style="width:34px"></div></div>'+
+    '<div class="exbody">'+
+      (u.estimated ? '<div class="estbanner">Estimated transcription · expect some wrong notes</div>' : '')+
+      '<div class="seg">'+
+        '<button class="seg-opt'+(t.mode==="listen"?" active":"")+'" data-act="tutmode" data-m="listen">Listen</button>'+
+        '<button class="seg-opt'+(t.mode==="practice"?" active":"")+'" data-act="tutmode" data-m="practice">Practice</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="row"><span class="eyebrow">Speed</span><span class="faint tnum">'+
+          Math.round(u.bpm*t.speed)+' BPM</span></div>'+
+        '<div class="spdrow">'+speedBtns+'</div>'+
+        '<div class="faint" style="margin-top:9px">Slower speeds keep the pitch — the song sounds the same, just easier to follow.</div>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="row"><span class="kvk">'+loopLabel+'</span>'+
+          '<button class="btn sm ghost" data-act="toggleloop">'+(t.loop?"Play whole song":"Loop the opening")+'</button></div>'+
+        '<div class="bar" style="margin-top:10px"><div class="barfill" style="width:'+
+          Math.round(t.pos/Math.max(1,total)*100)+'%"></div></div>'+
+        '<div class="faint" style="margin-top:7px">Note '+Math.min(t.pos+1,total)+' of '+total+'</div>'+
+      '</div>'+
+      '<div class="nchips">'+upcoming+'</div>'+
+      (t.mode==="listen"
+        ? '<button class="btn block" data-act="tutplay">'+(t.playing?"Stop":"Play tutorial")+'</button>'
+        : '<div class="faint center">Play the highlighted note on the keyboard below</div>')+
+    '</div>'+ keyboardHTML({});
+}
+
+function tutStop(){
+  if(tut && tut.timers){ tut.timers.forEach(clearTimeout); tut.timers = []; }
+  if(tut) tut.playing = false;
+  allOff();
+}
+function tutPlay(){
+  if(!upload || !tut) return;
+  if(tut.playing){ tutStop(); render(); return; }
+  audio();
+  const notes = tut.loop ? upload.notes.slice(0,8) : upload.notes.slice(tut.pos);
+  if(!notes.length) return;
+  const t0 = notes[0].at, k = 1 / tut.speed;
+  tut.playing = true; tut.timers = [];
+  notes.forEach((n,i) => {
+    tut.timers.push(setTimeout(() => {
+      blip(n.midi, (n.dur*k)/1000);
+      flashKey(n.midi, "hint", Math.max(140, n.dur*k));
+      tut.pos = (tut.loop ? 0 : tut.pos) + i;
+      const el = document.querySelector(".barfill");
+      if(el) el.style.width = Math.round(tut.pos/Math.max(1,upload.notes.length)*100)+"%";
+    }, (n.at - t0)*k));
+  });
+  const endAt = (notes[notes.length-1].at - t0 + notes[notes.length-1].dur)*k + 250;
+  tut.timers.push(setTimeout(() => {
+    tut.playing = false;
+    if(tut.loop && curScreen === "tutorial") tutPlay(); else render();
+  }, endAt));
+  render();
+}
+function tutWire(){
+  if(!tut || tut.mode !== "practice"){ noteHook = null; return; }
+  noteHook = m => {
+    const notes = tut.loop ? upload.notes.slice(0,8) : upload.notes;
+    const want = notes[tut.pos];
+    if(!want) return;
+    if(m === want.midi){
+      tut.pos++;
+      if(tut.pos >= notes.length){ tut.pos = 0; toast("Section complete"); }
+      render();
+    } else {
+      flashKey(m, "miss", 320);
+    }
+  };
+}
+
 function screenPaywall(){
   return '<div class="exhead"><button class="iconbtn" data-go="menu" aria-label="Close">'+svg(IC.close,13)+'</button>'+
     '<div style="width:34px"></div><div style="width:34px"></div></div>'+
     '<div class="stack center" style="justify-content:center;flex:1">'+
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
       '<div class="h1">Keyvoria Plus</div>'+
-      '<div class="sub">Tiers 1–3 are always free. Plus adds <b>tier 4</b> in every category, the 61-key keyboard those tiers are written for, and Learn My Music.</div>'+
+      '<div class="sub">Tiers 1–3 and the 32-key keyboard are always free. Plus adds <b>tier 4</b> in every category, the full <b>61-key</b> keyboard those tiers need, and Learn My Music.</div>'+
       '<div class="card gold"><div class="h2" style="color:var(--gold)">$9.95<span class="sub"> / month</span></div></div>'+
       '<button class="btn gold block" data-act="upgrade">Upgrade now</button>'+
       '<button class="btn ghost block" data-go="menu">Not now</button>'+
@@ -1669,7 +1951,7 @@ function screenCancel(){
     '<div class="h2">Cancel Plus</div><div style="width:34px"></div></div>'+
     '<div class="stack">'+
       '<div class="sub">Your subscription stays active until <b>14 March 2026</b>. Nothing changes before then.</div>'+
-      '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 2 octaves)<br>· Access to your Learn My Music uploads</div>'+
+      '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 32 keys)<br>· Access to your Learn My Music uploads</div>'+
       '<div class="notice keep"><b>You keep everything else</b><br>· All '+S.lifetimeXp.toLocaleString()+' XP you’ve earned<br>· Every tier 1–3 you unlocked<br>· Progress and practice history<br>· Your uploaded files — kept, not deleted</div>'+
       '<div class="faint">Resubscribe any time and everything comes straight back.</div>'+
       '<button class="btn ghost block" data-act="confirmcancel">Cancel subscription</button>'+
@@ -1683,11 +1965,13 @@ const SCREENS = {
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   achievements:screenAchievements, card:screenCard,
+  upload:screenUpload, confirm:screenConfirm, tutorial:screenTutorial,
   master:screenMaster, masterover:screenMasterOver,
   leaderboard:screenLeaderboard, themes:screenThemes
 };
 const TAB_OF = { menu:"menu", ladder:"menu", earmode:"menu", play:"menu", summary:"menu", paywall:"menu",
                  master:"menu", masterover:"menu",
+                 upload:"menu", confirm:"menu", tutorial:"menu",
                  library:"library", freeplay:"library",
                  profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
                  leaderboard:"profile", themes:"profile" };
@@ -1710,6 +1994,23 @@ function render(){
   } else tb.style.display = "none";
 
   if(curScreen === "play") wirePlay();
+  if(curScreen === "tutorial"){
+    tutWire();
+    /* The 61-key board is wider than the screen, so bring the song's range into
+       view rather than leaving the user scrolled to the bottom octave. */
+    const sc = document.querySelector(".kbscroll");
+    if(sc && upload && upload.notes.length){
+      const lo = Math.min.apply(null, upload.notes.map(n=>n.midi));
+      const el = document.querySelector('[data-midi="'+lo+'"]');
+      if(el && sc.scrollWidth > sc.clientWidth){
+        sc.scrollLeft = Math.max(0, el.offsetLeft - sc.clientWidth*0.25);
+      }
+    }
+  }
+  if(curScreen === "upload"){
+    const inp = document.getElementById("songFile");
+    if(inp) inp.addEventListener("change", e => handleUpload(e.target.files && e.target.files[0]));
+  }
 }
 
 /* ============================ exercise wiring ============================ */
@@ -1812,6 +2113,23 @@ document.addEventListener("click", e => {
       S.cancelPending = true; save();
       toast("Cancelled — Plus active until 14 March", true);
       go("profile"); break;
+    case "learnmusic":
+      if(S.plus) go("upload"); else go("paywall");
+      break;
+    case "confirmsong": {
+      const ti = document.getElementById("songTitle");
+      if(ti && ti.value.trim()) upload.title = ti.value.trim().slice(0,48);
+      tut = { speed:1, mode:"listen", loop:false, pos:0, playing:false, timers:[] };
+      go("tutorial"); break;
+    }
+    case "speed":
+      tutStop(); tut.speed = parseFloat(el.dataset.v); render(); break;
+    case "tutmode":
+      tutStop(); tut.mode = el.dataset.m; tut.pos = 0; render(); break;
+    case "toggleloop":
+      tutStop(); tut.loop = !tut.loop; tut.pos = 0; render(); break;
+    case "tutplay": tutPlay(); break;
+    case "closetut": tutStop(); go("menu"); break;
     case "card":
       cardBadge = el.dataset.badge; go("card"); break;
     case "savename": {

@@ -174,7 +174,7 @@ data model (not a render tree) is needed.
 ```mermaid
 flowchart LR
     MIDIkbd["MIDI keyboard<br/>(optional hardware)"] -->|MIDI events| Transport["midi package<br/>(platform transport)"]
-    OnScreen["On-screen keyboard<br/>(2 oct free / 61 keys premium)"] -->|same note events| Grading
+    OnScreen["On-screen keyboard<br/>(32 keys free / 61 premium)"] -->|same note events| Grading
     Transport --> Grading["grading-engine<br/>(pure TS)"]
     Expected["Expected note/timing<br/>sequence (lesson/song data)"] --> Grading
     Grading -->|per-note result stream| UI["Practice/Lesson screen<br/>(visual feedback)"]
@@ -199,7 +199,7 @@ component, mounted by every play surface in every category (PRD F-02, screen map
 package emits. Two consequences worth designing for up front:
 
 - **Range is a prop, not a fork.** The component reads `entitlements.plan` for its
-  key range (2 octaves / 61 keys). No category has its own keyboard variant, so the
+  key range (32 keys / 61 keys). No category has its own keyboard variant, so the
   free-vs-premium range change is a single value, not a per-screen branch.
 - **Tolerance is a grading parameter, not a second engine.** On-screen input carries
   touch latency and no real velocity, so the engine accepts a tolerance profile per

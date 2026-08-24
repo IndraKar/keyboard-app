@@ -59,7 +59,7 @@ launch simplicity, revisitable post-V1.
 
 | | Free | Premium (Keyvoria Plus) |
 |---|---|---|
-| On-screen keyboard | **2 octaves**, available in *every* category | **61 keys** (5 octaves), everywhere |
+| On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
 | Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
 | Learn My Music (F-05) | Locked (paywall) | Unlocked — Keyvoria's primary premium feature |
 
@@ -68,7 +68,8 @@ tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start;
 2 and 3 are XP purchases). **Tier 4 is always the premium tier** — it requires an
 active Keyvoria Plus subscription *and* its XP cost. There is no per-category
 variation in where the paywall falls, which keeps the offer explainable in one
-sentence: *tiers 1–3 free, tier 4 plus the 61-key keyboard for $9.95/month.*
+sentence: *tiers 1–3 and 32 keys free; tier 4, the full 61-key keyboard and Learn My
+Music for $9.95/month.*
 
 The billing mechanic is a **$9.95/month subscription**. The XP numbers are now set
 too (F-03) — earning rates and unlock costs are fixed values, not placeholders.
@@ -122,15 +123,21 @@ reframed as tags rather than paths.
   travel and velocity beat touch latency), so timing tolerances are slightly wider
   for on-screen input, and velocity-sensitive grading is skipped there. Note accuracy,
   chord accuracy, and note-order grading are identical either way.
-- The on-screen keyboard's range is tiered — **2 octaves free, 61 keys (5 octaves)
-  premium** — and this only affects users relying on it as their input surface. A
+- The on-screen keyboard's range is tiered — **32 keys free (F2–C5), 61 keys premium
+  (C2–C7)** — and this only affects users relying on it as their input surface. The
+  free range is deliberately **F2–C5 rather than a plain two octaves from C**: it spans
+  the *entire* bass staff (G2–A3) as well as the treble staff's lower octave (C4–C5).
+  An earlier 25-key C3–C5 range forced every bass-clef passage into the top of its
+  staff, which reads oddly to anyone learning to read bass clef properly. 32 keys still
+  fits a phone screen without horizontal scrolling; 61 does not, and scrolls. A
   connected real MIDI keyboard is never range-limited by the app regardless of tier;
   the cap exists because the on-screen keyboard *is* the instrument for a free user
   with no hardware, not because the app restricts hardware you already own. The
   entire free-tier curriculum — **tiers 1–3 in all three categories** — is authored
-  to fit within 2 octaves, so a free user with no hardware can complete every free
-  tier end to end. Tier 4 is where content is deliberately written beyond that range,
-  which is why the 61-key keyboard and tier 4 ship together in the same subscription.
+  to fit within those 32 keys, so a free user with no hardware can complete every free
+  tier end to end. **The 61-key keyboard is available only on Keyvoria Plus**, and tier
+  4 is where content is deliberately written beyond the 32-key range — which is why the
+  two ship together in the same subscription rather than as separate perks.
 
 ### F-02a Ear Training: intervals & chord-quality drills
 A configurable ear-training drill, launched from the Main Menu (screen map §3.3),
@@ -171,7 +178,7 @@ again" control) and presents multiple-choice answers; the session is self-graded
 no keyboard of any kind is strictly needed to answer — a stretch goal, not V1, is
 letting the user instead *play back* what they heard, on the on-screen keyboard or
 connected hardware, graded by the same `grading-engine` used elsewhere in the app.
-The 2-octave on-screen keyboard is still present on this screen in V1 as a reference
+The 32-key on-screen keyboard is still present on this screen in V1 as a reference
 instrument (the user can tap notes to compare against the stimulus, with Show Note
 Names applying as everywhere else). Session summary shows accuracy per
 interval/quality, feeding the same per-skill Progress Analytics breakdown as other
@@ -189,10 +196,11 @@ keyboard.
 ### F-02b Sight-Reading
 Short notated passages the user reads and plays in real time, graded by the same
 `grading-engine` as F-02. **Playable with either input surface** — a connected MIDI
-keyboard or the on-screen keyboard (2 octaves free / 61 keys premium), which sits
+keyboard or the on-screen keyboard (32 keys free / 61 keys premium), which sits
 directly below the staff on this screen. Tiers 1–3 passages are written to stay
-within the 2-octave range so a free user with no hardware can read and play every
-one of them.
+within the 32-key range so a free user with no hardware can read and play every
+one of them. Bass-clef passages now use the real bass staff (G2–A3), which the
+narrower earlier range could not reach.
 
 **Passage shape and reading difficulty by tier:**
 
@@ -201,7 +209,7 @@ one of them.
 | 1 | **5** | C major only — no accidentals | Stepwise |
 | 2 | 5 | **G, D, F or B♭** — the user must play the sharps or flats the key implies | Small leaps |
 | 3 | 6 | Up to three accidentals | Wider leaps |
-| 4 | 6 | Same, beyond the 2-octave range | Wide |
+| 4 | 6 | Same, beyond the 32-key range — needs the 61-key keyboard | Wide |
 
 **A key signature changes what you play, not just what you see.** From tier 2, a
 passage in G major draws an F on the staff and expects F♯ from the keyboard — the
@@ -239,7 +247,7 @@ whether that's a generated note sequence or a real piece of music.
 the system plays a short note sequence, then the user must play it back correctly —
 on a connected MIDI keyboard **or** on the on-screen keyboard shown at the bottom of
 the drill screen. Tapping the sequence back on screen is a fully supported way to
-play this drill, not a degraded mode; generated sequences stay within 2 octaves for
+play this drill, not a degraded mode; generated sequences stay within the 32-key range for
 tiers 1–3 so the free keyboard is always sufficient.
 - **Difficulty tier**: Basic, Intermediate, or Advanced, chosen before starting —
   distinct from this category's XP-unlocked content tiers; this selector picks the
@@ -320,7 +328,7 @@ because it makes XP cosmetic. Instead:
   purchases. **Tier 4 — the bonus tier — is gated behind Keyvoria Plus *in addition
   to* its XP cost**, so a free user can save XP indefinitely and still not reach
   hardcore content without upgrading. That gate isn't arbitrary: tier 4 content is
-  authored beyond the 2-octave range, so it genuinely needs the 61-key keyboard that
+  authored beyond the 32-key range, so it genuinely needs the 61-key keyboard that
   the same subscription unlocks (§1.4).
   Learn My Music (F-05) doesn't participate in this tier/XP-unlock system at all —
   it's gated purely by the Premium subscription, since it's user-generated content
@@ -348,41 +356,58 @@ because it makes XP cosmetic. Instead:
   category, and completion status.
 
 ### F-05 "Learn My Music" — Premium
-Keyvoria's **primary premium feature**, and the fourth Main Menu category. Earlier
-drafts split this into a free MIDI/MusicXML flow and a separate premium MP3 flow;
-V1 merges them into one feature, one Main Menu entry, entirely behind Keyvoria Plus.
-- User uploads their own music: **MP3 audio** (the primary, headline format) or,
-  where supported, **MIDI/MusicXML** (symbolic formats). Reaching this category
-  without an active subscription shows a paywall/upsell screen instead of the upload
-  flow (`entitlements` in the DB schema, §4.2).
-- Keyvoria analyzes the upload and builds a **personalized practice experience**:
-  - Difficulty analysis (note density, hand span, tempo, rhythmic/chord complexity).
-  - Adjustable playback speed, **0.25×–2× continuous** (YouTube-style picker, not
-    fixed presets), pitch-preserved throughout the range.
-  - Section looping (auto-segmented by phrase/measure, user-adjustable loop points).
-  - Progressive, hands-separate practice (left hand alone / right hand alone / both).
-  - Performance grading against the uploaded material using the shared
-    `grading-engine` (F-02).
-- **Three ways to practice the same upload**, all built on one analysis pass so the
-  user can freely switch between them:
-  1. **Sheet Music** — renders the analysis as notation (treble/bass grand staff, via
-     the `notation` package) for users who want to read it.
-  2. **Synthesia-style** — falling-notes/piano-roll practice with everything above
-     (hands-separate, section looping, 0.25×–2× speed, performance grading).
-  3. **Auto-Play** — Keyvoria plays the piece back through a synthesized piano, with
-     play/pause/scrub controls so the user can pause at any moment and listen/follow
-     along at their own pace; note highlighting on the visual keyboard runs alongside
-     since the same rendering pipeline as mode 2 already drives it.
-- **Format determines confidence, not entitlement.** MIDI/MusicXML is a *symbolic*
-  input, so its analysis is deterministic, not estimated. MP3 analysis is best-effort
-  (tempo/BPM detection plus audio→MIDI transcription) and **must be clearly and
-  persistently labeled an estimate** (e.g. "Estimated — audio transcription is
-  approximate" banner, not a one-time toast) — this matters most for Sheet Music mode,
-  where a low-confidence transcription can render outright wrong notation, so that
-  mode should visibly flag (or decline to render) sections below a confidence
-  threshold rather than presenting a clean-looking score that's actually guesswork.
-  Users can manually correct detected chords on an MP3 upload, and corrections should
-  feed back into all three modes once confidence is reasonable.
+Keyvoria's **primary premium feature**, and the fourth Main Menu category. Reaching it
+without an active subscription shows the paywall instead of the upload flow
+(`entitlements`, DB §4.2).
+
+**The flow is Upload → Confirm → Tutorial.** The confirmation step is not a
+formality; it is what stops the app from spending analysis effort, and the user's
+patience, on the wrong song:
+
+1. **Upload.** **MP3 audio** is the headline format (also M4A/WAV/AAC), with
+   **MIDI/MusicXML** accepted where the user has them. Available on both the app and
+   the website — the upload flow is the same code on every platform (architecture
+   §2.1).
+2. **Confirm the song.** Keyvoria identifies what it thinks was uploaded — title and
+   artist from audio fingerprinting/metadata, or the track name from a MIDI file —
+   and **asks the user to confirm or correct it before building anything**. The user
+   can edit the title inline. Getting this wrong silently would produce a tutorial
+   labelled with someone else's song, which is worse than asking.
+3. **Tutorial generation.** Difficulty analysis (note density, hand span, tempo,
+   rhythmic and chord complexity), phrase segmentation for looping, and a gradable
+   note sequence for the shared `grading-engine`.
+
+**Playback speed is a fixed set of seven steps**, not a continuous slider. This
+supersedes an earlier draft's "0.25×–2× continuous, YouTube-style":
+
+| Slower — for learning | Normal | Faster — for pushing |
+|---|---|---|
+| **0.25× · 0.5× · 0.75×** | **1×** | **1.25× · 1.5× · 2×** |
+
+Discrete steps beat a continuous slider here because a learner returns to *the same*
+speed across sessions to measure progress, and "somewhere around 0.6" is not a
+reference point they can return to. Pitch is preserved at every step — the song sounds
+like itself, just slower.
+
+- **Section looping** — auto-segmented by phrase/measure, loop points user-adjustable.
+- **Progressive, hands-separate practice** (left alone / right alone / both).
+- **Performance grading** against the uploaded material via the shared
+  `grading-engine` (F-02), on the same keyboard as everything else.
+- **Learn My Music does not pay XP.** It is user-supplied content with no tier and no
+  authored difficulty rating, so paying XP for it would let a user mint currency from
+  a file they chose — see F-03's earning rule. Practice here is its own reward.
+
+**Three ways to practise the same upload**, all from one analysis pass so the user can
+switch freely:
+  1. **Sheet Music** — the analysis rendered as notation on a grand staff.
+  2. **Synthesia-style falling notes** — for users who don't read music.
+  3. **Auto-Play** — Keyvoria plays it back so the user can listen and follow.
+
+**Format determines confidence, not entitlement.** Every format is behind the same
+paywall, but an **audio-sourced** tutorial carries a persistent *Estimated
+transcription* banner because audio-to-score is best-effort; MIDI/MusicXML uploads are
+exact and carry no banner. V1 does not attempt full generalized transcription of dense
+polyphonic recordings (§1.6).
 
 ### F-06 Onboarding & assessment
 - Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire") —
@@ -421,7 +446,7 @@ Subscription** action:
   mid-cycle; the screen then reads "Plus until 14 March" with a **Resume** action for
   the remainder of that window.
 - **The confirmation states both halves plainly.** What lapses at period end: tier 4
-  relocks in all three categories, the on-screen keyboard returns to 2 octaves, and
+  relocks in all three categories, the on-screen keyboard returns to 32 keys, and
   Learn My Music uploads become inaccessible. What does *not*: **XP, unlocked tiers
   1–3, progress, streaks and achievements are untouched, and uploaded files are
   retained rather than deleted** — resubscribing restores access instead of starting
