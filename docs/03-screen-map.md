@@ -75,7 +75,9 @@ card to read. Exactly **four** tiles, one per category (PRD §1.4):
 4. **Learn My Music** *(Premium badge if not entitled)* → paywall screen if not
    entitled, otherwise the upload flow (§3.7)
 
-There is no fifth "Warm Up"/"Free Play" tile in V1 (PRD §1.4). Every tile leads into
+A **fifth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
+badged for Plus when `compose.create` is not granted. There is no "Warm Up"/"Free Play"
+tile in V1 (PRD §1.4). Every tile leads into
 that category's own space and returns here on exit rather than dead-ending — since
 this is the home screen, "back out of what I was doing" and "go home" are the same
 gesture, and no flow needs a separate route back to a dashboard.
@@ -89,6 +91,8 @@ stay the visual focus:
   rendering an empty state.
 - **Today's Daily Challenge** — one line with its bonus-XP reward, collapsing to a
   "done" checkmark once completed.
+- **Recommended session** (Plus, post-V1 — §3.11) — when one is offered, a single row
+  naming what it targets. Dismissible in one tap, and a dismissal is remembered.
 - **Spendable XP balance** sits in the header next to the Show Note Names toggle, as
   a number, not a card — it's the figure that decides whether a tier is affordable, so
   it belongs wherever the user is choosing what to do next.
@@ -419,6 +423,54 @@ See PRD F-08.
 - Notification preferences (daily reminder, streak-risk nudge).
 - App settings (audio output, accessibility options), support/help.
 
+## 3.10 Create Music — the composer (Plus, PRD F-11)
+
+Entered from the Main Menu as a fifth tile, shown only when `compose.create` is
+granted (architecture §2.10). Free users see it with a Plus badge and a preview of
+what it does, not a hidden feature — a locked door you can see is a better upsell than
+a door you never knew existed.
+
+- **My Compositions** — list of saved pieces with title, last edited, bar count, and a
+  new-composition action. Empty state offers "Record something" rather than explaining
+  the feature in prose.
+- **Composer screen** — the working surface, laid out around the keyboard rather than
+  around a timeline, because the user is a keyboard player first:
+  - **Transport**: record, play, stop, loop, metronome, tempo, time signature.
+  - **Piano-roll grid** above the keyboard — notes as blocks against bars/beats. Tap a
+    note to select; drag to move or resize; a handle to retune. This is the "edit what
+    you recorded" surface, and it is deliberately the *only* editing metaphor in V1 —
+    no separate event list, no automation lanes.
+  - **Section strip** — named sections (Verse, Chorus) that can be added, reordered and
+    looped for recording.
+  - **Quantize control** — grid selector with a live preview and an explicit *off*.
+    Changing it never alters the recording (DB §4.13); the score and playback re-render.
+  - The shared on-screen keyboard (§3.3.1a) at the bottom, 61 keys under Plus.
+- **Score view** — the same composition as standard notation, generated automatically.
+  Toggled from the composer rather than a separate destination, so the user can see
+  what their playing looks like written down while they work.
+- **Export sheet** — MIDI, MusicXML, PDF of the score, audio render. Each option states
+  plainly whether it is available on the current platform rather than failing after the
+  tap.
+- **Practise this composition** — hands off to the existing Practice Screen (§3.3.5),
+  since a composition is the same shape the grading engine already consumes
+  (architecture §2.11). No new practice surface.
+
+## 3.11 Personalized practice (Plus, PRD F-09/F-10)
+
+- **Recommended session card** — appears on the Main Menu momentum strip (§3.3) and on
+  Profile, naming what it targets in the user's words: "Diminished chords and tritones
+  — 12 exercises." One tap starts it. It is **an offer, never a redirect**: dismissing
+  it is one tap and the dismissal is remembered (DB §4.14), so a declined
+  recommendation does not reappear the next morning.
+- **Skill breakdown** (Profile → Progress) — every reportable skill with its accuracy
+  and trend. Skills below their observation threshold read **"Not enough practice
+  yet"** with the count so far, never a percentage. Showing "64%" from three attempts
+  would present noise as a verdict.
+- **Attempt analysis** (Session Summary, Plus) — the timing profile as a distribution
+  around the beat, labelled in plain language: *consistently early*, *consistently
+  late*, or *inconsistent*. These need different advice, and a single rhythm score
+  cannot tell them apart.
+
 ## 3.9 Full screen inventory (reference list)
 
 Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Account Creation
@@ -438,6 +490,11 @@ Progress: Achievements · Streaks · Progress Analytics
 
 Utility: Unit Preview (bottom sheet) · MIDI Device Management · Notification
 Preferences · Settings
+
+Create Music (Plus): My Compositions · Composer · Score view · Export sheet
+
+Personalized practice (Plus): Recommended session card · Skill breakdown · Attempt
+analysis
 
 Retired: **Home / Dashboard** — its start-an-activity content moved to the Main Menu
 (§3.3), its reporting content to Profile (§3.8).

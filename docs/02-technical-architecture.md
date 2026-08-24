@@ -113,8 +113,13 @@ keyvoria/
 │   │                             #   includes the on-screen keyboard (range driven by
 │   │                             #   entitlements.plan), mounted by every play screen
 │   │                             #   in every category, emitting midi-shaped events
-│   └── analysis/                # Difficulty scoring, MIDI/MusicXML parsing/segmenting
-│                                 #   (shared by "Learn My Music" client + server paths)
+│   ├── analysis/                # Difficulty scoring, MIDI/MusicXML parsing/segmenting
+│   │                             #   (shared by "Learn My Music" client + server paths);
+│   │                             #   also the skill/weakness analysis of §2.12
+│   ├── entitlements/            # Capability registry and can() — the ONLY place a
+│   │                             #   plan maps to features (§2.10)
+│   ├── composer/                # Composition document model + edit ops (§2.11, F-11)
+│   └── notation-gen/            # Quantized events → MusicXML for the composer
 ├── content/                     # Authored lesson/song content: JSON + MusicXML,
 │                                 #   validated against content-schema in CI
 └── infra/                       # IaC, CI configs
@@ -347,3 +352,127 @@ This repository (`IndraKar/keyboard-app`) is dedicated to the app and currently 
 apart from this `docs/` planning set. Milestone 1 (see [roadmap](./05-roadmap.md))
 scaffolds the monorepo layout above directly into it — no prior app code to remove or
 migrate.
+## 2.10 The premium capability layer
+
+**Problem this solves.** Today three separate places ask "is this user on Plus?" — the
+keyboard's range, tier 4's purchase check, and Learn My Music's preview cap. That is
+already three; the features in PRD F-09/F-10/F-11 would make it eight or nine, each a
+separate `plan === "paid"` test scattered through unrelated code. That is how a
+premium tier becomes impossible to change: the plan's meaning ends up encoded in
+dozens of call sites rather than in one place.
+
+**Decision: gate on named capabilities, never on the plan.** One registry maps a plan
+to a set of capability names; every feature asks `can("compose.create")`, never
+`plan === "paid"`.
+
+```ts
+// packages/entitlements
+export type Capability =
+  | "keyboard.61"          // 61-key range          (F-02)
+  | "tier.4"               // expert tier purchase  (F-03)
+  | "song.full_length"     // beyond the 30s preview (F-05)
+  | "practice.tools"       // looping, hands-separate, speed set (F-05)
+  | "analysis.advanced"    // timing profile, trends (F-09)
+  | "practice.recommended" // generated weakness sessions (F-10)
+  | "compose.create"       // the composer            (F-11)
+  | "compose.export";      // MIDI/MusicXML/PDF out   (F-11)
+
+const PLAN_CAPABILITIES: Record<Plan, Capability[]> = {
+  free:  [],
+  trial: [...ALL],
+  paid:  [...ALL],
+};
+export const can = (c: Capability) => currentCapabilities().includes(c);
+```
+
+Four things this buys, all of which the alternative makes expensive:
+
+- **Adding a premium feature is additive.** A new capability name, a new gate. No
+  existing check is edited, so no existing feature can regress — which is exactly the
+  modularity PRD F-11 asks for.
+- **Plans become data.** A future annual plan, a student discount, a lifetime tier, or
+  a promotional grant is a new row in the map, not a new branch in nine files.
+- **Per-capability grants become possible** without redesign — a beta tester given
+  `compose.create` alone, or a capability temporarily disabled during an incident.
+- **It is testable as a unit.** "Free users cannot export" is one assertion against the
+  registry, rather than a UI test per surface.
+
+**The server is still the authority.** `can()` drives *what the UI offers*; every
+capability that costs money or writes data is re-checked server-side on the mutation,
+exactly as tier unlocks already are (§2.6). A client that lies gets a rejected request,
+not a free composer.
+
+**Migration:** M10 replaces the three existing plan checks with capability checks
+before any new premium feature is built. Doing it after would mean writing the new
+features against the pattern being removed.
+
+## 2.11 Composition & notation pipeline (PRD F-11)
+
+Three packages, deliberately separate, because they fail and evolve independently:
+
+```mermaid
+flowchart LR
+    KB["Keyboard / MIDI in<br/>(existing input surface)"] --> REC["composer<br/>record + edit"]
+    REC --> DOC[("composition document<br/>structured note events")]
+    DOC --> QUANT["quantize<br/>(explicit, non-destructive)"]
+    QUANT --> XML["notation-gen<br/>→ MusicXML"]
+    XML --> REND["notation<br/>(existing OSMD renderer)"]
+    DOC --> PLAY["audio-engine<br/>playback"]
+    DOC --> EXP["export<br/>MIDI · MusicXML · PDF"]
+    DOC --> PRAC["grading-engine<br/>practise your own piece"]
+```
+
+- **`composer`** — the document model and edit operations (insert, move, retune,
+  resize, delete, undo). Pure TypeScript over the structured document, no rendering and
+  no audio, so the entire edit history is unit-testable without a device.
+- **`notation-gen`** — quantized events → MusicXML. This is the genuinely hard part and
+  the one most likely to need iteration: voice separation, beaming, rests, ties,
+  enharmonic spelling from the key signature. Keeping it behind a MusicXML boundary
+  means the existing `notation` package renders its output with no changes, and a
+  better generator can be swapped in later without touching the composer.
+- **Export** reuses `notation-gen`'s MusicXML and the document's MIDI serialisation.
+  PDF is rendering, not a new format.
+
+**Two structural decisions:**
+
+- **The performance is stored unquantized; quantization is a view.** The document keeps
+  what was actually played, and the quantize setting is applied on the way to notation
+  and playback. This is what makes the setting non-destructive and adjustable forever,
+  and it means a later, smarter quantizer improves every existing composition rather
+  than only new ones.
+- **The composition document is the same shape the grading engine already consumes** —
+  a note/timing sequence (§2.5). A user can therefore practise their own composition
+  through the existing pipeline with no new grading code. That reuse is the main reason
+  to insist on structured data over audio, beyond export.
+
+**Sync.** Compositions are account data, not device data (§2.7): they sync like
+progress and uploads. A composition edited on an iPad opens on the web with its edit
+state intact. Conflict policy is last-write-wins per composition with a local
+autosave buffer — the same policy as other user documents; a note-level merge is
+out of scope and would be disproportionate for a single-author document.
+
+## 2.12 Skill analysis engine (PRD F-09/F-10)
+
+**Attribution happens at grading time, not in a later batch job.** When the
+`grading-engine` produces a result it also emits the **skill keys** that item
+exercised (`chord.diminished`, `interval.tritone`, `sight.key.G`, `rhythm.eighth`,
+`hand.left`). Those accumulate into `skill_observations` (DB §4.14).
+
+This ordering is the whole design, and it is why the substrate lands early in the
+roadmap: **you cannot reconstruct which skill an exercise trained after the fact.**
+`attempts` records that a user scored 64%, not that the item was a diminished chord in
+second inversion. If attribution is deferred, every exercise played before it ships is
+permanently unusable for recommendations — so M10 writes observations even though the
+UI that reads them is M11.
+
+- `analysis` package (pure TS): observations → weakest eligible skills, respecting the
+  minimum-sample rule (PRD F-10). Deterministic and unit-testable; no model, no
+  service.
+- Recommendation *generation* reuses the existing procedural generators — the
+  recommended session is ordinary exercises with a constrained pool, not a new
+  content type. That is what keeps this feature small.
+- **Room for AI later, without depending on it.** The recommender is an interface with
+  a deterministic implementation. A future model-backed implementation can replace it
+  behind the same interface; nothing in V1 requires one, and shipping a heuristic that
+  works beats waiting for a model that might.
+

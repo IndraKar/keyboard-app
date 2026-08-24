@@ -63,6 +63,17 @@ erDiagram
     USERS ||--|| USER_COSMETICS : equips
     USERS ||--|| SHARE_PREFERENCES : controls
     SHARE_PREFERENCES ||--o| LEADERBOARD_ENTRIES : publishes
+
+    USERS ||--o{ COMPOSITIONS : writes
+    COMPOSITIONS ||--o{ COMPOSITION_SECTIONS : "divided into"
+    COMPOSITIONS ||--o{ COMPOSITION_TRACKS : contains
+    COMPOSITION_TRACKS ||--o{ COMPOSITION_EVENTS : holds
+    COMPOSITIONS ||--o{ COMPOSITION_EXPORTS : "rendered as"
+
+    USERS ||--o{ SKILL_OBSERVATIONS : accumulates
+    SKILL_DEFINITIONS ||--o{ SKILL_OBSERVATIONS : describes
+    USERS ||--o{ PRACTICE_RECOMMENDATIONS : receives
+    ATTEMPTS ||--o| ATTEMPT_ANALYSIS : "analysed into"
 ```
 
 ## 4.2 Identity & account
@@ -574,3 +585,83 @@ V1 uses Postgres full-text search (`tsvector` generated column on
 `lessons.title || songs.title || tags`) rather than standing up a separate search
 service — sufficient for a catalog on the order of low hundreds of items at V1 scale.
 Revisit only if Library search quality/performance becomes a problem post-launch.
+
+## 4.13 Compositions (PRD F-11)
+
+**A composition is structured musical data, never an audio blob.** Notes are rows, not
+samples — that is what lets one composition be replayed, edited, notated, exported and
+practised. Recovering notes from a mixdown is not possible, so this is settled here
+rather than left to the implementation.
+
+**`compositions`**
+`id`, `user_id → users`, `title`, `tempo_bpm` (numeric), `time_signature` (text, e.g.
+`4/4`), `key_signature` (text, drives enharmonic spelling in notation),
+`ppq` (int, ticks per quarter note — default 480; stored per composition so a later
+change of resolution cannot silently reinterpret existing rows), `quantize_grid`
+(enum: off / q4 / q8 / q8t / q16 / q32 — a *view* setting, see below), `created_at`,
+`updated_at`, `schema_version` (int).
+
+**`composition_sections`**
+`id`, `composition_id → compositions`, `name` (e.g. "Verse", "Chorus"), `index`,
+`start_tick`, `length_ticks`. Sections are the composer's structural unit and the loop
+targets on the practice screen.
+
+**`composition_tracks`**
+`id`, `composition_id → compositions`, `name`, `role` (enum: left_hand / right_hand /
+both / other), `muted` (bool), `index`. `role` is what makes hands-separate practice
+(F-05) work on a user's own composition with no extra machinery.
+
+**`composition_events`**
+`id`, `track_id → composition_tracks`, `section_id → composition_sections` (nullable),
+`pitch` (int, MIDI note), `start_tick` (int), `duration_ticks` (int), `velocity` (int
+0–127). Indexed on `(track_id, start_tick)`.
+
+**`start_tick` and `duration_ticks` store what was actually played, unquantized.**
+`compositions.quantize_grid` is applied on the way *out* — to notation, playback and
+export — never written back. Two reasons this matters: the user can change the grid at
+any time without having destroyed the take, and a better quantizer shipped later
+improves every existing composition rather than only new ones.
+
+**`composition_exports`**
+`id`, `composition_id → compositions`, `format` (enum: midi / musicxml / pdf / audio),
+`storage_path`, `size_bytes`, `generated_at`. Exports are cached artifacts, not
+sources — deleting one is always safe because it can be regenerated from the events.
+
+## 4.14 Skill observations & recommendations (PRD F-09/F-10)
+
+**`skill_observations`**
+`user_id → users`, `skill_key` (text — `chord.diminished`, `interval.tritone`,
+`sight.key.G`, `rhythm.eighth`, `hand.left`), `correct_count`, `total_count`,
+`last_observed_at`. Primary key `(user_id, skill_key)`.
+
+Written by the grading path **at grading time**, not by a later batch job. The reason
+is recoverability: `attempts` records the score, not which skill the item trained, so
+an exercise graded before attribution ships is permanently unusable for
+recommendations. This table therefore starts being written in M10, one milestone
+before anything reads it.
+
+`skill_key` is deliberately a free-text dotted path rather than an enum — new content
+introduces new skills constantly, and a migration per skill would make attribution the
+slowest part of authoring content. The taxonomy lives in the `analysis` package.
+
+**`skill_definitions`** (content data, not user data)
+`skill_key` (PK), `display_name` ("Diminished chords"), `category` (nullable),
+`min_observations` (int, default 12), `is_reportable` (bool). `min_observations` is per
+skill because the threshold is not universal — a coarse skill needs fewer samples than
+a narrow one to be meaningful. Below it, a skill is never shown as a weakness (PRD
+F-10): reporting "64%" from three attempts is noise presented as a verdict.
+
+**`practice_recommendations`**
+`id`, `user_id → users`, `generated_at`, `skill_keys` (text[] — the two or three
+targeted), `session_spec` (jsonb — the generator parameters, so the session is
+reproducible and reviewable), `status` (enum: offered / accepted / completed /
+dismissed), `resolved_at`. Keeping dismissals rather than deleting them is what lets
+the recommender stop re-offering something the user has repeatedly declined.
+
+**`attempt_analysis`** (derived, rebuildable)
+`attempt_id → attempts` (PK), `timing_mean_ms` (signed — negative is rushing, positive
+is dragging), `timing_stddev_ms`, `notes_early`, `notes_late`, `notes_missed`,
+`hand` (nullable). The mean and the deviation are stored separately on purpose: they
+diagnose different problems (a consistent rush versus scattered timing) that a single
+rhythm percentage collapses together (PRD F-09).
+

@@ -61,7 +61,13 @@ launch simplicity, revisitable post-V1.
 |---|---|---|
 | On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
 | Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
-| Learn My Music (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
+| Submit Your Clip / Learn My Music (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
+| Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
+| Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
+| Create Music (F-11) | — | Compose, edit, notate and export your own music |
+
+The full premium inventory, including what is already specified versus genuinely new,
+is in **F-05a**.
 
 **The tier rule is fixed and uniform:** every tiered category has exactly **four
 tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start; tiers
@@ -355,7 +361,9 @@ because it makes XP cosmetic. Instead:
   songs (classical + original), filterable by difficulty, skill tag, genre, duration,
   category, and completion status.
 
-### F-05 "Learn My Music" — free preview, premium in full
+### F-05 "Learn My Music" / "Submit Your Clip" — free preview, premium in full
+*"Submit Your Clip" is the user-facing label for this feature's entry point; F-05
+remains its ID throughout these documents. One upload pipeline, two names — see F-05a.*
 The fourth Main Menu category, and Keyvoria's main conversion path. **It is no longer
 gated behind a hard paywall.** Anyone can upload a song and get a real tutorial for its
 **first 30 seconds**; Keyvoria Plus unlocks the whole song.
@@ -430,6 +438,41 @@ free-preview/full-song rule, but an **audio-sourced** tutorial carries a persist
 *Estimated transcription* banner because audio-to-score is best-effort; MIDI/MusicXML uploads are
 exact and carry no banner. V1 does not attempt full generalized transcription of dense
 polyphonic recordings (§1.6).
+
+### F-05a Keyvoria Plus — the complete premium inventory
+One place that answers "what does $9.95 buy," because the answer is now spread across
+several features. Most of it is already specified; this table exists so the roadmap
+plans the *gap*, not the whole list again.
+
+| Plus feature | Status | Where |
+|---|---|---|
+| 61-key virtual keyboard | Specified | §1.4, F-02 |
+| Tier 4 / Expert difficulty | Specified | §1.4, F-03 |
+| Advanced Ear Training | Specified — tier 4 of F-02a | F-02a |
+| Advanced Sight-Reading | Specified — tier 4 of F-02b | F-02b |
+| Advanced Playback & Repeat | Specified — tier 4 of F-02c | F-02c |
+| **Submit Your Clip** — upload your own music | Specified, **renamed** | F-05 |
+| Adjustable playback speeds | Specified — seven fixed steps | F-05 |
+| Section / measure looping | Specified | F-05 |
+| Hands-separate practice | Specified | F-05 |
+| Premium / master challenges | Specified — Master Mode | F-08 |
+| Advanced song & exercise content | Specified — tier 4 content | F-01, F-04 |
+| **Advanced performance analysis** | **New** | **F-09** |
+| **Personalized practice recommendations** | **New** | **F-10** |
+| **Create Music** — composition & notation | **New** | **F-11** |
+
+Two naming and scope notes, since both would otherwise create phantom work:
+
+- **"Submit Your Clip" is Learn My Music (F-05), not a second feature.** Same upload,
+  same confirmation step, same tutorial. "Submit Your Clip" is the better label for the
+  *entry point* — it says what the user does — so the Main Menu tile and marketing use
+  it, while F-05 remains the feature ID the other documents reference. There is one
+  upload pipeline, not two.
+- **"Tier 4 across all four categories" applies to the three tiered categories.**
+  Learn My Music has no tier ladder by design (F-03) — it is user content with no
+  authored difficulty to unlock. Its Plus equivalent is full-length songs plus the
+  advanced practice tools, which is what the free 30-second preview is measured
+  against.
 
 ### F-06 Onboarding & assessment
 - Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire") —
@@ -541,6 +584,86 @@ each gated behind a specific badge rather than a second currency. Cosmetics neve
 affect grading, difficulty, or XP — that separation is what keeps them safe to give
 away generously. Profile frames, backgrounds, and unlock animations extend the same
 pattern post-V1.
+
+### F-09 Advanced performance analysis — Plus
+Free tier reports *what happened*: score, accuracy, XP. Plus explains *why*, using the
+per-note data already captured in `attempts.note_events` (DB §4.8).
+
+- **Timing profile** — a distribution of note onsets against the beat, which separates
+  the two problems a single "rhythm: 72%" score hides: playing *inaccurately* (spread
+  in both directions) versus playing *consistently early or late* (a shifted centre).
+  Rushing is a habit; scatter is a control problem. They need different advice.
+- **Per-skill accuracy over time**, not just a current number — a trend answers "am I
+  improving" which a snapshot cannot.
+- **Hand independence** where hands-separate data exists: accuracy for each hand alone
+  against both together, which localises whether the difficulty is one hand or the
+  coordination.
+- **Consistency across attempts** — best score versus median. A user whose best is far
+  above their median has the technique but not yet the reliability, and should be told
+  that rather than shown only their best.
+
+### F-10 Personalized practice — Plus
+Analysis that does not change what the user practises next is just a dashboard. F-10
+turns F-09's findings into a session.
+
+- **Skill observations.** Every graded item is attributed to one or more skill keys —
+  `chord.diminished`, `interval.tritone`, `sight.key.G`, `rhythm.eighth`,
+  `hand.left` — and accumulated per user (DB §4.14). This is the substrate; without
+  per-skill attribution at grading time there is nothing to recommend from later, so
+  it must be written from the first graded exercise.
+- **A weakness needs enough evidence to be a weakness.** A skill is only eligible for
+  reporting or targeting after a **minimum observation count** (suggest 12). "Diminished
+  chords: 64%" drawn from three attempts is noise, and telling someone they are weak at
+  something on that basis is both wrong and discouraging. Below the threshold the skill
+  reads as "not enough practice yet" — which is itself a useful, honest prompt.
+- **The recommendation is a generated session**, not a list of percentages: pick the
+  two or three eligible skills with the lowest accuracy, generate exercises that
+  actually exercise them, and offer it as one tappable "Recommended session." It pays
+  XP at the normal tier rate for the exercises it contains (F-03's earning rule is
+  unchanged — nothing here mints XP by itself).
+- **The user can always decline.** A recommendation is an offer on the Main Menu and
+  Profile, never a redirect, and never the only way in. Keyvoria's whole progression
+  model is "the user steers" (§1.1); an algorithm that quietly takes the wheel would
+  contradict it.
+
+### F-11 Create Music — Plus
+A composer for keyboard players: play, record, edit, notate, save, export. The
+reference point is the *workflow* of MIDI software like Logic Pro or Pro Tools —
+record, then edit what you recorded on a grid — **not** their scope. Keyvoria is not
+becoming a DAW: no audio tracks, no plugins, no mixing, no automation.
+
+**What it does:**
+- Play notes and chords on the virtual keyboard (61 keys, Plus) and **record** the
+  performance.
+- Build melodies and chord progressions across **multiple sections/measures**.
+- **Edit after recording** — move, retune, lengthen, shorten, delete notes on a grid.
+- Adjust **tempo, time signature and quantization**.
+- **Save to the account**, replay, and continue editing later, on any device.
+- **Generate readable standard notation automatically** from the recorded data.
+- **Export** where technically supported: MIDI and MusicXML always; PDF/PNG of the
+  score and an audio render where the platform allows it.
+
+**The central rule: a composition is structured musical data, never only audio.**
+Every composition is stored as notes with pitch, start, duration and velocity (DB
+§4.13). This is what lets one composition later be replayed, edited, notated,
+exported, and turned into practice material. An audio recording could do only the
+first of those, and the decision cannot be reversed later — you cannot recover notes
+from a mixdown. So it is settled here, at the start.
+
+**Notation generation is a quantization problem, and quantization must be visible.**
+Human playing is never metrically exact, and un-quantized MIDI cannot be written down
+— it produces unreadable ties and tuplets. So the composer quantizes before notating.
+Because quantization *changes what the user played*, it is an explicit setting with a
+live preview (1/4 through 1/32, plus off), not a hidden step. A composer that silently
+"corrects" someone's performance and shows them a score they did not play is a bug
+they will not know how to report. The underlying performance is always retained
+unquantized, so the setting is non-destructive and can be changed at any time.
+
+**Modularity requirement.** Composition, notation, analysis and any later AI-assisted
+features must attach to Keyvoria through the capability layer (architecture §2.10) and
+their own packages — not by editing the learning engine. The test for this is
+concrete: adding a future premium feature should require a new capability name, a new
+package, and a new screen, with **no change to grading, XP, or the tier system**.
 
 ## 1.5 Non-functional requirements
 

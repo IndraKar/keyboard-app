@@ -19,7 +19,18 @@ flowchart TD
     M6 --> M8
     M7 --> M8
     M8 --> M9["M9 · Beta launch prep"]
+
+    M9 --> M10["M10 · Premium capability layer<br/>+ skill attribution"]
+    M10 --> M11["M11 · Personalized practice"]
+    M10 --> M12["M12 · Composer core"]
+    M12 --> M13["M13 · Notation & export"]
+    M11 --> M14["M14 · Advanced analysis"]
 ```
+
+**V1 ships at M9.** M10–M14 are the Keyvoria Plus expansion (PRD F-05a, F-09–F-11) and
+sit deliberately *after* beta launch: none of them is needed to prove the core learning
+product, and holding the launch for a composer would be the wrong trade. They are
+sequenced so each ships and is usable on its own.
 
 ## M0 — Planning *(current milestone)*
 **Goal:** produce the requirements/architecture/schema/roadmap package for approval
@@ -341,3 +352,93 @@ classical-piece sourcing (PRD §1.5 licensing integrity requirement) before publ
 release.
 **Exit criteria:** builds live in TestFlight/Play Internal Testing and the web app
 deployed to a production URL, with a defined beta feedback loop in place.
+
+## M10 — Premium capability layer & skill attribution
+**Size:** M — small in user-visible terms, and the prerequisite for everything after it.
+**Goal:** make the premium tier extensible, and start capturing the data the later
+milestones read. **Nothing here ships a new feature**, which is exactly why it is easy
+to skip and expensive to skip.
+**Deliverables:**
+- `packages/entitlements`: the capability registry and `can()` (architecture §2.10).
+- **Replace all three existing plan checks** — keyboard range, tier-4 purchase, Learn
+  My Music preview cap — with capability checks. Delete `plan === "paid"` from feature
+  code entirely; a lint rule keeps it out.
+- Server-side capability re-check on every mutation that a capability gates.
+- **Skill attribution at grading time** (§2.12): the grading path emits skill keys and
+  writes `skill_observations`; `skill_definitions` seeded with the V1 taxonomy.
+- `attempt_analysis` rows computed on attempt completion.
+**Why the attribution lands here, a milestone before anything reads it:** which skill an
+exercise trained cannot be reconstructed later — `attempts` stores the score, not the
+musical content. Every exercise played before attribution ships is permanently
+unusable for recommendations, so the cost of deferring it is paid by exactly the
+long-standing users whose data would be most valuable.
+**Exit criteria:** no feature code references a plan directly; granting a single
+capability to a test account enables exactly one feature; a completed exercise writes
+observations with the right skill keys; a free user's request for a gated mutation is
+rejected server-side even with the client patched.
+
+## M11 — Personalized practice
+**Size:** M
+**Goal:** PRD F-10 — turn the observations from M10 into a session worth doing.
+**Deliverables:**
+- `analysis` package: weakest-eligible-skill selection honouring per-skill
+  `min_observations`, deterministic and unit-tested against fixture histories.
+- Recommended-session generation reusing the **existing** procedural generators with a
+  constrained pool — a recommended session is ordinary exercises, not a new content
+  type. That reuse is what keeps this milestone M-sized.
+- Recommended session card on the Main Menu and Profile; dismissal persisted.
+- Skill breakdown on Progress, with **"Not enough practice yet"** below threshold.
+- `practice_recommendations` lifecycle (offered → accepted/dismissed → completed).
+**Exit criteria:** a user with a deliberately weak skill is offered a session targeting
+it; a skill with fewer observations than its threshold is never described with a
+percentage; a dismissed recommendation is not re-offered next session; the recommended
+session awards XP at the normal per-tier rate and by no other rule.
+
+## M12 — Create Music: composer core
+**Size:** XL — the largest post-V1 milestone. Record, edit, save, replay. **No notation
+in this milestone** (that is M13), so that a working composer ships before the hardest
+part starts.
+**Deliverables:**
+- `packages/composer`: document model and edit operations with undo, pure TS, fully
+  unit-tested without a device.
+- `compositions` / `_sections` / `_tracks` / `_events` tables (§4.13) and sync.
+- Composer screen (§3.10): transport, metronome, recording from the existing keyboard
+  input surface, piano-roll editing, sections, tempo/time-signature, quantize control
+  with live preview.
+- My Compositions list; autosave; replay through `audio-engine`.
+- **Practise your own composition** via the existing Practice Screen — free, because
+  the document is already the shape `grading-engine` consumes (§2.11).
+**Exit criteria:** a recorded performance round-trips — record, close the app, reopen on
+a *different platform*, and the notes are identical; every edit operation is undoable;
+changing the quantize grid never alters stored `start_tick` values.
+
+## M13 — Notation generation & export
+**Size:** L — the risk concentrates here; expect iteration on the generator.
+**Goal:** PRD F-11's automatic standard notation and export.
+**Deliverables:**
+- `packages/notation-gen`: quantized events → MusicXML (voice separation, beaming,
+  rests, ties, enharmonic spelling from the key signature), rendered by the **existing**
+  `notation` package with no changes to it.
+- Score view toggle in the composer.
+- Export: MIDI and MusicXML on every platform; PDF/PNG of the score and audio render
+  where the platform supports it, with unavailable options stated before the tap rather
+  than failing after it.
+- `composition_exports` caching.
+**Exit criteria:** a recorded piece produces a score a musician can read without
+correcting it by hand; exported MusicXML opens in MuseScore and Finale with the same
+pitches and rhythms; exported MIDI re-imports into Keyvoria as the same notes; turning
+quantization off shows the raw performance and is clearly marked as unnotatable rather
+than silently producing nonsense.
+
+## M14 — Advanced performance analysis
+**Size:** M
+**Goal:** PRD F-09 — explain *why*, not just *what*.
+**Deliverables:**
+- Timing profile on Session Summary: distribution around the beat with a plain-language
+  reading (consistently early / late / inconsistent), from `attempt_analysis` (§4.14).
+- Per-skill accuracy trends over time; best-versus-median consistency.
+- Hand-independence comparison where hands-separate data exists.
+- Feeds back into M11's recommender: timing weaknesses become targetable skills.
+**Exit criteria:** a user who consistently rushes and a user with scattered timing at
+the same rhythm score see materially different feedback and different recommendations.
+
