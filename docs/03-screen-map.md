@@ -72,10 +72,11 @@ card to read. Exactly **four** tiles, one per category (PRD §1.4):
 2. **Sight-Reading** → this category's Tier Ladder (below) — the drill itself has no
    setup screen, but the category still has a Tier Ladder to browse/unlock from
 3. **Playback & Repeat** → this category's Tier Ladder (below)
-4. **Upload your file** *(Premium badge if not entitled)* → paywall screen if not
-   entitled, otherwise the upload flow (§3.7)
+4. **Upload your file** *("30s free" badge if not entitled)* → the price reminder
+   (§3.6, step 0) if not entitled, otherwise straight into the upload flow
 
-A **fifth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
+A **fifth tile, Competition** (PRD F-13, §3.6b) sits alongside them, badged Premium
+without a subscription. A **sixth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
 badged for Plus when `compose.create` is not granted. There is no "Warm Up"/"Free Play"
 tile in V1 (PRD §1.4). Every tile leads into
 that category's own space and returns here on exit rather than dead-ending — since
@@ -249,8 +250,12 @@ Used across all three tiered categories, not owned by any one of them:
 two deliberately: nothing is generated until the user agrees Keyvoria identified the
 right song.
 
-0. *(No paywall gate.)* Every user enters at Upload — the free tier gets the opening
-   30 seconds (PRD F-05). The paywall is reached only by tapping *Unlock full song*.
+0. **Price reminder** *(free users only)* — one screen naming **$5.95/month**, what
+   free gets (the first 30 seconds), what Plus adds (the whole song, tier 4, the 61-key
+   keyboard, Competition), and two ways forward: *Get Plus* or *Try it free*.
+   Subscribers never see it. It is a signpost, not a wall — the free path is one tap
+   away and worded as an offer, because a user who has already been told the price and
+   still chose the preview is a better prospect than one who was blocked.
 1. **Upload** — file picker accepting MP3/M4A/WAV and MIDI/MusicXML, on app and web
    alike. Copy states plainly that MIDI is exact and audio is best-effort.
 2. **Confirm the song** — the detected title (editable inline), the file name, notes
@@ -336,6 +341,24 @@ into a free MIDI/MusicXML flow and a separate paid MP3 flow; V1 merges them into
 Visibility is **Private by default** and appears in exactly two places: this flow and
 the achievement-card screen (which links back here). One setting, one meaning, no
 per-surface duplicates that can drift apart.
+
+## 3.6b Competition Mode (Plus, PRD F-13)
+
+Entered from a Home tile, badged Premium when the user has no subscription.
+
+1. **Setup** — the five levels as a ladder, each stating bars, note count, time limit
+   and key signature so the choice is informed; then a player count (2 / 4 / 8 / 16).
+2. **Match** — a countdown clock that turns red inside the last five seconds, the
+   passage on a staff with its key signature, the shared keyboard (§3.3.1a), and a
+   **live roster**: every player as a name, a progress bar and a note count, sorted by
+   position, with finished players on top and eliminated ones greyed but still listed.
+   Your row is highlighted. A wrong note flashes the key red and marks you OUT.
+3. **Result** — the winner announced by name, how far you got, and lifetime wins.
+   Straight into *Play again* or *Change level*.
+
+The roster repaints on its own timer rather than through a full screen render, so the
+keyboard never rebuilds mid-match — a re-render would drop a held key and cost someone
+the race.
 
 ## 3.7 Achievements & Progress (reached from Profile, §3.8)
 

@@ -14,6 +14,8 @@ flowchart TD
     M2 --> M5["M5 · The XP economy"]
     M4 --> M6["M6 · Library & search"]
     M3 --> M7["M7 · Upload your file (Premium)"]
+    M7 --> M7a["M7a · Competition Mode"]
+    M7a --> M8
     M5 --> M5b["M5b · Mastery & Master Mode"]
     M5b --> M8["M8 · Polish, accessibility, QA"]
     M6 --> M8
@@ -328,6 +330,25 @@ user is correctly blocked at the Paywall for both upload formats; an entitled us
 working, gradable, non-estimated tutorial; an entitled user can upload an MP3 and get
 tempo-detected, loopable, speed-adjustable playback in all three modes with
 best-effort output unambiguously marked as an estimate throughout the UI.
+
+## M7a — Competition Mode
+**Size:** L — the netcode is the work; the music is already built.
+**Goal:** PRD F-13 — up to 16 players racing one passage, first wrong note out.
+**Deliverables:**
+- Level ladder 1–5 (bars, note count, time limit, key signature) as content data, not
+  constants, so the balance can be retuned without a release.
+- Passage generation reusing the existing sight-reading generator with a per-level key
+  signature — no new content pipeline.
+- Lobby, matchmaking to a player count, synchronised start.
+- **Server-authoritative elimination**: the server holds the passage and rules on each
+  key press. Anything else is cheatable by editing the page, and a race that can be
+  cheated is worth less than no race.
+- Live roster over a realtime channel; eliminated players remain visible.
+- `competition_matches` / `competition_entrants` (§4.11a); **no XP writes**.
+**Exit criteria:** sixteen clients see the same passage and the same winner; a client
+patched to skip a wrong note is still eliminated by the server; a match with everyone
+eliminated ends cleanly, as does one where the clock expires; no `xp_events` row is
+written by any match.
 
 ## M8 — Polish, accessibility, QA
 **Size:** M

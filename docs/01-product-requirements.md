@@ -65,6 +65,7 @@ launch simplicity, revisitable post-V1.
 | Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
 | Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
 | Create Music (F-11) | — | Compose, edit, notate and export your own music |
+| Competition Mode (F-13) | — | Race up to 16 players; first wrong note is out |
 
 The full premium inventory, including what is already specified versus genuinely new,
 is in **F-05a**.
@@ -392,8 +393,13 @@ patience, on the wrong song:
 1. **Upload.** **MP3 audio** is the headline format (also M4A/WAV/AAC), with
    **MIDI/MusicXML** accepted where the user has them. Available on both the app and
    the website — the upload flow is the same code on every platform (architecture
-   §2.1). The upload screen states the 30-second free limit *before* the user picks a
-   file, not after.
+   §2.1). **A free user meets a price reminder before the file picker**, not after:
+   one screen naming $5.95/month, what free gets (the first 30 seconds), what Plus adds
+   (the whole song, plus tier 4, the 61-key keyboard and Competition), and two ways on
+   — *Get Plus* or *Try it free*. Subscribers skip it entirely; showing a paywall to
+   someone who already paid is the fastest way to make a subscription feel worthless.
+   The reminder is a signpost, not a wall: the free path is always one tap away, and
+   worded as an offer rather than a refusal.
 2. **Confirm the song.** Keyvoria identifies what it thinks was uploaded — title and
    artist from audio fingerprinting/metadata, or the track name from a MIDI file —
    and **asks the user to confirm or correct it before building anything**. The user
@@ -477,6 +483,7 @@ plans the *gap*, not the whole list again.
 | **Advanced performance analysis** | **New** | **F-09** |
 | **Personalized practice recommendations** | **New** | **F-10** |
 | **Create Music** — composition & notation | **New** | **F-11** |
+| **Competition Mode** | **New** | **F-13** |
 
 Two naming and scope notes, since both would otherwise create phantom work:
 
@@ -724,6 +731,46 @@ Three rules hold this together, and each exists because the alternative fails qu
 **Signing out keeps local progress** and clears the account, visibility and leaderboard
 opt-in together — leaving a stale opt-in behind after a sign-out would publish a
 stranger's numbers under the previous user's name.
+
+### F-13 Competition Mode — Plus
+Live head-to-head play. Up to **16 players** race to perform the same passage, and
+**the first wrong note eliminates you**. That single rule is what makes it a music
+game rather than a typing race: speed alone loses, because the fastest player who
+slips is out while a slower accurate one finishes.
+
+| Level | Bars | Notes | Time | Key signature |
+|---|---|---|---|---|
+| 1 | 1 | 4 | **20s** | C |
+| 2 | 2 | 8 | **30s** | C |
+| 3 | 3 | 12 | **50s** | One sharp or flat (G, F) |
+| 4 | 4 | 16 | **70s** | Two accidentals (D, B♭) |
+| 5 | 5 | 20 | **90s** | Three accidentals (A, E♭) |
+
+Four notes to the bar throughout, so the level number *is* the bar count. Time rises
+faster than note count on purpose — level 5 gives 4.5s per note against level 1's 5s,
+so the clock tightens as the reading gets harder rather than staying flat.
+
+**Key signatures enter at level 3** and deepen through 5. This is the difficulty axis
+that matters for a reading race: at levels 1–2 the passage is all white keys and the
+challenge is pure speed, while from level 3 a player has to read the key and hit
+accidentals under time pressure — a different and much harder skill.
+
+- **The round runs until someone wins.** A match ends when a player completes the
+  passage, when everyone is eliminated, or when the clock expires — and the winner is
+  announced by name either way.
+- **Eliminated players stay on screen**, greyed, showing how far they got. Watching the
+  rest of the race is part of the appeal, and vanishing on your first mistake is a bad
+  way to spend 90 seconds.
+- **Competition awards no XP.** The result depends on who else is in the match, and
+  F-03's rule is that XP is earned for *your own* correct exercises. A player who wins
+  against weak opposition has not practised more than one who loses to strong
+  opposition. Wins and best-notes are tracked separately and feed the leaderboards
+  (F-08) instead.
+
+**Real-time multiplayer is a server feature** — matchmaking, a lobby, synchronised
+start, and server-authoritative elimination so a tampered client cannot claim a win.
+Until that lands, the mode is playable against simulated opponents, which exercises
+every rule above except the networking.
 
 ## 1.5 Non-functional requirements
 

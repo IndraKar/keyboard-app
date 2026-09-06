@@ -590,6 +590,29 @@ Practice Screen consumes both through the same loop-selector UI.
 (bool) — supports the "manually correct obviously-wrong chord labels" interaction from
 the screen map's Upload your file flow.
 
+## 4.11a Competition Mode (PRD F-13)
+
+**`competition_matches`**
+`id`, `level` (1–5), `key_signature`, `clef`, `passage` (jsonb — the note sequence every
+player receives; one passage per match, generated server-side so no client can see it
+early), `player_count`, `started_at`, `ended_at`, `winner_user_id` (nullable — null
+when the clock expires with nobody finished), `end_reason` (enum: completed /
+all_eliminated / timeout).
+
+**`competition_entrants`**
+`match_id → competition_matches`, `user_id → users`, `notes_correct` (int),
+`eliminated_at_note` (nullable), `finished_at` (nullable), `placement` (int).
+Primary key `(match_id, user_id)`.
+
+**Elimination is decided server-side.** The client reports key presses; the server
+holds the passage and rules on them. A client-authoritative match would be trivially
+winnable by editing the page, and a competitive mode that can be cheated is worth less
+than no competitive mode at all.
+
+**No `xp_events` rows are ever written for a match** (PRD F-13) — competition results
+depend on the opposition, and XP is only earned for a user's own correct exercises
+(§4.10). Wins surface through `competition_entrants` and the leaderboards (§4.10c).
+
 ## 4.12 Search
 
 V1 uses Postgres full-text search (`tsvector` generated column on
