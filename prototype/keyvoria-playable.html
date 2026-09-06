@@ -301,7 +301,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .lbrow.me .lbrank{color:var(--accent);}
 .lbval{font-weight:700;}
 
-/* ---------- Learn My Music ---------- */
+/* ---------- Upload your file ---------- */
 .uploadbox{display:flex;flex-direction:column;align-items:center;text-align:center;
   background:linear-gradient(150deg,#241e14,#1c1917);border:1px dashed #5a4620;
   border-radius:20px;padding:30px 22px;}
@@ -360,6 +360,11 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .visdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;margin-top:2px;}
 .visopt.on .visdot{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 42%,transparent 45%);}
 .visopt b{font-size:13px;}
+
+.outtitle{font-family:var(--display);font-size:14px;font-weight:600;}
+.sheetbox{background:#141210;border:1px solid var(--border);border-radius:10px;
+  padding:8px 6px;margin:11px 0;overflow-x:auto;}
+.sheetbox svg{display:block;margin:0 auto;}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
@@ -744,6 +749,7 @@ function endTiming(){
 function go(next){
   if(curScreen === "play" && next !== "play") endTiming();
   if(curScreen === "tutorial" && next !== "tutorial") tutStop();
+  if(curScreen === "processing" && next !== "processing" && next !== "result") stopJob();
   curScreen = next; noteHook = null; allOff(); held.clear();
   window.scrollTo(0,0);
   render();
@@ -1104,7 +1110,7 @@ document.addEventListener("pointerenter", e => {
 /* ============================ staff rendering ============================ */
 /* Clefs drawn as paths so they never depend on a music font being present.
    Both are authored against a 4-space staff and scaled to LS. */
-function trebleClef(x, Y0, LS){
+function trebleClef(x, Y0, LS, ink){
   /* Authored in staff-space units around the G4 line, which is where a G clef
      takes its name and its spiral centre. */
   const cy = Y0 - LS;                       /* G4 = 2nd line up */
@@ -1119,10 +1125,10 @@ function trebleClef(x, Y0, LS){
     "M" + P(0.26,-3.55) +
     "C" + P(0.60,-2.10) + " " + P(0.66, 1.25) + " " + P(0.44, 2.85) +
     "C" + P(0.34, 3.62) + " " + P(-0.34, 3.82) + " " + P(-0.68, 3.28);
-  const st = 'fill="none" stroke="#d8cec3" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+  const st = 'fill="none" stroke="'+(ink||"#d8cec3")+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
   return '<path d="'+curl+'" '+st+'/><path d="'+stem+'" '+st+'/>';
 }
-function bassClef(x, Y0, LS){
+function bassClef(x, Y0, LS, ink){
   /* The head and the two dots straddle F3 — the 4th line up — hence "F clef". */
   const cy = Y0 - 3*LS;
   const P = (px,py) => (x + px*LS).toFixed(2) + "," + (cy + py*LS).toFixed(2);
@@ -1130,10 +1136,11 @@ function bassClef(x, Y0, LS){
     "M" + P(0.05,-0.32) +
     "C" + P(1.16,-0.58) + " " + P(1.78, 0.34) + " " + P(1.70, 1.22) +
     "C" + P(1.60, 2.36) + " " + P(0.62, 3.16) + " " + P(-0.58, 3.55);
-  return '<circle cx="'+(x).toFixed(2)+'" cy="'+cy.toFixed(2)+'" r="'+(LS*0.34).toFixed(2)+'" fill="#d8cec3"/>'+
-    '<path d="'+arc+'" fill="none" stroke="#d8cec3" stroke-width="2.5" stroke-linecap="round"/>'+
-    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy-LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="#d8cec3"/>'+
-    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy+LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="#d8cec3"/>';
+  const k = ink || "#d8cec3";
+  return '<circle cx="'+(x).toFixed(2)+'" cy="'+cy.toFixed(2)+'" r="'+(LS*0.34).toFixed(2)+'" fill="'+k+'"/>'+
+    '<path d="'+arc+'" fill="none" stroke="'+k+'" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy-LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="'+k+'"/>'+
+    '<circle cx="'+(x+2.15*LS).toFixed(2)+'" cy="'+(cy+LS*0.5).toFixed(2)+'" r="'+(LS*0.17).toFixed(2)+'" fill="'+k+'"/>';
 }
 function sharpGlyph(x,y,LS){
   const h = LS*1.5, w = LS*0.62;
@@ -1251,7 +1258,7 @@ function screenMenu(){
     t("ear")+t("sight")+t("repeat")+
     '<button class="tile gold" data-act="learnmusic">'+
       '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
-      '<span class="grow"><span class="ttitle" style="display:block">Learn My Music</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Upload your file</span>'+
       '<span class="tsub" style="display:block">'+
         (S.plus ? 'Upload a song, we’ll build the full tutorial'
                 : 'Upload a song — first 30 seconds free')+'</span></span>'+
@@ -1466,14 +1473,14 @@ function screenProfile(){
   let sub;
   if(!S.plus){
     sub = '<div class="sub" style="margin-bottom:11px">You’re on the <b>Free</b> plan — tiers 1–3 in every category, 32-key keyboard.</div>'+
-          '<button class="btn gold block" data-go="paywall">Upgrade · $9.95/month</button>';
+          '<button class="btn gold block" data-go="paywall">Upgrade · $5.95/month</button>';
   } else if(S.cancelPending){
     sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--accent)">Plus until 14 March</span></div>'+
           '<div class="sub" style="margin:8px 0 11px">Cancelled — you keep everything until then.</div>'+
           '<button class="btn block" data-act="resume">Resume subscription</button>';
   } else {
     sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--good)">Keyvoria Plus</span></div>'+
-          '<div class="kv"><span class="kvk">Price</span><span class="kvv tnum">$9.95 / month</span></div>'+
+          '<div class="kv"><span class="kvk">Price</span><span class="kvv tnum">$5.95 / month</span></div>'+
           '<div class="kv"><span class="kvk">Renews</span><span class="kvv">14 March 2026</span></div>'+
           '<div class="kv"><span class="kvk">Purchased on</span><span class="kvv">Web · cancel here</span></div>'+
           '<button class="link" data-go="cancel">Cancel subscription</button>';
@@ -1892,6 +1899,7 @@ function handleUpload(file){
   const done = data => {
     upload = {
       fileName: file.name,
+      bytes: file.size || 0,
       title: (data.name && data.name.length > 1 ? data.name : titleFromFile(file.name)),
       raw: data.notes,
       bpm: data.bpm, estimated: !!data.estimated, isMidi
@@ -1913,10 +1921,124 @@ function handleUpload(file){
   }
 }
 
+
+/* ---- transcription outputs: a MIDI file and sheet music ------------------
+   Both are generated for real from the note list. Downloads go through the
+   viewer's save prompt, which allowlists file types — see saveFile(). */
+
+function buildMidi(notes, bpm){
+  const PPQ = 480, out = [];
+  const vlq = n => { const b=[n & 0x7f]; n >>= 7; while(n > 0){ b.unshift((n & 0x7f) | 0x80); n >>= 7; } return b; };
+  const usPerBeat = Math.round(60000000 / (bpm || 100));
+  const trk = [];
+  trk.push(...vlq(0), 0xff, 0x51, 0x03, (usPerBeat>>16)&255, (usPerBeat>>8)&255, usPerBeat&255);
+  /* Note events must be emitted in absolute-time order, so build a merged list. */
+  const ev = [];
+  notes.forEach(n => {
+    const on  = Math.round(n.at / (usPerBeat/1000/PPQ));
+    const off = Math.round((n.at + n.dur) / (usPerBeat/1000/PPQ));
+    ev.push({t:on,  on:true,  midi:n.midi});
+    ev.push({t:off, on:false, midi:n.midi});
+  });
+  ev.sort((a,b) => a.t - b.t || (a.on ? 1 : -1));
+  let last = 0;
+  ev.forEach(e => {
+    trk.push(...vlq(Math.max(0, e.t - last)));
+    trk.push(e.on ? 0x90 : 0x80, e.midi & 0x7f, e.on ? 0x64 : 0x40);
+    last = e.t;
+  });
+  trk.push(...vlq(0), 0xff, 0x2f, 0x00);
+  out.push(0x4d,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, (PPQ>>8)&255, PPQ&255);
+  out.push(0x4d,0x54,0x72,0x6b, (trk.length>>24)&255,(trk.length>>16)&255,(trk.length>>8)&255,trk.length&255);
+  out.push(...trk);
+  return new Uint8Array(out);
+}
+
+/* Sheet music. Notes wrap across systems; one clef for the piece, chosen from the
+   median pitch, so ledger lines stay shallow. `print` swaps to black-on-white. */
+function sheetSVG(notes, opts){
+  opts = opts || {};
+  const print = !!opts.print;
+  const ink   = print ? "#141210" : "#efe9e0";
+  const rule  = print ? "#6b625a" : "#4a4038";
+  const paper = print ? "#ffffff" : "transparent";
+  const W = opts.width || 300, LS = 9, perSys = opts.perSystem || 12;
+  const sorted = notes.map(n=>n.midi).slice().sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length/2)] || 60;
+  const clef = median >= 60 ? "treble" : "bass";
+  const bottomDia = clef === "treble" ? diatonicIndex(64) : diatonicIndex(43);
+  const systems = Math.ceil(notes.length / perSys);
+  const sysH = 84, padTop = 16;
+  const H = padTop + systems*sysH + 12;
+  const x0 = 46, gap = (W - x0 - 16) / perSys;
+
+  let out = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  if(print) out += '<rect width="'+W+'" height="'+H+'" fill="'+paper+'"/>';
+  for(let sy=0; sy<systems; sy++){
+    const Y0 = padTop + sy*sysH + 4*LS;
+    for(let i=0;i<5;i++)
+      out += '<line x1="10" y1="'+(Y0-i*LS)+'" x2="'+(W-10)+'" y2="'+(Y0-i*LS)+'" stroke="'+rule+'" stroke-width="1"/>';
+    out += clef === "treble" ? trebleClef(30, Y0, LS, ink) : bassClef(26, Y0, LS, ink);
+    const slice = notes.slice(sy*perSys, (sy+1)*perSys);
+    slice.forEach((n,i) => {
+      const dia = diatonicIndex(n.midi), cx = x0 + i*gap + gap/2;
+      const cy = Y0 - (dia - bottomDia)*(LS/2);
+      for(let d = bottomDia-2; d >= dia; d -= 2)
+        out += '<line x1="'+(cx-7)+'" y1="'+(Y0-(d-bottomDia)*(LS/2))+'" x2="'+(cx+7)+'" y2="'+(Y0-(d-bottomDia)*(LS/2))+'" stroke="'+rule+'" stroke-width="1"/>';
+      for(let d = bottomDia+10; d <= dia; d += 2)
+        out += '<line x1="'+(cx-7)+'" y1="'+(Y0-(d-bottomDia)*(LS/2))+'" x2="'+(cx+7)+'" y2="'+(Y0-(d-bottomDia)*(LS/2))+'" stroke="'+rule+'" stroke-width="1"/>';
+      out += '<ellipse cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" rx="4.6" ry="3.6" transform="rotate(-18 '+cx.toFixed(1)+' '+cy.toFixed(1)+')" fill="'+ink+'"/>';
+      const up = cy > Y0 - 2*LS;
+      out += up
+        ? '<line x1="'+(cx+4.3)+'" y1="'+(cy-1.4)+'" x2="'+(cx+4.3)+'" y2="'+(cy-23)+'" stroke="'+ink+'" stroke-width="1.2"/>'
+        : '<line x1="'+(cx-4.3)+'" y1="'+(cy+1.4)+'" x2="'+(cx-4.3)+'" y2="'+(cy+23)+'" stroke="'+ink+'" stroke-width="1.2"/>';
+      if(isBlack(n.midi))
+        out += '<text x="'+(cx-12)+'" y="'+(cy+3.5)+'" font-size="11" fill="'+ink+'" font-family="serif">&#9839;</text>';
+    });
+  }
+  return out + '</svg>';
+}
+
+/* Offer a generated file through the viewer's save prompt. */
+async function saveFile(filename, data, okMsg){
+  if(!window.claude || !window.claude.downloads){
+    toast("Saving files isn’t available in this view", true); return;
+  }
+  try {
+    await window.claude.downloads.save({ filename, data });
+    toast(okMsg || "Saved");
+  } catch(e){
+    const c = e && e.code;
+    if(c === "declined") return;                       /* viewer said no — say nothing */
+    if(c === "rejected_extension" || c === "extension_not_enabled")
+      toast("This view can’t save that file type", true);
+    else if(c === "too_large")   toast("That file is too large to save", true);
+    else if(c === "rate_limited") toast("One save at a time — try again", true);
+    else toast("Couldn’t save that file", true);
+  }
+}
+
+function svgToPngBlob(svg, w, h){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = w*2; c.height = h*2;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? res(b) : rej(new Error("toBlob")), "image/png");
+    };
+    img.onerror = () => rej(new Error("svg"));
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+  });
+}
+const b64 = u8 => { let s=""; u8.forEach(b => s += String.fromCharCode(b)); return btoa(s); };
+
 function screenUpload(){
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
-      '<div class="h2">Learn My Music</div><div style="width:34px"></div></div>'+
+      '<div class="h2">Upload your file</div><div style="width:34px"></div></div>'+
     '<div class="stack" style="justify-content:center;flex:1">'+
       '<div class="uploadbox">'+
         '<div class="upicon">'+svg(IC.gold,30)+'</div>'+
@@ -2055,14 +2177,119 @@ function tutWire(){
   };
 }
 
+
+/* ---- processing + results ---------------------------------------------- */
+let job = null;   /* {pct, stage, timer, ms} */
+
+/* Transcription cost scales with input length, so the wait does too. Real audio
+   transcription runs on the server (PRD F-05); this models the shape of it. */
+function estimateMs(u){
+  const kb = Math.max(1, (u.bytes||0)/1024);
+  const base = u.isMidi ? 900 : 2600;              /* symbolic input is far cheaper */
+  return Math.round(Math.min(14000, base + kb*(u.isMidi ? 1.2 : 9)));
+}
+const STAGES = ["Reading the file", "Detecting tempo and key", "Transcribing notes",
+                "Building the MIDI file", "Engraving the sheet music"];
+
+function startJob(){
+  const total = estimateMs(upload);
+  job = { pct:0, stage:0, ms:total, t0:Date.now() };
+  go("processing");
+  const tick = () => {
+    if(!job || curScreen !== "processing") return;
+    const el = Date.now() - job.t0;
+    job.pct = Math.min(100, Math.round(el / job.ms * 100));
+    job.stage = Math.min(STAGES.length-1, Math.floor(job.pct/100*STAGES.length));
+    const bar = document.querySelector("#jobbar"), lab = document.querySelector("#jobstage"),
+          pc = document.querySelector("#jobpct");
+    if(bar) bar.style.width = job.pct + "%";
+    if(lab) lab.textContent = STAGES[job.stage];
+    if(pc)  pc.textContent = job.pct + "%";
+    if(job.pct >= 100){ buildOutputs(); go("result"); return; }
+    job.timer = setTimeout(tick, 90);
+  };
+  job.timer = setTimeout(tick, 90);
+}
+function stopJob(){ if(job && job.timer) clearTimeout(job.timer); job = null; }
+
+function buildOutputs(){
+  const notes = upload.notes;
+  upload.midi  = buildMidi(notes, upload.bpm);
+  upload.sheet = sheetSVG(notes, {width:300});
+  upload.sheetPrint = sheetSVG(notes, {width:620, perSystem:14, print:true});
+  upload.sheetH = (upload.sheet.match(/height="(\d+)"/) || [0,300])[1];
+  upload.sheetPrintH = (upload.sheetPrint.match(/height="(\d+)"/) || [0,600])[1];
+}
+
+function screenProcessing(){
+  const u = upload || {};
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="canceljob" aria-label="Cancel">'+svg(IC.close,13)+'</button>'+
+      '<div class="h2">Transcribing</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="center"><div class="bigxp tnum" id="jobpct">0%</div>'+
+        '<div class="sub" id="jobstage" style="margin-top:6px">'+STAGES[0]+'</div></div>'+
+      '<div class="bar" style="height:8px"><div class="barfill" id="jobbar" style="width:0%"></div></div>'+
+      '<div class="card">'+
+        '<div class="kv"><span class="kvk">File</span><span class="kvv">'+(u.fileName||"").slice(0,26)+'</span></div>'+
+        '<div class="kv"><span class="kvk">Size</span><span class="kvv tnum">'+fmtBytes(u.bytes||0)+'</span></div>'+
+        '<div class="kv"><span class="kvk">Estimated</span><span class="kvv tnum">~'+(estimateMs(u)/1000).toFixed(1)+'s</span></div>'+
+      '</div>'+
+      '<div class="faint center">Bigger files take longer — transcription time scales with the length of the recording.</div>'+
+    '</div>';
+}
+const fmtBytes = n => n < 1024 ? n+" B" : n < 1048576 ? (n/1024).toFixed(1)+" KB" : (n/1048576).toFixed(1)+" MB";
+
+function screenResult(){
+  const u = upload;
+  if(!u || !u.midi) return screenUpload();
+  /* File saving is a per-view grant; when it isn't available, say so plainly on the
+     button rather than letting a tap fail with nothing to show for it. */
+  const canSave = !!(window.claude && window.claude.downloads);
+  const saveCls = canSave ? "btn sm block" : "btn sm block off";
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="home" aria-label="Close">'+svg(IC.close,13)+'</button>'+
+      '<div class="h2">Transcribed</div><div style="width:34px"></div></div>'+
+    '<div class="exbody">'+
+      '<div class="center"><div class="h1">'+u.title+'</div>'+
+        '<div class="sub" style="margin-top:4px">Two files generated from your upload</div></div>'+
+      (u.estimated ? '<div class="estbanner">Estimated from audio · expect some wrong notes</div>' : '')+
+      (u.isPreview ? '<div class="prevbanner"><span>Free preview · first 30 seconds</span>'+
+        '<button class="btn sm gold" data-act="unlockfull">Unlock full song</button></div>' : '')+
+
+      '<div class="card">'+
+        '<div class="row"><span class="outtitle">🎹 MIDI file</span>'+
+          '<span class="faint tnum">'+fmtBytes(u.midi.length)+'</span></div>'+
+        '<div class="kv" style="margin-top:8px"><span class="kvk">Notes</span><span class="kvv tnum">'+u.notes.length+'</span></div>'+
+        '<div class="kv"><span class="kvk">Tempo</span><span class="kvv tnum">'+u.bpm+' BPM</span></div>'+
+        '<button class="'+saveCls+'" data-act="savemidi" style="margin-top:11px">'+
+          (canSave ? "Save MIDI" : "Saving unavailable in this view")+'</button>'+
+      '</div>'+
+
+      '<div class="card">'+
+        '<div class="row"><span class="outtitle">📄 Sheet music</span>'+
+          '<span class="faint tnum">'+Math.ceil(u.notes.length/12)+' systems</span></div>'+
+        '<div class="sheetbox">'+u.sheet+'</div>'+
+        '<button class="'+saveCls+'" data-act="savesheet">'+
+          (canSave ? "Save sheet music (PNG)" : "Saving unavailable in this view")+'</button>'+
+      '</div>'+
+
+      (canSave ? '' : '<div class="faint center">Both files are generated and shown above. '+
+        'Saving them to your device needs the file-save permission, which a publicly shared '+
+        'page can’t have — the shipping app writes a real .mid and a PDF.</div>')+
+      '<button class="btn block" data-act="opentutorial">Practise this song</button>'+
+      '<button class="btn ghost block" data-go="upload">Upload another file</button>'+
+    '</div>';
+}
+
 function screenPaywall(){
   return '<div class="exhead"><button class="iconbtn" data-go="home" aria-label="Close">'+svg(IC.close,13)+'</button>'+
     '<div style="width:34px"></div><div style="width:34px"></div></div>'+
     '<div class="stack center" style="justify-content:center;flex:1">'+
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
       '<div class="h1">Keyvoria Plus</div>'+
-      '<div class="sub">Tiers 1–3 and the 32-key keyboard are always free. Plus adds <b>tier 4</b> in every category, the full <b>61-key</b> keyboard those tiers need, and Learn My Music.</div>'+
-      '<div class="card gold"><div class="h2" style="color:var(--gold)">$9.95<span class="sub"> / month</span></div></div>'+
+      '<div class="sub">Tiers 1–3 and the 32-key keyboard are always free. Plus adds <b>tier 4</b> in every category, the full <b>61-key</b> keyboard those tiers need, and Upload your file.</div>'+
+      '<div class="card gold"><div class="h2" style="color:var(--gold)">$5.95<span class="sub"> / month</span></div></div>'+
       '<button class="btn gold block" data-act="upgrade">Upgrade now</button>'+
       '<button class="btn ghost block" data-go="home">Not now</button>'+
     '</div>';
@@ -2073,7 +2300,7 @@ function screenCancel(){
     '<div class="h2">Cancel Plus</div><div style="width:34px"></div></div>'+
     '<div class="stack">'+
       '<div class="sub">Your subscription stays active until <b>14 March 2026</b>. Nothing changes before then.</div>'+
-      '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 32 keys)<br>· Access to your Learn My Music uploads</div>'+
+      '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 32 keys)<br>· Access to your Upload your file uploads</div>'+
       '<div class="notice keep"><b>You keep everything else</b><br>· All '+S.lifetimeXp.toLocaleString()+' XP you’ve earned<br>· Every tier 1–3 you unlocked<br>· Progress and practice history<br>· Your uploaded files — kept, not deleted</div>'+
       '<div class="faint">Resubscribe any time and everything comes straight back.</div>'+
       '<button class="btn ghost block" data-act="confirmcancel">Cancel subscription</button>'+
@@ -2088,13 +2315,14 @@ const SCREENS = {
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   achievements:screenAchievements, card:screenCard,
-  upload:screenUpload, confirm:screenConfirm, tutorial:screenTutorial,
+  upload:screenUpload, confirm:screenConfirm, processing:screenProcessing,
+  result:screenResult, tutorial:screenTutorial,
   master:screenMaster, masterover:screenMasterOver,
   leaderboard:screenLeaderboard
 };
 const TAB_OF = { home:"home", ladder:"home", earmode:"home", play:"home", summary:"home", paywall:"home",
                  master:"home", masterover:"home",
-                 upload:"home", confirm:"home", tutorial:"home",
+                 upload:"home", confirm:"home", processing:"home", result:"home", tutorial:"home",
                  library:"library", freeplay:"library",
                  profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
                  signin:"profile", namesetup:"profile", account:"profile",
@@ -2231,6 +2459,7 @@ document.addEventListener("click", e => {
       const hadUpload = !!upload;
       S.plus = true; S.cancelPending = false; save();
       rebuildUpload();
+      if(upload && upload.midi) buildOutputs();
       toast("Keyvoria Plus active · 61 keys and full songs unlocked");
       if(hadUpload && tut){ tutStop(); tut.pos = 0; go("tutorial"); }
       else go("home");
@@ -2247,8 +2476,29 @@ document.addEventListener("click", e => {
     case "confirmsong": {
       const ti = document.getElementById("songTitle");
       if(ti && ti.value.trim()) upload.title = ti.value.trim().slice(0,48);
+      startJob(); break;
+    }
+    case "canceljob": stopJob(); go("upload"); break;
+    case "opentutorial":
       tut = { speed:1, mode:"listen", loop:false, pos:0, playing:false, timers:[] };
       go("tutorial"); break;
+    case "savemidi": {
+      /* .mid is not on the viewer save allowlist, so the bytes go out base64 in a
+         .txt with the decode line included. The shipping app writes a real .mid. */
+      const name = upload.title.replace(/[^\w -]/g,"").trim().replace(/\s+/g,"-") || "keyvoria";
+      saveFile(name+".midi.b64.txt",
+        "Keyvoria MIDI export — base64\n" +
+        "Decode:  base64 -d " + name + ".midi.b64.txt > " + name + ".mid\n\n" +
+        b64(upload.midi),
+        "MIDI saved (base64)");
+      break;
+    }
+    case "savesheet": {
+      const name = upload.title.replace(/[^\w -]/g,"").trim().replace(/\s+/g,"-") || "keyvoria";
+      svgToPngBlob(upload.sheetPrint, 620, parseInt(upload.sheetPrintH,10)||600)
+        .then(blob => saveFile(name+"-sheet.png", blob, "Sheet music saved"))
+        .catch(() => toast("Couldn’t render the sheet music", true));
+      break;
     }
     case "speed":
       tutStop(); tut.speed = parseFloat(el.dataset.v); render(); break;

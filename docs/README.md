@@ -14,7 +14,7 @@ implementation begins.
 2. [Technical Architecture](./02-technical-architecture.md) — shared-codebase strategy,
    monorepo layout, MIDI/audio/notation stack, backend, offline/sync model.
 3. [Screen Map](./03-screen-map.md) — full IA, navigation model, the four-category
-   Home, and the Learn My Music upload flow.
+   Home, and the Upload your file upload flow.
 4. [Database Structure](./04-database-schema.md) — entity list, ER diagram, and
    table-by-table field definitions across content, the XP economy, progress, and
    user-upload domains.

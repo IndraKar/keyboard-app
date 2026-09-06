@@ -87,12 +87,12 @@ every screen that renders a keyboard, not reconfigured per session).
 
 **`entitlements`**
 `id`, `user_id → users`, `plan` (enum: free / trial / paid — `paid` means an active
-Keyvoria Plus subscription, $9.95/month per PRD §1.4), `starts_at`, `expires_at`.
+Keyvoria Plus subscription, $5.95/month per PRD §1.4), `starts_at`, `expires_at`.
 This table answers only "what can this user access right now," so it stays small and
 fast — it is read on nearly every gated action. The commercial state behind it
 (provider, renewal date, cancellation) lives in `subscriptions` (§4.10b); cancelling
 changes that table, and only the period-end job changes this one.
-Gates three things: F-05 Learn My Music in full (see `generated_tutorials` §4.11 for
+Gates three things: F-05 uploads in full (see `generated_tutorials` §4.11 for
 exactly where that check happens — every upload type now, not just audio), the
 on-screen keyboard's key range (the shared component reads `plan` at mount —
 `plan = free` → 32 keys (F2–C5), otherwise → 61 keys, not a value stored per-user
@@ -149,8 +149,7 @@ metadata), `note_count`, `musicxml_asset_id → media_assets`,
 `midi_reference_asset_id → media_assets` (expected note/timing sequence for grading,
 same role as `exercises.midi_reference_asset_id` — note this stores *sounding* pitch,
 so a passage in G major stores F♯ even though the score draws a plain F),
-`measure_count`, `difficulty` (1–10). The Main
-Menu's Sight-Reading tile (screen map §3.3) queries `WHERE clef IN ('treble', 'bass')
+`measure_count`, `difficulty` (1–10). Home's Sight-Reading tile (screen map §3.3) queries `WHERE clef IN ('treble', 'bass')
 AND lesson.tier_id IN <the user's currently-unlocked Sight-Reading tiers>` and picks
 one at random — `grand_staff` passages exist in this table for tiers that
 deliberately combine both clefs but aren't in that quick-launch pool, since PRD F-02b
@@ -183,7 +182,7 @@ public_domain / owned_original), `license_source_note` (text — PD edition cita
 ### 4.7 Media
 
 **`media_assets`**
-`id`, `kind` (enum: musicxml / midi / audio_preview), `storage_path`, `mime_type`,
+`id`, `kind` (enum: musicxml / midi / audio_preview / pdf / png), `storage_path`, `mime_type`,
 `size_bytes`, `checksum`.
 
 ## 4.8 Progress, attempts, and grading history
@@ -297,7 +296,7 @@ to) as a gamification one.
 
 **`category_tiers`**
 `id`, `category` (enum: ear_training / sight_reading / playback_repeat — exactly
-Keyvoria's three tiered categories; Learn My Music has no tier ladder, it's gated
+Keyvoria's three tiered categories; Upload your file has no tier ladder, it's gated
 purely by `entitlements`, §4.11), `tier_number` (int, **1–4** — every category has
 exactly four tiers, per PRD §1.4), `title`, `description`, `xp_cost` (int),
 `required_plan` (enum: free / premium). Unique on `(category, tier_number)`. Every
@@ -416,7 +415,7 @@ answer, and both are why this gets its own structure:
    history grows — Profile is a frequently-visited tab.
 
 **`practice_intervals`**
-`id`, `user_id → users`, `category` (enum, nullable — null for Learn My Music and
+`id`, `user_id → users`, `category` (enum, nullable — null for Upload your file and
 Library practice, which sit outside the three tiered categories), `source_type`
 (enum: attempt / ear_training_session / repeat_session / learn_my_music),
 `source_id` (uuid, the row in whichever table above), `started_at`, `ended_at`,
@@ -452,8 +451,8 @@ state of their commercial relationship," which is where cancellation lives.
 `provider_subscription_id` (text — the id in that provider's system),
 `purchase_platform` (enum: web / ios / android — where it was bought, which
 determines where it can be cancelled), `status` (enum: active / trialing /
-cancel_pending / expired / grace_period / billing_retry), `price_cents` (`995` for
-Keyvoria Plus at $9.95/month), `currency`, `current_period_start`, `current_period_end`,
+cancel_pending / expired / grace_period / billing_retry), `price_cents` (`595` for
+Keyvoria Plus at $5.95/month), `currency`, `current_period_start`, `current_period_end`,
 `cancel_at_period_end` (bool), `cancelled_at` (nullable — when the user *requested*
 cancellation, distinct from when access ends), `created_at`, `updated_at`.
 
@@ -479,7 +478,7 @@ Notes that matter for the cancel flow:
   `user_category_unlocks` for tiers 1-3, `user_progress`, `streaks`, and
   `generated_tutorials`/uploaded files all survive. The only effect of an expired
   entitlement is gating — tier 4 becomes unpurchasable/unenterable, the keyboard
-  renders 32 keys, Learn My Music locks. Resubscribing restores access with nothing
+  renders 32 keys, Upload your file locks. Resubscribing restores access with nothing
   to rebuild.
 
 ## 4.10c Mastery, achievements & Master Mode
@@ -532,7 +531,7 @@ readable by that path at all, on either visibility setting.
 **only** for users with `leaderboard_opt_in = true`; opting out deletes the row rather
 than hiding it.
 
-## 4.11 Learn My Music
+## 4.11 Upload your file
 
 Every upload type here (`midi` / `musicxml` / `audio`) is gated the same way now —
 PRD F-05 is one unified premium feature, not a free-MIDI/paid-audio split. The API
@@ -555,6 +554,13 @@ against a misidentified song wastes the analysis and mislabels the result.
 limit (PRD F-05) is applied at *read* time from `entitlements`, never by truncating
 what is stored. Storing a truncated tutorial would mean regenerating it on upgrade,
 which is both slower and a worse moment to fail.
+
+Each confirmed upload yields **two derived artifacts**, stored as `media_assets` rows
+linked from the tutorial: a **MIDI file** (`kind = midi`) and **engraved sheet music**
+(`kind = musicxml`, plus a rendered `pdf`/`png` where the platform supports export).
+They are generated from one analysis pass and regenerated together, so they can never
+drift apart or disagree with the practice sequence. Both are cached artifacts, safe to
+delete and rebuild from `generated_tutorials`.
 
 **`generated_tutorials`**
 `id`, `user_upload_id → user_uploads`, `title` (from filename or embedded metadata),
@@ -582,7 +588,7 @@ Practice Screen consumes both through the same loop-selector UI.
 `id`, `generated_tutorial_id → generated_tutorials`, `start_time_ms`, `end_time_ms`,
 `chord_label`, `confidence` (0–1, from the transcription model), `user_corrected`
 (bool) — supports the "manually correct obviously-wrong chord labels" interaction from
-the screen map's Learn My Music flow.
+the screen map's Upload your file flow.
 
 ## 4.12 Search
 

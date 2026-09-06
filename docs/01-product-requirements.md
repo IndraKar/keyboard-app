@@ -22,7 +22,7 @@ they care about — progression the user steers, not a rail they're placed on.
 | **Returning Player** | Took lessons years ago, rusty | Placement/assessment, refreshers on theory & technique, faster ramp |
 | **Self-taught Improviser** | Plays by ear, weak on theory/reading | Chord progressions, theory, sight-reading, ear training |
 | **Classical Track Student** | Wants repertoire and reading fluency | Public-domain classical pieces, hands-separate practice, grading |
-| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Learn My Music (F-05, MP3 + MIDI/MusicXML, **premium**) |
+| **Songwriter / Hobbyist Producer** | Wants to learn *their own* material | Upload your file (F-05, MP3 + MIDI/MusicXML, **premium**) |
 | **Genre Learner** | Wants pop/jazz/blues comping, not classical | Genre-tagged Playback & Repeat content and Library filters |
 
 ## 1.3 Platforms & shared codebase
@@ -36,7 +36,7 @@ thin, platform-specific implementations behind a common interface.
 
 Feature IDs (`F-xx`) are referenced by the architecture and roadmap docs.
 
-**Home is Keyvoria's home screen** (screen map §3.3) — the app opens directly
+**Home is where Keyvoria opens** (screen map §3.3) — the app opens directly
 onto it, so a user's first interaction is choosing a program rather than reading a
 dashboard. It absorbs both what an earlier draft called the separate "Learn tab"
 (since the four categories below *are* the curriculum) and that draft's Home/Dashboard
@@ -46,22 +46,22 @@ Keyvoria's four major learning categories:
 1. **Ear Training** (F-02a)
 2. **Sight-Reading** (F-02b)
 3. **Playback & Repeat** (F-02c)
-4. **Learn My Music** (F-05) — **Premium**
+4. **Upload your file** (F-05) — **Premium**
 
 Each category has its own progression, independent of the others (F-03) — a user
 picks which skills to develop rather than being pushed through one linear
 curriculum. There is deliberately no "Beginner/Intermediate/Advanced path" spanning
 all categories at once; the closest earlier draft had one, and it's retired in favor
-of per-category progression. Free/warm-up play remains cut from V1's Home for
+of per-category progression. Free/warm-up play remains cut from V1's Home screen for
 launch simplicity, revisitable post-V1.
 
-**Free vs. Premium — Keyvoria Plus, $9.95/month.**
+**Free vs. Premium — Keyvoria Plus, $5.95/month.**
 
 | | Free | Premium (Keyvoria Plus) |
 |---|---|---|
 | On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
 | Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
-| Submit Your Clip / Learn My Music (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
+| Upload your file (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
 | Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
 | Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
 | Create Music (F-11) | — | Compose, edit, notate and export your own music |
@@ -75,14 +75,14 @@ tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start;
 active Keyvoria Plus subscription *and* its XP cost. There is no per-category
 variation in where the paywall falls, which keeps the offer explainable in one
 sentence: *tiers 1–3, 32 keys and a 30-second song preview are free; tier 4, the full
-61-key keyboard and full-length songs are $9.95/month.*
+61-key keyboard and full-length songs are $5.95/month.*
 
-The billing mechanic is a **$9.95/month subscription**. The XP numbers are now set
+The billing mechanic is a **$5.95/month subscription**. The XP numbers are now set
 too (F-03) — earning rates and unlock costs are fixed values, not placeholders.
 
 ### F-01 Structured learning content
 Content is organized **by category**, not by a level spanning all of them — each
-item below belongs to exactly one of the three tiered categories (Learn My Music is
+item below belongs to exactly one of the three tiered categories (Upload your file is
 user-generated and has no authored-content quota of its own):
 
 - **Ear Training** — procedurally generated per F-02a's engine at play time; no
@@ -336,7 +336,7 @@ because it makes XP cosmetic. Instead:
   hardcore content without upgrading. That gate isn't arbitrary: tier 4 content is
   authored beyond the 32-key range, so it genuinely needs the 61-key keyboard that
   the same subscription unlocks (§1.4).
-  Learn My Music (F-05) doesn't participate in this tier/XP-unlock system at all —
+  Upload your file (F-05) doesn't participate in this tier/XP-unlock system at all —
   it's gated purely by the Premium subscription, since it's user-generated content
   with no authored difficulty ladder to unlock.
 - **Level still exists, but only as flavor.** A lightweight, purely cosmetic Level
@@ -347,7 +347,7 @@ because it makes XP cosmetic. Instead:
 - Daily streaks with a grace/freeze mechanic (1 freeze earned periodically, to avoid
   punishing a single missed day too harshly).
 - Achievements/badges (streak milestones, "first advanced-tier unlock in a category,"
-  perfect-accuracy sessions, Learn My Music milestones).
+  perfect-accuracy sessions, Upload your file milestones).
 - Daily challenge: one bite-sized, auto-selected activity per day. Its exercises pay
   their normal per-tier rate when answered correctly and **nothing extra** — the
   draw is the prompt itself, not bonus currency (see the earning rule above).
@@ -361,9 +361,10 @@ because it makes XP cosmetic. Instead:
   songs (classical + original), filterable by difficulty, skill tag, genre, duration,
   category, and completion status.
 
-### F-05 "Learn My Music" / "Submit Your Clip" — free preview, premium in full
-*"Submit Your Clip" is the user-facing label for this feature's entry point; F-05
-remains its ID throughout these documents. One upload pipeline, two names — see F-05a.*
+### F-05 "Upload your file" (F-05) — free preview, premium in full
+*"Upload your file" is the user-facing name; F-05 remains its ID throughout these
+documents. Earlier drafts called it "Learn My Music" and "Submit Your Clip" — one
+upload pipeline throughout, renamed twice.*
 The fourth Home category, and Keyvoria's main conversion path. **It is no longer
 gated behind a hard paywall.** Anyone can upload a song and get a real tutorial for its
 **first 30 seconds**; Keyvoria Plus unlocks the whole song.
@@ -398,9 +399,25 @@ patience, on the wrong song:
    and **asks the user to confirm or correct it before building anything**. The user
    can edit the title inline. Getting this wrong silently would produce a tutorial
    labelled with someone else's song, which is worse than asking.
-3. **Tutorial generation.** Difficulty analysis (note density, hand span, tempo,
-   rhythmic and chord complexity), phrase segmentation for looping, and a gradable
-   note sequence for the shared `grading-engine`. The confirm screen shows exactly how
+3. **Transcription produces two files**, and they are the point of the feature:
+   - **A MIDI file** — the notes as structured data: pitch, start, duration, velocity,
+     with the detected tempo. Openable in any DAW or notation program.
+   - **Sheet music** — the same transcription engraved on a staff, wrapping across
+     systems, with the clef chosen from the piece's own range.
+
+   Both come from one analysis pass, so they can never disagree with each other or
+   with the practice tutorial. Alongside them: difficulty analysis (note density, hand
+   span, tempo, rhythmic and chord complexity), phrase segmentation for looping, and a
+   gradable note sequence for the shared `grading-engine`.
+
+   **Transcription time scales with the length of the recording** — a two-minute clip
+   is quick, a full album track is not. The processing screen therefore shows a real
+   progress state and the named stage it is on (reading, tempo/key detection,
+   transcription, MIDI, engraving) rather than an indeterminate spinner, and it states
+   an estimate up front. Symbolic input (MIDI/MusicXML) is far cheaper than audio,
+   because there is nothing to transcribe — only to parse.
+
+   The confirm screen shows exactly how
    much the user will get — "First 30 seconds · 69 of 83 notes" or "The whole song".
    The tutorial itself carries a preview banner with an inline upgrade action, and its
    progress bar marks where the preview ends. **Upgrading from inside a tutorial
@@ -423,7 +440,7 @@ like itself, just slower.
 - **Progressive, hands-separate practice** (left alone / right alone / both).
 - **Performance grading** against the uploaded material via the shared
   `grading-engine` (F-02), on the same keyboard as everything else.
-- **Learn My Music does not pay XP.** It is user-supplied content with no tier and no
+- **Upload your file does not pay XP.** It is user-supplied content with no tier and no
   authored difficulty rating, so paying XP for it would let a user mint currency from
   a file they chose — see F-03's earning rule. Practice here is its own reward.
 
@@ -440,7 +457,7 @@ exact and carry no banner. V1 does not attempt full generalized transcription of
 polyphonic recordings (§1.6).
 
 ### F-05a Keyvoria Plus — the complete premium inventory
-One place that answers "what does $9.95 buy," because the answer is now spread across
+One place that answers "what does $5.95 buy," because the answer is now spread across
 several features. Most of it is already specified; this table exists so the roadmap
 plans the *gap*, not the whole list again.
 
@@ -451,7 +468,7 @@ plans the *gap*, not the whole list again.
 | Advanced Ear Training | Specified — tier 4 of F-02a | F-02a |
 | Advanced Sight-Reading | Specified — tier 4 of F-02b | F-02b |
 | Advanced Playback & Repeat | Specified — tier 4 of F-02c | F-02c |
-| **Submit Your Clip** — upload your own music | Specified, **renamed** | F-05 |
+| **Upload your file** — upload your own music | Specified, **renamed** | F-05 |
 | Adjustable playback speeds | Specified — seven fixed steps | F-05 |
 | Section / measure looping | Specified | F-05 |
 | Hands-separate practice | Specified | F-05 |
@@ -463,13 +480,13 @@ plans the *gap*, not the whole list again.
 
 Two naming and scope notes, since both would otherwise create phantom work:
 
-- **"Submit Your Clip" is Learn My Music (F-05), not a second feature.** Same upload,
+- **"Submit Your Clip" is Upload your file (F-05), not a second feature.** Same upload,
   same confirmation step, same tutorial. "Submit Your Clip" is the better label for the
   *entry point* — it says what the user does — so Home tile and marketing use
   it, while F-05 remains the feature ID the other documents reference. There is one
   upload pipeline, not two.
 - **"Tier 4 across all four categories" applies to the three tiered categories.**
-  Learn My Music has no tier ladder by design (F-03) — it is user content with no
+  Upload your file has no tier ladder by design (F-03) — it is user content with no
   authored difficulty to unlock. Its Plus equivalent is full-length songs plus the
   advanced practice tools, which is what the free 30-second preview is measured
   against.
@@ -512,7 +529,7 @@ Subscription** action:
   the remainder of that window.
 - **The confirmation states both halves plainly.** What lapses at period end: tier 4
   relocks in all three categories, the on-screen keyboard returns to 32 keys, and
-  Learn My Music uploads become inaccessible. What does *not*: **XP, unlocked tiers
+  Upload your file uploads become inaccessible. What does *not*: **XP, unlocked tiers
   1–3, progress, streaks and achievements are untouched, and uploaded files are
   retained rather than deleted** — resubscribing restores access instead of starting
   over. Users hesitate to cancel when they can't tell which it is, and being straight
@@ -738,7 +755,7 @@ stranger's numbers under the previous user's name.
   F-05's MP3 path is explicitly "best-effort" for V1, not a competitor to specialized
   transcription software.
 - *(Resolved — kept here as a record.)* Per-tier XP costs and earn rates, which tiers
-  are premium (always and only tier 4), and billing ($9.95/month) were all open in
+  are premium (always and only tier 4), and billing ($5.95/month) were all open in
   earlier drafts. All three are now fixed in F-03 and §1.4. What remains genuinely
   open is only the **tier-3 and tier-4 rates and cost** (125/150 XP and 2,000 XP),
   which extend the given curve and should be confirmed once tier-3+ content exists to

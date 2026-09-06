@@ -15,7 +15,7 @@ where web trails mobile in capability: the same Expo Router screens, the same
 `apps/app` is the entire product on every platform — desktop web included. It is
 explicitly **not** a landing page: log in from a browser and you get the real Keyvoria
 learning experience (Home, Lesson Player, Ear Training, Sight-Reading, Playback &
-Repeat, Learn My Music, Progress Analytics — everything), laid out for a desktop
+Repeat, Upload your file, Progress Analytics — everything), laid out for a desktop
 viewport rather than simplified or reduced. See "Responsive layout" below for how one
 codebase
 serves a touch phone screen and a mouse-and-keyboard desktop browser without forking
@@ -114,7 +114,7 @@ keyvoria/
 │   │                             #   entitlements.plan), mounted by every play screen
 │   │                             #   in every category, emitting midi-shaped events
 │   ├── analysis/                # Difficulty scoring, MIDI/MusicXML parsing/segmenting
-│   │                             #   (shared by "Learn My Music" client + server paths);
+│   │                             #   (shared by "Upload your file" client + server paths);
 │   │                             #   also the skill/weakness analysis of §2.12
 │   ├── entitlements/            # Capability registry and can() — the ONLY place a
 │   │                             #   plan maps to features (§2.10)
@@ -168,7 +168,7 @@ renderer, at the cost of a WebView bridge on native (acceptable: notation is not
 latency-critical surface — MIDI grading is handled natively outside the WebView and
 just posts highlight/cursor updates *into* it).
 
-MIDI-file parsing (for "Learn My Music" and for internally authored exercises/songs
+MIDI-file parsing (for "Upload your file" and for internally authored exercises/songs
 that start life as MIDI) uses `@tonejs/midi` or `midi-file` (pure JS, shared across
 platforms). MusicXML parsing reuses OSMD's own parser for rendering and
 `musicxml-interfaces`-style parsing for the difficulty-analysis package where a plain
@@ -192,7 +192,7 @@ flowchart LR
 duration, and optional voicing tolerance for chords) and a live MIDI event stream, and
 emits per-note results (`hit` / `wrong-note` / `early` / `late` / `missed`) plus a
 session accuracy score. It is deterministic and platform-agnostic so it can also run
-server-side for "Learn My Music" performance grading if a session needs re-verification
+server-side for "Upload your file" performance grading if a session needs re-verification
 (e.g. leaderboard/achievement integrity checks later), and is unit-testable without any
 device.
 
@@ -247,7 +247,7 @@ flowchart TB
 
 ## 2.6a Billing & subscription lifecycle
 
-Keyvoria Plus is one $9.95/month subscription sold on three storefronts, and the
+Keyvoria Plus is one $5.95/month subscription sold on three storefronts, and the
 storefronts are not equivalent — this is the main reason billing gets its own section
 rather than being a detail of the API.
 
@@ -303,7 +303,7 @@ that covers concretely, all keyed off one `user_id` in Postgres (§4, database s
   the train, the exact same unlocked tier (and the lessons it reveals) is there on
   desktop at a real keyboard, same record either way.
 - **Entitlements/subscription state** (`entitlements`) — buy Keyvoria Plus on one
-  device, the 61-key on-screen keyboard, Learn My Music, and every category's
+  device, the 61-key on-screen keyboard, Upload your file, and every category's
   premium-only tiers unlock everywhere, immediately, since the check is a live read
   against Postgres, not a per-device flag.
 - **Uploaded music** (`user_uploads` in Supabase Storage, `generated_tutorials` in
@@ -355,7 +355,7 @@ migrate.
 ## 2.10 The premium capability layer
 
 **Problem this solves.** Today three separate places ask "is this user on Plus?" — the
-keyboard's range, tier 4's purchase check, and Learn My Music's preview cap. That is
+keyboard's range, tier 4's purchase check, and Upload your file's preview cap. That is
 already three; the features in PRD F-09/F-10/F-11 would make it eight or nine, each a
 separate `plan === "paid"` test scattered through unrelated code. That is how a
 premium tier becomes impossible to change: the plan's meaning ends up encoded in

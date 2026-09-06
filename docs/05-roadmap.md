@@ -13,7 +13,7 @@ flowchart TD
     M3 --> M4
     M2 --> M5["M5 · The XP economy"]
     M4 --> M6["M6 · Library & search"]
-    M3 --> M7["M7 · Learn My Music (Premium)"]
+    M3 --> M7["M7 · Upload your file (Premium)"]
     M5 --> M5b["M5b · Mastery & Master Mode"]
     M5b --> M8["M8 · Polish, accessibility, QA"]
     M6 --> M8
@@ -81,7 +81,7 @@ milestone lands.
   carries a `tier_id`; tier 1 in each category is unlocked by default for every user
   (no purchase flow needed yet — that's M5).
 - **Home screen — the app's home route** (screen map §3.3): exactly four tiles —
-  Ear Training, Sight-Reading, Playback & Repeat, Learn My Music — wired to whatever's
+  Ear Training, Sight-Reading, Playback & Repeat, Upload your file — wired to whatever's
   built so far and stubbed for the rest. Launch lands here directly; there is no
   dashboard route in front of it, and onboarding exits to it. Includes the
   header-level Show Note Names toggle (`users.show_note_names`, §4.2) and the
@@ -267,7 +267,7 @@ locked item's Item Detail.
 difficulty, skill tag, genre, duration, and completion status; a locked item correctly
 routes the user toward unlocking it rather than a dead end.
 
-## M7 — Learn My Music (Premium)
+## M7 — Upload your file (Premium)
 **Size:** XL — this is Keyvoria's main conversion path (PRD F-05: free 30-second
 preview, full song on Plus) and the
 single most complex milestone content-wise; a prior draft split this into two
@@ -287,7 +287,13 @@ three practice modes.
   tile for **every** upload type — a non-entitled user sees the Paywall screen
   (screen map §3.6 step 0) instead of Upload, regardless of what format they're
   about to pick.
-- Upload → Processing → Mode Select flow (screen map §3.6) with all three modes
+- **Two generated outputs per upload — a MIDI file and engraved sheet music** (PRD
+  F-05), from one analysis pass so they cannot disagree, with export on every platform
+  that permits it.
+- Processing UI is **determinate**: named stages and an estimate derived from input
+  length, because transcription time scales with the recording and an indeterminate
+  spinner tells the user nothing about whether to wait.
+- Upload → Processing → Transcribed → Tutorial flow (screen map §3.6) with all three modes
   working off one analysis pass — Sheet Music (via the `notation` package, gated by
   `generated_tutorials.sheet_music_available`), Synthesia-style (reusing the
   falling-notes surface and `grading-engine` from M3), and Auto-Play (synthesized
@@ -302,7 +308,7 @@ three practice modes.
   the tutorial they were already in. This is the milestone's main conversion surface —
   it is what makes the paywall an informed choice rather than a blind one.
 - The full **subscription lifecycle**, not just the purchase (architecture §2.6a,
-  DB §4.10b): buy at $9.95/month on all three storefronts, provider webhooks driving
+  DB §4.10b): buy at $5.95/month on all three storefronts, provider webhooks driving
   `subscriptions` and `entitlements`, and **cancellation** — Stripe cancelled in-app,
   Apple/Google deep-linked to their own management surfaces, with
   `cancel_at_period_end` preserving access to the end of the paid period and a
@@ -316,7 +322,7 @@ every speed and practice mode available, and sees clearly where the preview ends
 upgrading from inside that tutorial unlocks the remainder in place; a subscription can
 be purchased, seen from a *different* platform
 than it was bought on, cancelled, and confirmed to retain access until period end and
-to relock tier 4 / the 61-key keyboard / Learn My Music only after it — with XP,
+to relock tier 4 / the 61-key keyboard / Upload your file only after it — with XP,
 tier 1-3 unlocks, progress and uploaded files all intact afterwards; a non-entitled
 user is correctly blocked at the Paywall for both upload formats; an entitled user can upload a real-world MIDI/MusicXML file and get a
 working, gradable, non-estimated tutorial; an entitled user can upload an MP3 and get

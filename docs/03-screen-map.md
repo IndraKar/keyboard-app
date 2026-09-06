@@ -6,10 +6,10 @@
 every platform — iOS, Android, and desktop web are all the full product (architecture
 §2.1), not a mobile app with a companion site.
 
-**Home is the app's home.** Launching Keyvoria lands on Home, not on
+**Home is where the app opens.** Launching Keyvoria lands on Home, not on
 a dashboard — the first thing a user sees is the choice of which of the four programs
 to work on (PRD §1.4). This replaces an earlier draft's separate Home/Dashboard tab,
-which sat in front of Home and delayed that choice behind a screen of
+which sat in front of it and delayed that choice behind a screen of
 summary cards. Two consolidations follow from it:
 
 - The old **Home/Dashboard tab is gone as a destination**. Its momentum features
@@ -38,7 +38,7 @@ uploads, and the same screen inventory below apply on every platform (architectu
 §2.7) — what changes with viewport width is layout, never which features exist.
 
 Onboarding and the MIDI setup flow sit outside the tab bar (full-screen, linear).
-The Learn My Music upload flow is entered from Home or Library but opens as
+The upload flow is entered from Home or Library but opens as
 its own modal/stack flow since it has a distinct linear upload → processing → result
 shape.
 
@@ -60,11 +60,11 @@ shape.
 5. **Account creation** — email/social sign-in (needed to persist progress across
    devices); guest mode allowed with a clear "progress stays on this device only"
    notice, upgradeable to an account later without losing local progress.
-6. → lands on the **Home** (§3.3), the app's home.
+6. → lands on **Home** (§3.3).
 
 ## 3.3 Tab: Home
 
-**This is where Keyvoria opens.** Home is both the app's home screen and its
+**This is where Keyvoria opens.** Home is both the landing screen and the
 curriculum — the user's first decision is which program to work on, not which summary
 card to read. Exactly **four** tiles, one per category (PRD §1.4):
 
@@ -72,7 +72,7 @@ card to read. Exactly **four** tiles, one per category (PRD §1.4):
 2. **Sight-Reading** → this category's Tier Ladder (below) — the drill itself has no
    setup screen, but the category still has a Tier Ladder to browse/unlock from
 3. **Playback & Repeat** → this category's Tier Ladder (below)
-4. **Learn My Music** *(Premium badge if not entitled)* → paywall screen if not
+4. **Upload your file** *(Premium badge if not entitled)* → paywall screen if not
    entitled, otherwise the upload flow (§3.7)
 
 A **fifth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
@@ -243,7 +243,7 @@ Used across all three tiered categories, not owned by any one of them:
   or original-artist attribution, public-domain/license note per F-01 licensing
   requirement).
 
-## 3.6 Learn My Music flow (modal stack, entered from Home or Library)
+## 3.6 Upload your file flow (modal stack, entered from Home or Library)
 
 **Upload → Confirm → Tutorial** (PRD F-05). The confirm step sits between the other
 two deliberately: nothing is generated until the user agrees Keyvoria identified the
@@ -256,8 +256,16 @@ right song.
 2. **Confirm the song** — the detected title (editable inline), the file name, notes
    found, detected tempo, and whether the source is exact or estimated. Two actions:
    *Yes, build my tutorial* and *No, upload a different file*.
-3. **Processing** — analysis progress.
-4. **Tutorial** — mode switch (Sheet Music / Falling notes / Auto-Play), the
+3. **Processing** — a determinate progress bar with the named stage ("Transcribing
+   notes", "Engraving the sheet music"), the file size, and an up-front time estimate.
+   Determinate rather than a spinner because the wait is proportional to the upload and
+   the user deserves to know whether this is five seconds or two minutes. Cancellable.
+4. **Transcribed** — the two generated files side by side: the **MIDI file** (size,
+   note count, tempo) and the **sheet music**, rendered inline so it can be read
+   without saving anything. Each offers a save; on a view where file saving is not
+   permitted the button says so instead of failing silently. From here: *Practise this
+   song* (into the tutorial) or *Upload another file*.
+5. **Tutorial** — mode switch (Sheet Music / Falling notes / Auto-Play), the
    **seven-step speed control** (0.25× 0.5× 0.75× 1× 1.25× 1.5× 2×) with a live BPM
    readout, section looping, progress through the piece, and the shared keyboard
    (§3.3.1a) docked below. On the 61-key board the view scrolls to the song's own
@@ -274,7 +282,7 @@ premium feature, and its only entitlement-gated flow. An earlier draft split thi
 into a free MIDI/MusicXML flow and a separate paid MP3 flow; V1 merges them into one.
 
 0. **Paywall** (only shown when the user has no active entitlement) — what the
-   feature does, upgrade CTA ($9.95/month, PRD §1.4). Declining returns to wherever
+   feature does, upgrade CTA ($5.95/month, PRD §1.4). Declining returns to wherever
    the user came from; an entitled user skips straight to step 1.
 1. **Upload** — pick a file: MP3 (the primary, headline format) or, where supported,
    MIDI/MusicXML (device file picker / cloud file picker).
@@ -378,7 +386,7 @@ bar, never buried behind a Settings sub-screen. Cancelling must not be harder to
 than subscribing was.
 
 **Not subscribed:** current plan reads "Free," with what Plus adds (tier 4 in every
-category, the 61-key keyboard, Learn My Music) and the upgrade CTA at $9.95/month.
+category, the 61-key keyboard, Upload your file) and the upgrade CTA at $5.95/month.
 
 **Subscribed:** plan, price, and **renewal date**, plus a **Cancel Subscription**
 action. Cancelling is explicit about what it does and doesn't do:
@@ -387,7 +395,7 @@ action. Cancelling is explicit about what it does and doesn't do:
   revokes Plus mid-cycle. The screen then reads "Plus until 14 March," and a
   **Resume Subscription** action replaces Cancel for the rest of that window.
 - The confirmation names what lapses at period end: tier 4 relocks in all three
-  categories, the on-screen keyboard returns to 32 keys, and Learn My Music uploads
+  categories, the on-screen keyboard returns to 32 keys, and Upload your file uploads
   become inaccessible. It also names what does *not*: **XP, unlocked tiers 1–3,
   progress, streaks, and achievements are untouched, and uploaded files are retained,
   not deleted** — resubscribing restores access rather than starting over. Users
@@ -496,13 +504,13 @@ Onboarding: Welcome · Goal Selection · Skill Assessment · MIDI Setup · Accou
 
 Tabs (3): **Home — home** (Ear Training [Tier Ladder, Drill Setup, Drill Screen],
 Sight-Reading [Tier Ladder, Sight-Reading Screen], Playback & Repeat [Tier Ladder,
-Difficulty Setup, Repeat Screen], Learn My Music) · Library (Search/Filter, Item
+Difficulty Setup, Repeat Screen], Upload your file) · Library (Search/Filter, Item
 Detail) · Profile (Overview/Stats, Subscription Management, Cancel Confirmation,
 Account, MIDI Devices, Notifications, Settings)
 
 Shared surfaces: Lesson Player · Session Summary · Practice Screen
 
-Upload flow: Learn My Music (Paywall, Upload, Processing, Mode Select, Sheet Music /
+Upload flow: Upload your file (Paywall, Upload, Processing, Mode Select, Sheet Music /
 Synthesia-style / Auto-Play, Estimated Transcription panel)
 
 Progress: Achievements · Streaks · Progress Analytics
