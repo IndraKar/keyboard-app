@@ -540,9 +540,220 @@ test("a private chord lobby keeps its game", () => {
   assert.throws(() => mm.createPrivate("x", "X", 1, Math.random, "solitaire"), /no such game/);
 });
 
-test("both games are registered and disagree only where they should", () => {
-  assert.deepEqual(Object.keys(GAMES), ["reading", "chords"]);
+test("all three games are registered and disagree only where they should", () => {
+  assert.deepEqual(Object.keys(GAMES), ["reading", "chords", "keys"]);
   assert.equal(GAMES.reading.lastStanding, false);
   assert.equal(GAMES.chords.lastStanding, true);
+  assert.equal(GAMES.keys.lastStanding, true);
+  // Only the Key Signature Race has a tiebreak.
+  assert.ok(!GAMES.reading.suddenDeath);
+  assert.ok(!GAMES.chords.suddenDeath);
+  assert.equal(GAMES.keys.suddenDeath, true);
   assert.throws(() => createMatch({ id: "x", game: "nope", level: 1 }), /no such game/);
+});
+
+// ======================================================================
+// Key Signature Race — and the only tiebreak in the game
+// ======================================================================
+
+const { PHASE, MAX_SUDDEN_DEATH_ROUNDS, startSuddenDeath, suddenDeathResult } =
+  await import("../src/competition/match.js");
+const { KEY_LEVELS: KL } = await import("../src/competition/keys.js");
+
+function keyMatch(level = 1, players = 4, seed = 21) {
+  const m = createMatch({ id: "k1", game: "keys", level, seed, now: T0 });
+  for (let i = 0; i < players; i++) join(m, `u${i}`, `P${i}`);
+  start(m, T0);
+  return m;
+}
+const kAnswer = (m, i) => m.passage.answers[i];
+const kWrong = (m, i) => (kAnswer(m, i) === "C" ? "G" : "C");
+/** Answer the whole ten-question round correctly for one player. */
+function surviveRound(m, user, now = T0 + 1000) {
+  for (let i = 0; i < m.passage.answers.length; i++) {
+    submitAnswer(m, user, kAnswer(m, i), { now, clientElapsedMs: 400 * (i + 1) });
+  }
+}
+
+test("a key round is ten questions and one wrong answer is out", () => {
+  const m = keyMatch(2, 4);
+  assert.equal(m.passage.answers.length, 10);
+  const r = submitAnswer(m, "u0", kWrong(m, 0), { now: T0 + 500 });
+  assert.equal(r.correct, false);
+  assert.equal(r.eliminated, true);
+});
+
+test("one survivor of the ten wins outright — no tiebreak needed", () => {
+  const m = keyMatch(1, 3);
+  submitAnswer(m, "u1", kWrong(m, 0), { now: T0 + 400 });
+  submitAnswer(m, "u2", kWrong(m, 0), { now: T0 + 500 });
+  assert.equal(m.state, MATCH_STATE.FINISHED);
+  assert.equal(m.end_reason, END_REASON.LAST_STANDING);
+  assert.equal(m.winner_user_id, "u0");
+  assert.equal(m.phase, PHASE.MAIN, "a lone survivor never reaches sudden death");
+});
+
+test("TWO survivors of the ten go to sudden death rather than ending it", () => {
+  const m = keyMatch(1, 4);
+  submitAnswer(m, "u2", kWrong(m, 0), { now: T0 + 300 });
+  submitAnswer(m, "u3", kWrong(m, 0), { now: T0 + 400 });
+  surviveRound(m, "u0", T0 + 1000);
+  surviveRound(m, "u1", T0 + 1100);
+  resolve(m, T0 + 1100 + SETTLE_MS);
+
+  assert.equal(m.state, MATCH_STATE.RUNNING, "the match is not over — it is tied");
+  assert.equal(m.phase, PHASE.SUDDEN_DEATH);
+  assert.equal(m.sd_round, 1);
+  assert.deepEqual(m.sudden_death.contenders.sort(), ["u0", "u1"]);
+  assert.equal(m.sudden_death.ends_at - m.sudden_death.started_at, 30_000, "thirty seconds");
+  assert.equal(m.winner_user_id, null);
+});
+
+test("the clock running out with two players still in also goes to sudden death", () => {
+  const m = keyMatch(1, 3);
+  submitAnswer(m, "u2", kWrong(m, 0), { now: T0 + 300 });
+  submitAnswer(m, "u0", kAnswer(m, 0), { now: T0 + 400 }); // both still going
+  submitAnswer(m, "u1", kAnswer(m, 0), { now: T0 + 500 });
+  resolve(m, m.ends_at + 1);
+  assert.equal(m.phase, PHASE.SUDDEN_DEATH,
+    "running out of time with survivors is the same situation as finishing with survivors");
+});
+
+test("sudden death is a count race — a wrong answer costs time, not your place", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 77);
+  const sd = m.sudden_death;
+
+  const wrong = submitAnswer(m, "u0", sd.answers[0] === "C" ? "G" : "C", { now: T0 + 6000 });
+  assert.equal(wrong.correct, false);
+  assert.equal(wrong.eliminated, false, "nobody is eliminated in the tiebreak");
+  assert.equal(m.entrants.get("u0").sd_correct, 0);
+  assert.equal(m.entrants.get("u0").sd_pos, 1, "but it does cost the question");
+  assert.equal(m.state, MATCH_STATE.RUNNING);
+
+  const right = submitAnswer(m, "u0", sd.answers[1], { now: T0 + 7000 });
+  assert.equal(right.correct, true);
+  assert.equal(right.correctCount, 1);
+});
+
+test("most correct wins the tiebreak when the clock runs out", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 31);
+  const sd = m.sudden_death;
+  for (let i = 0; i < 5; i++) submitAnswer(m, "u0", sd.answers[i], { now: T0 + 6000 + i, clientElapsedMs: 20_000 });
+  for (let i = 0; i < 3; i++) submitAnswer(m, "u1", sd.answers[i], { now: T0 + 6000 + i, clientElapsedMs: 20_000 });
+
+  resolve(m, sd.ends_at + 1);
+  assert.equal(m.state, MATCH_STATE.FINISHED);
+  assert.equal(m.end_reason, END_REASON.SUDDEN_DEATH);
+  assert.equal(m.winner_user_id, "u0");
+  assert.equal(m.entrants.get("u0").placement, 1);
+  assert.equal(m.entrants.get("u1").placement, 2);
+});
+
+test("an equal count is broken by the player's own clock, not by server arrival", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 45);
+  const sd = m.sudden_death;
+  // u1's answers reach the server later but were played faster.
+  for (let i = 0; i < 4; i++) submitAnswer(m, "u0", sd.answers[i], { now: T0 + 6000 + i, clientElapsedMs: 24_000 });
+  for (let i = 0; i < 4; i++) submitAnswer(m, "u1", sd.answers[i], { now: T0 + 9000 + i, clientElapsedMs: 18_000 });
+  resolve(m, sd.ends_at + 1);
+  assert.equal(m.winner_user_id, "u1", "ping must not decide the tiebreak either");
+});
+
+test("a dead-level tie runs sudden death again, and stops at the cap", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 61);
+  for (let round = 1; round <= MAX_SUDDEN_DEATH_ROUNDS; round++) {
+    const sd = m.sudden_death;
+    assert.equal(sd.round, round);
+    // Identical counts and identical reported times: genuinely inseparable.
+    for (const u of ["u0", "u1"]) {
+      for (let i = 0; i < 3; i++) submitAnswer(m, u, sd.answers[i], { now: T0 + 6000 + i, clientElapsedMs: 15_000 });
+    }
+    resolve(m, sd.ends_at + 1);
+    if (round < MAX_SUDDEN_DEATH_ROUNDS) {
+      assert.equal(m.phase, PHASE.SUDDEN_DEATH, "still tied — go again");
+      assert.equal(m.state, MATCH_STATE.RUNNING);
+    }
+  }
+  assert.equal(m.state, MATCH_STATE.FINISHED, "the tiebreak must terminate");
+  assert.equal(m.end_reason, END_REASON.DRAW);
+  assert.equal(m.winner_user_id, null);
+  assert.deepEqual(m.tied_user_ids.sort(), ["u0", "u1"]);
+});
+
+test("each sudden-death round starts from zero and draws fresh scales", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 8);
+  const first = m.sudden_death.answers.join();
+  for (let i = 0; i < 4; i++) submitAnswer(m, "u0", m.sudden_death.answers[i], { now: T0 + 6000 });
+  assert.equal(m.entrants.get("u0").sd_correct, 4);
+
+  startSuddenDeath(m, T0 + 40_000, 9);
+  assert.equal(m.entrants.get("u0").sd_correct, 0, "a new round is not a running total");
+  assert.equal(m.entrants.get("u0").sd_pos, 0);
+  assert.notEqual(m.sudden_death.answers.join(), first, "and not the same questions again");
+});
+
+test("an eliminated player cannot answer in the tiebreak they are not in", () => {
+  const m = keyMatch(1, 3);
+  submitAnswer(m, "u2", kWrong(m, 0), { now: T0 + 300 });
+  surviveRound(m, "u0"); surviveRound(m, "u1");
+  resolve(m, T0 + 1000 + SETTLE_MS);
+  assert.equal(m.phase, PHASE.SUDDEN_DEATH);
+  const r = submitAnswer(m, "u2", m.sudden_death.answers[0], { now: T0 + 2000 });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, "not_in_tiebreak");
+});
+
+test("everyone out in a key race is still a result", () => {
+  const m = keyMatch(2, 2);
+  submitAnswer(m, "u0", kWrong(m, 0), { now: T0 + 100 });
+  assert.equal(m.state, MATCH_STATE.FINISHED, "one out of two leaves a lone survivor");
+  assert.equal(m.winner_user_id, "u1");
+  assert.equal(m.phase, PHASE.MAIN);
+});
+
+test("the key race never ships an answer to a client", () => {
+  const m = keyMatch(3, 2);
+  const v = publicView(m, "u0");
+  assert.equal(v.game, "keys");
+  assert.equal(v.answerCount, 10);
+  assert.equal(v.current.index, 0);
+  assert.ok(Array.isArray(v.current.options) && v.current.options.length === 4);
+  assert.equal(v.current.answer, undefined, "the answer is the one field that must never ship");
+  const json = JSON.stringify(v);
+  assert.ok(!json.includes('"answers"'), "the answer list leaked");
+  assert.ok(!json.includes('"questions"'), "the question list leaked");
+
+  submitAnswer(m, "u0", kAnswer(m, 0), { now: T0 + 900 });
+  assert.equal(publicView(m, "u0").current.index, 1, "one question at a time");
+  assert.equal(publicView(m, "u1").current.index, 0);
+});
+
+test("the tiebreak view names the contenders and their scores without the answers", () => {
+  const m = keyMatch(1, 2);
+  startSuddenDeath(m, T0 + 5000, 12);
+  submitAnswer(m, "u0", m.sudden_death.answers[0], { now: T0 + 6000 });
+  const v = publicView(m, "u0");
+  assert.equal(v.phase, PHASE.SUDDEN_DEATH);
+  assert.equal(v.suddenDeath.round, 1);
+  assert.deepEqual(v.suddenDeath.contenders.sort(), ["u0", "u1"]);
+  assert.equal(v.endsAt, m.sudden_death.ends_at, "the clock shown is the tiebreak's, not the round's");
+  assert.equal(v.current.suddenDeath, true);
+  assert.equal(v.current.kind, "scale");
+  assert.equal(v.current.answer, undefined);
+  assert.equal(v.players.find((p) => p.userId === "u0").sdCorrect, 1);
+});
+
+test("key matches queue separately from the other two games", () => {
+  const mm = createMatchmaker({ now: () => T0 });
+  mm.enqueue("a", "A", 1, 2, "keys");
+  assert.equal(mm.enqueue("b", "B", 1, 2, "chords").match, null);
+  assert.equal(mm.queueLength(1, "keys"), 1);
+  const formed = mm.enqueue("c", "C", 1, 2, "keys");
+  assert.equal(formed.match.game, "keys");
+  assert.equal(formed.match.passage.answers.length, 10);
 });

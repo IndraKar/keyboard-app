@@ -64,15 +64,36 @@ export function diatonicToMidi(dia, alter = {}) {
   return (oct + 1) * 12 + LETTER_PC[step] + (alter[letter] ?? 0);
 }
 
-/** Deterministic PRNG so a match can be regenerated from its seed for audit. */
+/**
+ * Deterministic PRNG so a match can be regenerated from its seed for audit.
+ *
+ * The seed is MIXED before use and the first few outputs are discarded, and
+ * both steps are load-bearing. Raw xorshift32 on a small integer seed produces a
+ * tiny first output — for seeds 1..2000 the first value never exceeded 2/15 —
+ * and every generator here spends its first draw on its most consequential
+ * choice. The symptom was silent and specific: reading level 3 chose its key
+ * with that first draw and so was ALWAYS G major and never F, level 4 always D
+ * and never B♭, level 5 always A and never E♭, and the first chord of every
+ * Chord Race was Major. Half the promised key signatures were unreachable and
+ * nothing ever errored.
+ *
+ * Fixed with a splitmix-style finalizer on the seed plus a four-step warm-up.
+ * Determinism is unchanged — the same seed still yields the same round, just a
+ * round drawn from the whole distribution.
+ */
 export function makeRng(seed) {
-  let s = seed >>> 0 || 1;
-  return () => {
+  let s = (seed >>> 0) || 0x9e3779b9;
+  s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
+  s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
+  s = ((s ^ (s >>> 16)) >>> 0) || 0x9e3779b9;
+  const next = () => {
     s ^= s << 13; s >>>= 0;
-    s ^= s >> 17;
-    s ^= s << 5; s >>>= 0;
+    s ^= s >>> 17;              // unsigned: >> would sign-extend past 2^31
+    s ^= s << 5;  s >>>= 0;
     return s / 4294967296;
   };
+  for (let i = 0; i < 4; i++) next();
+  return next;
 }
 
 /**

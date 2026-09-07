@@ -403,6 +403,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .opts.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .opts.grid2 .opt{justify-content:center;text-align:center;padding:12px 10px;font-size:13px}
 .playbtn.sm{width:72px;height:72px;box-shadow:0 0 0 8px rgba(255,138,61,.07)}
+.sdbanner{margin:8px 0 2px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.45;
+  background:rgba(228,178,86,.10);border:1px solid rgba(228,178,86,.35);color:var(--gold)}
+.teach{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--surface);
+  border:1px solid var(--border);font-size:12.5px;line-height:1.45;text-align:left;
+  display:flex;flex-direction:column;gap:6px}
+.teachscale{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
+  font-size:14px;letter-spacing:.06em;color:var(--gold)}
 .faint.good{color:var(--good);font-weight:600}
 .faint.bad{color:var(--bad);font-weight:600}
 </style>
@@ -410,7 +417,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 <div class="app">
   <div class="topbar">
     <div class="brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="14" width="3" height="7" rx="1" fill="#ff8a3d"/><rect x="9" y="9" width="3" height="12" rx="1" fill="#ff8a3d"/><rect x="15" y="4" width="3" height="17" rx="1" fill="#ff8a3d"/><path d="M16.5 1.5L18.2 4L16.5 6.5L14.8 4Z" fill="#f5f1ec"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#0b0908"/><rect x="0" y="0" width="4.8" height="24" fill="#f4ece0"/><rect x="4.8" y="0" width="4.8" height="24" fill="#f4ece0"/><rect x="9.6" y="0" width="4.8" height="24" fill="#ff8a3d"/><rect x="14.4" y="0" width="4.8" height="24" fill="#f4ece0"/><rect x="19.2" y="0" width="4.8" height="24" fill="#f4ece0"/><rect x="3.4" y="0" width="2.8" height="14" rx="1" fill="#151110"/><rect x="8.2" y="0" width="2.8" height="14" rx="1" fill="#151110"/><rect x="17.8" y="0" width="2.8" height="14" rx="1" fill="#151110"/></svg>
       <div class="wordmark">KEYVORIA</div>
     </div>
     <div class="xppill tnum"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2C12 2 6 9 6 14a6 6 0 0012 0c0-2-1-3.5-2-5 0 2-1 3-2 3-1.5 0-2-1.5-1-3.5C13.5 6 12 4 12 2z" fill="#ff8a3d"/></svg><span id="xpLabel">0</span> XP</div>
@@ -427,16 +434,16 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 const SAVE_KEY = "keyvoria.v1";
 const DEFAULTS = {
   xp: 0, lifetimeXp: 0,
-  unlocked: { ear: 1, sight: 1, repeat: 1 },
+  unlocked: { ear: 1, sight: 1, keys: 1, repeat: 1 },
   premium: false, cancelPending: false,
   noteNames: true,
   exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
   /* mastery */
-  tierCorrect: { ear:[0,0,0,0], sight:[0,0,0,0], repeat:[0,0,0,0] },
-  perfectByCat: { ear:0, sight:0, repeat:0 },
+  tierCorrect: { ear:[0,0,0,0], sight:[0,0,0,0], keys:[0,0,0,0], repeat:[0,0,0,0] },
+  perfectByCat: { ear:0, sight:0, keys:0, repeat:0 },
   perfectSessions: 0,
   badges: {},                 /* badge id -> earned timestamp */
-  masterBest: { ear:0, sight:0, repeat:0, mixed:0 },
+  masterBest: { ear:0, sight:0, keys:0, repeat:0, mixed:0 },
   masterRuns: 0,
   compWins: 0, compPlayed: 0, compBestNotes: 0,
   /* account & identity */
@@ -495,15 +502,60 @@ function diaToMidi(dia, alter){
 /* Key signatures: accidental order is fixed, so the glyph list is derived, not hand-listed. */
 const SHARP_ORDER = ["F","C","G","D","A","E","B"];
 const FLAT_ORDER  = ["B","E","A","D","G","C","F"];
+/* All fifteen key signatures — seven sharps through seven flats.
+   `name` is the major key (what Sight-Reading and Competition already show);
+   `minor` is its relative, because a signature names both at once and the Key
+   Signatures category asks for the pair. Everything else — which accidentals a
+   signature contains, how each scale is spelled — is DERIVED below, so there is
+   no second copy of the theory that can drift from this one. */
 const KEYS = {
-  C:  {name:"C major",  sharps:0, flats:0},
-  G:  {name:"G major",  sharps:1, flats:0},
-  D:  {name:"D major",  sharps:2, flats:0},
-  A:  {name:"A major",  sharps:3, flats:0},
-  F:  {name:"F major",  sharps:0, flats:1},
-  Bb: {name:"B♭ major", sharps:0, flats:2},
-  Eb: {name:"E♭ major", sharps:0, flats:3}
+  C:  {name:"C major",  minor:"A minor",  tonic:{l:"C",a:0},  mtonic:{l:"A",a:0},  sharps:0, flats:0},
+  G:  {name:"G major",  minor:"E minor",  tonic:{l:"G",a:0},  mtonic:{l:"E",a:0},  sharps:1, flats:0},
+  D:  {name:"D major",  minor:"B minor",  tonic:{l:"D",a:0},  mtonic:{l:"B",a:0},  sharps:2, flats:0},
+  A:  {name:"A major",  minor:"F♯ minor", tonic:{l:"A",a:0},  mtonic:{l:"F",a:1},  sharps:3, flats:0},
+  E:  {name:"E major",  minor:"C♯ minor", tonic:{l:"E",a:0},  mtonic:{l:"C",a:1},  sharps:4, flats:0},
+  B:  {name:"B major",  minor:"G♯ minor", tonic:{l:"B",a:0},  mtonic:{l:"G",a:1},  sharps:5, flats:0},
+  "F#":{name:"F♯ major",minor:"D♯ minor", tonic:{l:"F",a:1},  mtonic:{l:"D",a:1},  sharps:6, flats:0},
+  "C#":{name:"C♯ major",minor:"A♯ minor", tonic:{l:"C",a:1},  mtonic:{l:"A",a:1},  sharps:7, flats:0},
+  F:  {name:"F major",  minor:"D minor",  tonic:{l:"F",a:0},  mtonic:{l:"D",a:0},  sharps:0, flats:1},
+  Bb: {name:"B♭ major", minor:"G minor",  tonic:{l:"B",a:-1}, mtonic:{l:"G",a:0},  sharps:0, flats:2},
+  Eb: {name:"E♭ major", minor:"C minor",  tonic:{l:"E",a:-1}, mtonic:{l:"C",a:0},  sharps:0, flats:3},
+  Ab: {name:"A♭ major", minor:"F minor",  tonic:{l:"A",a:-1}, mtonic:{l:"F",a:0},  sharps:0, flats:4},
+  Db: {name:"D♭ major", minor:"B♭ minor", tonic:{l:"D",a:-1}, mtonic:{l:"B",a:-1}, sharps:0, flats:5},
+  Gb: {name:"G♭ major", minor:"E♭ minor", tonic:{l:"G",a:-1}, mtonic:{l:"E",a:-1}, sharps:0, flats:6},
+  Cb: {name:"C♭ major", minor:"A♭ minor", tonic:{l:"C",a:-1}, mtonic:{l:"A",a:-1}, sharps:0, flats:7}
 };
+const KEY_IDS = Object.keys(KEYS);
+const keyPair = k => KEYS[k].name + " / " + KEYS[k].minor;
+const accidentals = k => KEYS[k].sharps + KEYS[k].flats;
+/* Net position on the circle of fifths: sharps positive, flats negative. Used
+   to pick distractors that are near neighbours, so a question cannot be
+   answered by counting marks instead of reading the key. */
+const keyNet = k => KEYS[k].sharps - KEYS[k].flats;
+const noteText = (l, a) => l + (a > 0 ? "♯" : a < 0 ? "♭" : "");
+
+/* The scale, spelled through the signature. Both the first and the last note
+   are the tonic, which is exactly how a reader identifies the key of a written
+   scale — and why the sudden-death round asks for one. */
+function scaleOfKey(k, mode){
+  const alter = keyAlter(k), t = mode === "minor" ? KEYS[k].mtonic : KEYS[k].tonic;
+  const start = LETTERS.indexOf(t.l), out = [];
+  for(let i=0;i<7;i++){ const l = LETTERS[(start+i)%7]; out.push({l, a: alter[l] || 0}); }
+  out.push(Object.assign({}, out[0]));
+  return out;
+}
+function scaleDias(k, mode, octave){
+  const notes = scaleOfKey(k, mode);
+  const start = LETTERS.indexOf(notes[0].l);
+  return notes.map((n,i) => (octave + Math.floor((start + i) / 7)) * 7 + LETTERS.indexOf(n.l));
+}
+const scaleText = (k, mode) => scaleOfKey(k, mode).map(n => noteText(n.l, n.a)).join(" ");
+function signatureWords(k){
+  const n = accidentals(k);
+  if(!n) return "no sharps or flats";
+  const w = ["","one","two","three","four","five","six","seven"];
+  return w[n] + " " + (KEYS[k].sharps ? "sharp" : "flat") + (n > 1 ? "s" : "");
+}
 function keyAlter(k){
   const K = KEYS[k], out = {};
   for(let i=0;i<K.sharps;i++) out[SHARP_ORDER[i]] = 1;
@@ -583,6 +635,16 @@ const CATS = {
       {n:4,title:"Virtuoso",sub:"Grand-staff range beyond two octaves"}
     ]
   },
+  keys: {
+    key:"keys", name:"Key Signatures", short:"Keys",
+    icon:'<path d="M4 7h16M4 11h16M4 15h16" stroke="#ff8a3d" stroke-width="1.4"/><path d="M8 4v9M11 5v9" stroke="#ff8a3d" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="14.6" r="1.5" fill="#ff8a3d"/><circle cx="11" cy="15.6" r="1.5" fill="#ff8a3d"/>',
+    tiers:[
+      {n:1,title:"Foundations",sub:"C major/A minor, G major/E minor, D major/B minor"},
+      {n:2,title:"Building Fluency",sub:"A, E and B major, and the flat side begins with F"},
+      {n:3,title:"The Far Side",sub:"Six and seven accidentals, and every flat key"},
+      {n:4,title:"Virtuoso",sub:"All fifteen signatures at once"}
+    ]
+  },
   repeat: {
     key:"repeat", name:"Playback & Repeat", short:"Repeat",
     icon:'<path d="M12 3v6M12 3l-3 3M12 3l3 3" stroke="#ff8a3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 21v-6M12 21l-3-3M12 21l3-3" stroke="#ff8a3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -602,12 +664,16 @@ const EXERCISES_PER_SESSION = 5;
    but clearing needs correct exercises. That keeps Master status something you
    earn at the keyboard rather than something a big XP balance can buy. */
 const TIER_CLEAR_TARGET = 12;
-const CAT_KEYS = ["ear","sight","repeat"];
+const CAT_KEYS = ["ear","sight","keys","repeat"];
 
 const tierProgress = (cat,n) => Math.min(TIER_CLEAR_TARGET, S.tierCorrect[cat][n-1]);
 const tierCleared  = (cat,n) => S.unlocked[cat] >= n && S.tierCorrect[cat][n-1] >= TIER_CLEAR_TARGET;
 const categoryMastered = cat => [1,2,3,4].every(n => tierCleared(cat,n));
 const masteredCats = () => CAT_KEYS.filter(categoryMastered);
+/* Derived from CAT_KEYS rather than naming each category, so adding one cannot
+   silently leave it out of the headline number. */
+const bestMasterStreak = () =>
+  Math.max(0, ...CAT_KEYS.concat("mixed").map(c => S.masterBest[c] || 0));
 const isKeyvoriaMaster = () => CAT_KEYS.every(categoryMastered);
 const curriculumPct = () => {
   let done = 0;
@@ -626,6 +692,10 @@ const BADGES = [
     blurb:"Cleared all four Sight-Reading tiers",
     line:()=>"All four tiers cleared",
     test:()=>categoryMastered("sight") },
+  { id:"keys_master",   icon:"🗝️", title:"Key Signatures Master",
+    blurb:"Cleared all four Key Signatures tiers",
+    line:()=>"All fifteen signatures, all four tiers",
+    test:()=>categoryMastered("keys") },
   { id:"repeat_master", icon:"🔄", title:"Playback & Repeat Master",
     blurb:"Cleared all four Playback & Repeat tiers",
     line:()=>"All four tiers cleared",
@@ -776,7 +846,7 @@ let earModeTier = 1;
 let cardBadge = "keyvoria_master";
 let lbMetric = "xp";
 let compLevel = 1;
-let compGame = "reading";     /* "reading" | "chords" — Competition has two games */
+let compGame = "reading";     /* "reading" | "chords" | "keys" — Competition has three games */
 const COMP_MAX_PLAYERS = 8;   /* hard ceiling — see roadmap M7a */
 let compPlayers = 8;
 let session = null;
@@ -898,6 +968,50 @@ function genEar(tier, mode){
   return ex;
 }
 
+/* ---- Key Signatures -----------------------------------------------------
+   Read the signature, name the key. The answer is always a PAIR — a signature
+   with two sharps is D major and B minor at the same time, and asking for only
+   one of them would be teaching a half-truth.
+
+   Tiers widen the pool rather than changing the task, because identifying a
+   signature is recognition: what makes it hard is how many things it could
+   have been. Tier 4 puts all fifteen together, which is a different skill
+   again — not recalling one signature but telling fifteen apart. */
+const KEY_TIER_POOL = {
+  1: ["C","G","D"],
+  2: ["A","B","F","E"],
+  3: ["F#","C#","Bb","Eb","Ab","Db","Gb","Cb"],
+  4: KEY_IDS.slice()
+};
+
+/* Distractors come from the four NEAREST signatures on the circle of fifths.
+   Random ones would let most questions be answered by roughly counting marks,
+   which tests nothing. */
+function keyOptions(answer, pool){
+  const others = pool.filter(k => k !== answer);
+  const near = others.slice().sort((a,b) =>
+    Math.abs(keyNet(a)-keyNet(answer)) - Math.abs(keyNet(b)-keyNet(answer)) || a.localeCompare(b)
+  ).slice(0, 4);
+  return shuffle([answer].concat(shuffle(near).slice(0, Math.min(3, others.length))));
+}
+
+function genKeys(tier, avoid){
+  const pool = KEY_TIER_POOL[tier];
+  const choices = avoid ? pool.filter(k => k !== avoid) : pool;
+  const answer = pick(choices.length ? choices : pool);
+  const clef = Math.random() < 0.5 ? "treble" : "bass";
+  return {
+    kind:"keys", clef, key:answer, dias:[], notes:[], pos:0,
+    prompt:"Which key is this?",
+    hint: accidentals(answer) ? signatureWords(answer) : "an empty signature",
+    answer, options: keyOptions(answer, pool),
+    /* Shown after answering. The scale is the explanation: its first and last
+       note are the tonic, which is how the key is read off the page. */
+    teach: scaleText(answer, "major"),
+    teachMinor: scaleText(answer, "minor")
+  };
+}
+
 /* ---- Sight-Reading ------------------------------------------------------
    Notes are generated as staff positions, then sounded through the key
    signature, so a passage in G major really does ask for F#. */
@@ -967,12 +1081,14 @@ function genMaster(catKey){
   const cat = catKey === "mixed" ? pick(masteredCats().length ? masteredCats() : CAT_KEYS) : catKey;
   if(cat === "ear")   return Object.assign(genEar(4, Math.random()<0.5 ? "interval" : "chord"), {masterCat:cat});
   if(cat === "sight") return Object.assign(genSight(4), {masterCat:cat});
+  if(cat === "keys")  return Object.assign(genKeys(4), {masterCat:cat});
   return Object.assign(genRepeat(4), {masterCat:cat});
 }
 
 function genExercise(catKey, tier, mode){
   if(catKey === "ear")   return genEar(tier, mode);
   if(catKey === "sight") return genSight(tier);
+  if(catKey === "keys")  return genKeys(tier);
   return genRepeat(tier);
 }
 
@@ -1337,7 +1453,7 @@ function screenMenu(){
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" stroke="#ff8a3d" stroke-width="1.6"/><path d="M7 7v12M11 7v12M15 7v12" stroke="#ff8a3d" stroke-width="1.2"/></svg>'+
       'Show note names</span>'+
       '<button class="tg'+(S.noteNames?" on":"")+'" data-act="names" role="switch" aria-checked="'+S.noteNames+'" aria-label="Show note names"><span class="knob"></span></button></div>'+
-    t("ear")+t("sight")+t("repeat")+
+    t("ear")+t("sight")+t("keys")+t("repeat")+
     '<button class="tile gold" data-act="learnmusic">'+
       '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Upload your file</span>'+
@@ -1349,8 +1465,8 @@ function screenMenu(){
       '<span class="ticon">\u{1F3C1}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Competition</span>'+
       '<span class="tsub" style="display:block">'+
-        (S.premium ? 'Reading Race &amp; Chord Race \u00b7 '+(S.compWins||0)+' won'
-                : 'Two games \u00b7 up to '+COMP_MAX_PLAYERS+' players')+'</span></span>'+
+        (S.premium ? 'Three games \u00b7 '+(S.compWins||0)+' won'
+                : 'Three games \u00b7 up to '+COMP_MAX_PLAYERS+' players')+'</span></span>'+
       (S.premium ? '' : '<span class="pill">Premium</span>')+'</button>'+
     premiumPanel()+
     (masteredCats().length
@@ -1358,7 +1474,7 @@ function screenMenu(){
           '<span class="ticon gold" style="font-size:22px">\u{1F3B9}</span>'+
           '<span class="grow"><span class="ttitle" style="display:block">Master Mode</span>'+
           '<span class="tsub" style="display:block">Endless expert challenges · best streak '+
-            Math.max(S.masterBest.ear,S.masterBest.sight,S.masterBest.repeat,S.masterBest.mixed)+'</span></span>'+
+            bestMasterStreak()+'</span></span>'+
           '<span class="pill mastered">Unlocked</span></button>'
       : '')+
   '</div>';
@@ -1463,6 +1579,32 @@ function screenPlay(){
       '<button class="playbtn" data-act="hear" aria-label="Play the sound">'+svg(IC.play,30)+'</button>'+
       '<div class="faint center">Tap to hear it again</div>'+
       '<div class="opts">'+opts+'</div>';
+  }
+  else if(ex.kind === "keys"){
+    let opts = "";
+    ex.options.forEach(o => {
+      let cls = "opt";
+      if(session.state === "done"){
+        cls += " locked";
+        if(o === ex.answer) cls += " right";
+        else if(o === session.picked) cls += " wrong";
+      }
+      opts += '<button class="'+cls+'" data-act="answer" data-val="'+o+'">'+keyPair(o)+
+              (session.state==="done" && o===ex.answer ? " ✓" : "")+'</button>';
+    });
+    /* The staff carries the clef and the signature and nothing else — the
+       question is the signature, so there is no passage to draw. */
+    body = '<div class="row"><span class="eyebrow">'+(ex.clef==="treble"?"Treble clef":"Bass clef")+'</span>'+
+             '<span class="faint">'+ex.hint+'</span></div>'+
+           '<div class="staffcard">'+staffSVG(ex)+'</div>'+
+           '<div class="prompt" style="margin-top:2px">'+ex.prompt+'</div>'+
+           '<div class="opts">'+opts+'</div>'+
+           (session.state === "done"
+             ? '<div class="teach"><span><b>'+keyPair(ex.answer)+'</b> — '+signatureWords(ex.answer)+'.</span>'+
+               '<span class="teachscale">'+ex.teach+'</span>'+
+               '<span class="faint">The first and last note of the scale is the tonic. '+
+               'That is how you name the key.</span></div>'
+             : '');
   }
   else if(ex.kind === "sight"){
     const keyName = ex.key && ex.key !== "C" ? " · " + KEYS[ex.key].name : "";
@@ -1775,7 +1917,7 @@ function screenLeaderboard(){
       '</div>';
   }
   const me = { n:(isPublic() && accountName() ? accountName() : "You (private)"), xp:S.lifetimeXp, acc:accuracyPct(),
-               streak:Math.max(S.masterBest.ear,S.masterBest.sight,S.masterBest.repeat,S.masterBest.mixed),
+               streak:bestMasterStreak(),
                badges:earnedBadges().length, me:true };
   const metric = lbMetric;
   const rows = LB_SAMPLE.concat([me]).sort((a,b)=>b[metric]-a[metric]);
@@ -2404,8 +2546,8 @@ function screenCompGate(){
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">\u{1F3C1}</div>'+
       '<div class="center"><div class="h1">Keyvoria Premium</div>'+
         '<div class="sub" style="margin-top:6px"><b>$5.95 a month</b> to use this feature. '+
-        'Race up to '+COMP_MAX_PLAYERS+' players in two games — read a passage against the clock, '+
-        'or name chords by ear until only one player is left.</div></div>'+
+        'Race up to '+COMP_MAX_PLAYERS+' players in three games \u2014 read a passage against '+
+        'the clock, name chords by ear, or identify key signatures until one player is left.'
       premiumFeatureList()+
       '<button class="btn gold block" data-go="paywall">See Keyvoria Premium — $5.95/month</button>'+
       '<button class="btn ghost block" data-go="home">Not now</button>'+
@@ -2418,7 +2560,7 @@ function screenCompGate(){
 function premiumFeatures(){
   return [
     ["Upload your file", "Any song becomes a MIDI file, sheet music and a tutorial"],
-    ["Competition Mode", "Reading Race and Chord Race, up to "+COMP_MAX_PLAYERS+" players"],
+    ["Competition Mode", "Reading, Chords and Key Signatures \u2014 up to "+COMP_MAX_PLAYERS+" players"],
     ["Tier 4", "The expert tier in Ear Training, Sight-Reading and Playback & Repeat"],
     ["61 keys", "The full 5-octave keyboard those tiers need, up from 32"]
   ];
@@ -2477,7 +2619,7 @@ function genCompPassage(lv){
    The second Competition game. A chord sounds; everyone names its quality.
    One wrong answer is out, and the LAST PLAYER STANDING wins — where the
    reading race is won by finishing first. The two win conditions are the
-   reason to have two games: one is a race, the other is a nerve test.
+   reason to have more than one game: one is a race, the other is a nerve test.
 
    Levels widen the pool of qualities rather than speeding anything up,
    because what makes a chord hard to name is how many things it could be. */
@@ -2489,7 +2631,9 @@ const COMP_CHORD_LEVELS = [
   { n:3, count:12, secs:70, quals:["Major","Minor","Major 7th","Minor 7th","Augmented","Diminished"],
     blurb:"Augmented and diminished too" }
 ];
-const compLevels = () => compGame === "chords" ? COMP_CHORD_LEVELS : COMP_LEVELS;
+const compLevels = () =>
+  compGame === "chords" ? COMP_CHORD_LEVELS :
+  compGame === "keys"   ? COMP_KEY_LEVELS   : COMP_LEVELS;
 
 function genCompChords(lv){
   const L = COMP_CHORD_LEVELS[lv-1];
@@ -2510,42 +2654,146 @@ function genCompChords(lv){
 /* Sound the chord the player is currently on. Notes are spread by 30ms so the
    attack reads as one chord rather than a cluster of separate strikes. */
 function compHear(){
-  if(!comp || comp.over || comp.game !== "chords") return;
+  if(!comp || comp.over) return;
+  if(comp.phase === "sudden_death"){
+    /* Play the scale rather than only drawing it: hearing it run up to its
+       tonic is the other half of naming the key. */
+    const q = comp.sdQ[comp.you.sdPos || 0];
+    if(q) playPhrase(q.notes.map((m,i) => ({ midi:m, at:i*230, dur:430 })));
+    return;
+  }
+  if(comp.game !== "chords") return;
   const c = comp.ex.chords[comp.you.pos];
   if(!c || comp.you.out || comp.you.done) return;
   playPhrase(c.notes.map((m,i) => ({ midi:m, at:i*30, dur:1250 })));
 }
 
+/* ---- Key Signature Race -------------------------------------------------
+   The third Competition game: ten questions, name the signature, one wrong
+   answer is out, last player standing wins.
+
+   The part that needed designing is the ending. Ten questions is short enough
+   that a field of good readers can ALL survive it, and a competition whose
+   common outcome is "no winner" is broken. So a round that ends with two or
+   more players still in goes to SUDDEN DEATH — thirty seconds of "what key is
+   this scale in", most correct wins. Nothing is eliminated there: a wrong
+   answer costs the question and nothing else, because with two players left
+   the first to risk a guess should not lose to someone who answered nothing. */
+const COMP_KEY_LEVELS = [
+  { n:1, count:10, secs:60, pool:KEY_TIER_POOL[1],
+    blurb:"C, G and D and their relative minors" },
+  { n:2, count:10, secs:70, pool:KEY_TIER_POOL[1].concat(KEY_TIER_POOL[2]),
+    blurb:"Up to five sharps, and the flat side begins" },
+  { n:3, count:10, secs:80, pool:KEY_IDS.slice(),
+    blurb:"All fifteen signatures" }
+];
+const COMP_SUDDEN_DEATH_MS = 30000;
+
+function genCompKeys(lv){
+  const L = COMP_KEY_LEVELS[lv-1];
+  const qs = [];
+  for(let i=0;i<L.count;i++){
+    const prev = qs.length ? qs[qs.length-1].answer : null;
+    const choices = prev ? L.pool.filter(k => k !== prev) : L.pool;
+    const answer = pick(choices.length ? choices : L.pool);
+    qs.push({
+      kind:"signature", clef: Math.random() < 0.5 ? "treble" : "bass",
+      key:answer, answer, options: keyOptions(answer, L.pool)
+    });
+  }
+  return { game:"keys", pool:L.pool, questions:qs, answers: qs.map(q => q.answer) };
+}
+
+/* The sudden-death pool. Long on purpose: running out of scales would decide
+   the tiebreak on pool length rather than on either player. */
+function genCompScales(lv, count){
+  const L = COMP_KEY_LEVELS[lv-1];
+  const qs = [];
+  for(let i=0;i<(count||40);i++){
+    const prev = qs.length ? qs[qs.length-1].answer : null;
+    const choices = prev ? L.pool.filter(k => k !== prev) : L.pool;
+    const answer = pick(choices.length ? choices : L.pool);
+    const mode = Math.random() < 0.5 ? "major" : "minor";
+    const dias = scaleDias(answer, mode, 4);
+    qs.push({
+      kind:"scale", mode, clef:"treble", key:answer, answer,
+      dias, notes: dias.map(d => diaToMidi(d, keyAlter(answer))),
+      options: keyOptions(answer, L.pool)
+    });
+  }
+  return qs;
+}
+
+/* Draw the current question: a bare clef-and-signature for the main round, the
+   scale itself for sudden death. Both go through the same staff renderer the
+   rest of the app uses. */
+function compKeyStaff(q){
+  return staffSVG({ clef:q.clef, key:q.key, dias:q.dias || [], notes:q.dias || [], pos:-1 });
+}
+
 let comp = null;
 
 function startComp(level, count){
-  const chords = compGame === "chords";
   const L = compLevels()[level-1];
-  const ex = chords ? genCompChords(level) : genCompPassage(level);
-  const total = chords ? ex.chords.length : ex.notes.length;
+  const chords = compGame === "chords", keysGame = compGame === "keys";
+  const ex = chords ? genCompChords(level) : keysGame ? genCompKeys(level) : genCompPassage(level);
+  const total = chords ? ex.chords.length : keysGame ? ex.questions.length : ex.notes.length;
   const n = Math.max(2, Math.min(COMP_MAX_PLAYERS, count));   /* never exceed the cap */
   const bots = shuffle(BOT_NAMES).slice(0, n-1).map(nm => ({
     name:nm, pos:0, out:false, done:false,
     /* A chord has to be heard before it can be named, so chord bots think for
-       much longer than reading bots — and they are wrong far more often, since
-       naming a quality by ear is harder than finding a key you can see. */
-    ms: chords ? 1500 + rand(2000) : 620 + rand(900),
+       much longer than reading bots. Reading a signature sits between the two:
+       recognition, but not instant. */
+    ms: chords ? 1500 + rand(2000) : keysGame ? 1800 + rand(2600) : 620 + rand(900),
     err: chords ? 0.05 + Math.random()*0.09 + (level-1)*0.03
-               : 0.015 + Math.random()*0.05 + (level-1)*0.004,
-    next: 0
+       : keysGame ? 0.04 + Math.random()*0.07 + (level-1)*0.035
+       : 0.015 + Math.random()*0.05 + (level-1)*0.004,
+    next: 0, sd:0, sdNext:0, sdErr:0
   }));
   comp = {
     game: compGame, level, ex, total, bots, secs:L.secs, endsAt: Date.now() + L.secs*1000,
-    you:{ pos:0, out:false, done:false }, over:false, winner:null, t0:Date.now(), flash:null
+    you:{ pos:0, out:false, done:false, sd:0 }, over:false, winner:null, t0:Date.now(), flash:null,
+    /* Sudden death (Key Signature Race only) */
+    phase:"main", sdQ:null, sdEndsAt:null, sdRound:0
   };
   go("compmatch");
   if(chords) setTimeout(compHear, 450);   /* let the screen settle before the first chord */
   compLoop();
 }
+
+/* Begin the tiebreak. Contenders are everyone NOT eliminated — which includes
+   players who answered all ten, since finishing the round is surviving it. */
+function startCompSuddenDeath(){
+  const standing = comp.bots.filter(b => !b.out);
+  comp.phase = "sudden_death";
+  comp.sdRound++;
+  comp.sdQ = genCompScales(comp.level, 40);
+  comp.sdEndsAt = Date.now() + COMP_SUDDEN_DEATH_MS;
+  comp.flash = null;
+  comp.you.sd = 0; comp.you.sdPos = 0;
+  standing.forEach(b => {
+    b.sd = 0; b.sdNext = 0;
+    /* Naming a scale is harder than reading a signature, and these are the
+       players who just proved they can do the easier thing. */
+    b.sdMs = 2200 + rand(2600);
+    b.sdErr = 0.18 + Math.random()*0.22;
+  });
+  comp.sdPlayers = standing;
+  render();
+  setTimeout(compHear, 400);
+  /* Restart the tick. Both callers reach this through `startCompSuddenDeath();
+     return;`, which ends the frame they were on — without this the tiebreak
+     would render once and then sit there, its clock never checked and a tie
+     never resolving into the next round. */
+  compStop();
+  comp.raf = setTimeout(compLoop, 120);
+}
 function compStop(){ if(comp && comp.raf) clearTimeout(comp.raf); }
 
 function compLoop(){
   if(!comp || comp.over || curScreen !== "compmatch") return;
+  if(comp.phase === "sudden_death") return compSuddenDeathLoop();
+
   const now = Date.now(), total = comp.total;
   comp.bots.forEach(b => {
     if(b.out || b.done) return;
@@ -2560,14 +2808,24 @@ function compLoop(){
   const finisher = comp.bots.find(b => b.done);
   const standing = comp.bots.filter(b => !b.out && !b.done);
   const youStanding = !comp.you.out && !comp.you.done;
+  const survivors = comp.bots.filter(b => !b.out).length + (comp.you.out ? 0 : 1);
 
-  if(comp.you.done)      finishComp("you");
-  else if(finisher)      finishComp(finisher.name);
-  else if(now >= comp.endsAt) finishComp(null);
-  /* Chord Race ends the moment one player is left: that IS the win condition,
-     so playing out the remaining chords alone would be theatre. The reading
-     race deliberately does not do this — there you still have to play it. */
-  else if(comp.game === "chords" && standing.length + (youStanding?1:0) === 1)
+  /* The Key Signature Race is the only game with a tiebreak. A round that ends
+     with two or more players still in is exactly what it exists for — whether
+     they got there by answering all ten or by surviving to the clock. */
+  const roundOver = comp.game === "keys" &&
+    ((comp.you.done || comp.you.out) && standing.length === 0 || now >= comp.endsAt);
+  if(comp.game === "keys" && roundOver && survivors >= 2 && comp.sdRound < 3){
+    startCompSuddenDeath();
+    return;
+  }
+
+  if(comp.you.done && comp.game !== "keys")      finishComp("you");
+  else if(comp.you.done && survivors === 1)      finishComp("you");
+  else if(finisher && comp.game !== "keys")      finishComp(finisher.name);
+  else if(now >= comp.endsAt)                    finishComp(survivors === 1 ? soleSurvivor() : null);
+  else if((comp.game === "chords" || comp.game === "keys") &&
+          standing.length + (youStanding?1:0) === 1 && survivors === 1)
     finishComp(youStanding ? "you" : standing[0].name);
   else {
     const alive = comp.bots.filter(b=>!b.out).length + (comp.you.out ? 0 : 1);
@@ -2575,9 +2833,42 @@ function compLoop(){
     else { renderCompLive(); comp.raf = setTimeout(compLoop, 120); }
   }
 }
-function finishComp(winner){
+
+/* The one player left, by name, or null if that is not the situation. */
+function soleSurvivor(){
+  const bots = comp.bots.filter(b => !b.out);
+  if(!comp.you.out && bots.length === 0) return "you";
+  if(comp.you.out && bots.length === 1) return bots[0].name;
+  return null;
+}
+
+/* Thirty seconds, most correct wins. Nobody is eliminated here. */
+function compSuddenDeathLoop(){
+  if(!comp || comp.over || curScreen !== "compmatch") return;
+  const now = Date.now();
+  comp.sdPlayers.forEach(b => {
+    if(!b.sdNext) b.sdNext = now + b.sdMs;
+    while(b.sdNext <= now){
+      if(Math.random() >= b.sdErr) b.sd++;
+      b.sdNext += b.sdMs;
+    }
+  });
+  if(now >= comp.sdEndsAt){
+    const best = Math.max(comp.you.sd, ...comp.sdPlayers.map(b => b.sd));
+    const leaders = (comp.you.sd === best ? ["you"] : [])
+      .concat(comp.sdPlayers.filter(b => b.sd === best).map(b => b.name));
+    /* A dead-level tie goes again — up to three rounds, after which a shared
+       result beats a loop that never ends. */
+    if(leaders.length > 1 && comp.sdRound < 3){ startCompSuddenDeath(); return; }
+    finishComp(leaders.length === 1 ? leaders[0] : null, "sudden_death");
+    return;
+  }
+  renderCompLive();
+  comp.raf = setTimeout(compLoop, 120);
+}
+function finishComp(winner, reason){
   if(!comp || comp.over) return;
-  comp.over = true; comp.winner = winner;
+  comp.over = true; comp.winner = winner; comp.endReason = reason || null;
   compStop();
   if(winner === "you"){ S.compWins = (S.compWins||0) + 1; }
   S.compPlayed = (S.compPlayed||0) + 1;
@@ -2588,20 +2879,42 @@ function finishComp(winner){
 /* Only the volatile parts repaint each frame; a full render would fight the keyboard. */
 function renderCompLive(){
   const total = comp.total;
-  const left = Math.max(0, Math.ceil((comp.endsAt - Date.now())/1000));
+  const sd = comp.phase === "sudden_death";
+  const left = Math.max(0, Math.ceil(((sd ? comp.sdEndsAt : comp.endsAt) - Date.now())/1000));
   const t = document.getElementById("compclock");
   if(t){ t.textContent = left + "s"; t.className = "compclock tnum" + (left <= 5 ? " urgent" : ""); }
   const list = document.getElementById("complist");
   if(list) list.innerHTML = compRows(total);
   const prog = document.getElementById("compprog");
-  if(prog) prog.textContent = comp.you.pos + " / " + total;
+  if(prog) prog.textContent = sd ? comp.you.sd + " correct" : comp.you.pos + " / " + total;
   const fx = document.getElementById("compflash");
   if(fx){
-    fx.textContent = comp.flash === "right" ? "Correct" : comp.flash === "wrong" ? "Wrong — you are out" : "Tap to hear it again";
+    const idle = sd ? "Answer as many as you can"
+               : comp.game === "keys" ? "One wrong answer and you are out"
+               : "Tap to hear it again";
+    /* A wrong answer is fatal everywhere except the tiebreak, which is a count
+       race — so the message must not tell a contender they are out. */
+    const wrongText = sd ? "Wrong — that one does not count" : "Wrong — you are out";
+    fx.textContent = comp.flash === "right" ? "Correct" : comp.flash === "wrong" ? wrongText : idle;
     fx.className = "faint center" + (comp.flash === "right" ? " good" : comp.flash === "wrong" ? " bad" : "");
   }
 }
 function compRows(total){
+  /* In sudden death only the contenders are listed, scored by correct answers —
+     everyone else is already out and their progress through the main round has
+     stopped meaning anything. */
+  if(comp.phase === "sudden_death"){
+    const best = Math.max(1, comp.you.sd, ...comp.sdPlayers.map(b => b.sd));
+    const rows = [{name:"You", sd:comp.you.sd, me:true}]
+      .concat(comp.sdPlayers.map(b => ({name:b.name, sd:b.sd})));
+    rows.sort((a,b) => b.sd - a.sd);
+    return rows.map(r =>
+      '<div class="crow'+(r.me?" me":"")+'">'+
+        '<span class="cname">'+r.name+'</span>'+
+        '<span class="ctrack"><span class="cfill" style="width:'+Math.round(r.sd/best*100)+'%"></span></span>'+
+        '<span class="cstat tnum">'+r.sd+'</span>'+
+      '</div>').join("");
+  }
   const rows = [{name:"You", pos:comp.you.pos, out:comp.you.out, done:comp.you.done, me:true}]
     .concat(comp.bots.map(b => ({name:b.name, pos:b.pos, out:b.out, done:b.done})));
   rows.sort((a,b) => (b.done?1:0)-(a.done?1:0) || (a.out?1:0)-(b.out?1:0) || b.pos-a.pos);
@@ -2615,14 +2928,17 @@ function compRows(total){
 
 function screenCompSetup(){
   const chords = compGame === "chords";
-  const games = [["reading","Reading Race"],["chords","Chord Race"]].map(([g,label]) =>
+  const games = [["reading","Reading"],["chords","Chords"],["keys","Key Signatures"]].map(([g,label]) =>
     '<button class="seg-opt'+(compGame===g?" active":"")+'" data-act="compgame" data-g="'+g+'">'+label+'</button>').join("");
 
+  const keysGame = compGame === "keys";
   const rows = compLevels().map(L => {
-    const title = chords ? 'Level '+L.n+' \u00b7 '+L.count+' chords'
-                         : 'Level '+L.n+' \u00b7 '+L.notes+' notes';
-    const sub   = chords ? L.quals.join(" \u00b7 ")+' \u00b7 '+L.secs+'s'
-                         : L.bars+' bar'+(L.bars>1?"s":"")+' \u00b7 '+L.blurb+' \u00b7 '+L.secs+'s';
+    const title = chords   ? 'Level '+L.n+' \u00b7 '+L.count+' chords'
+                : keysGame ? 'Level '+L.n+' \u00b7 '+L.count+' questions'
+                           : 'Level '+L.n+' \u00b7 '+L.notes+' notes';
+    const sub   = chords   ? L.quals.join(" \u00b7 ")+' \u00b7 '+L.secs+'s'
+                : keysGame ? L.blurb+' \u00b7 '+L.secs+'s'
+                           : L.bars+' bar'+(L.bars>1?"s":"")+' \u00b7 '+L.blurb+' \u00b7 '+L.secs+'s';
     return '<button class="tier'+(compLevel===L.n?" cur":"")+'" data-act="complevel" data-l="'+L.n+'" style="width:100%;text-align:left">'+
       '<span class="node '+(compLevel===L.n?"cur":"lock")+'">'+L.n+'</span>'+
       '<span class="grow"><span class="tiertitle">'+title+'</span>'+
@@ -2633,8 +2949,12 @@ function screenCompSetup(){
     ? 'A chord is played; name it before anyone else gets it wrong. '+
       '<b>One wrong answer puts you out</b>, and the <b>last player standing wins</b> \u2014 '+
       'you do not have to be fastest, you have to be right.'
-    : 'Play the passage correctly, faster than everyone else. '+
-      '<b>The first wrong note puts you out</b> \u2014 so speed alone will not win it.';
+    : keysGame
+      ? 'Ten signatures, one at a time. <b>One wrong answer puts you out</b> and the '+
+        '<b>last player standing wins</b>. If more than one of you survives all ten, it goes to '+
+        '<b>sudden death</b>: thirty seconds of naming the key a scale is in, most correct wins.'
+      : 'Play the passage correctly, faster than everyone else. '+
+        '<b>The first wrong note puts you out</b> \u2014 so speed alone will not win it.';
 
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
@@ -2654,6 +2974,7 @@ function screenCompSetup(){
 
 function screenCompMatch(){
   if(comp.game === "chords") return screenCompChordMatch();
+  if(comp.game === "keys")   return screenCompKeyMatch();
   const ex = comp.ex, total = comp.total, L = COMP_LEVELS[comp.level-1];
   return '<div class="exhead">'+
       '<button class="iconbtn" data-act="compquit" aria-label="Leave">'+svg(IC.close,13)+'</button>'+
@@ -2691,23 +3012,76 @@ function screenCompChordMatch(){
     '</div>';
 }
 
+/* No keyboard: this game is read, not played. The staff carries the question —
+   a bare signature in the main round, a whole scale in sudden death. */
+function screenCompKeyMatch(){
+  const sd = comp.phase === "sudden_death";
+  const total = comp.total;
+  const q = sd ? comp.sdQ[comp.you.sdPos || 0] : comp.ex.questions[comp.you.pos];
+  const done = !sd && (comp.you.out || comp.you.done);
+  const clock = Math.max(0, Math.ceil(((sd ? comp.sdEndsAt : comp.endsAt) - Date.now())/1000));
+
+  const opts = (q ? q.options : []).map(o =>
+    '<button class="opt'+(done?" locked":"")+'" data-act="compkeyans" data-q="'+o+'">'+keyPair(o)+'</button>'
+  ).join("");
+
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="compquit" aria-label="Leave">'+svg(IC.close,13)+'</button>'+
+      '<div class="compclock tnum" id="compclock">'+clock+'s</div>'+
+      '<div class="faint tnum" id="compprog">'+
+        (sd ? comp.you.sd+' correct' : comp.you.pos+' / '+total)+'</div></div>'+
+    '<div class="exbody">'+
+      '<div class="row"><span class="eyebrow">'+
+        (sd ? 'Sudden death'+(comp.sdRound>1 ? ' \u00b7 round '+comp.sdRound : '')
+            : 'Key Signatures \u00b7 Level '+comp.level)+'</span>'+
+        '<span class="faint">'+(sd ? 'most correct wins' : 'last one standing')+'</span></div>'+
+      (sd ? '<div class="sdbanner">Everyone left is still in it. '+
+              '<b>Name the key of the scale</b> \u2014 most correct in 30 seconds wins. '+
+              'A wrong answer costs you the question, not your place.</div>' : '')+
+      '<div class="staffcard">'+(q ? compKeyStaff(q) : '')+'</div>'+
+      '<div class="prompt" style="margin-top:2px">'+
+        (done ? (comp.you.out ? "You are out" : "Round complete")
+              : sd ? "Which key is this scale in?" : "Which key is this?")+'</div>'+
+      (sd ? '<button class="btn ghost sm" style="margin:0 auto" data-act="comphear">'+
+              'Hear the scale again</button>' : '')+
+      '<div class="faint center" id="compflash">'+
+        (sd ? "Answer as many as you can" : "One wrong answer and you are out")+'</div>'+
+      '<div class="opts grid2">'+opts+'</div>'+
+      '<div class="complist" id="complist">'+compRows(total)+'</div>'+
+    '</div>';
+}
+
 function screenCompResult(){
-  const won = comp.winner === "you", total = comp.total, chords = comp.game === "chords";
+  const won = comp.winner === "you", total = comp.total;
+  const chords = comp.game === "chords", keysGame = comp.game === "keys";
+  const bySd = comp.endReason === "sudden_death";
   const outcome = won
-      ? (chords ? "Last one standing — with every chord named right." : "Cleared it first, with no mistakes.")
+      ? bySd ? "You named more scales than anyone in the tiebreak."
+      : chords ? "Last one standing — with every chord named right."
+      : keysGame ? "Last one standing — every signature read correctly."
+      : "Cleared it first, with no mistakes."
       : comp.you.out
-        ? (chords ? "You named a chord wrong — that ends your run." : "You played a wrong note — that ends your run.")
+        ? chords ? "You named a chord wrong — that ends your run."
+        : keysGame ? "You named a signature wrong — that ends your run."
+        : "You played a wrong note — that ends your run."
         : comp.winner
-          ? (chords ? "Everyone else was still in it when you went out." : "Someone finished before you did.")
+          ? bySd ? "Someone named more scales than you in the tiebreak."
+          : chords ? "Everyone else was still in it when you went out."
+          : "Someone finished before you did."
+          : bySd ? "The tiebreak stayed level — this one is shared."
           : "Time ran out with nobody finished.";
   return '<div class="stack center" style="justify-content:center;flex:1">'+
-    '<div class="eyebrow">'+(chords?"Chord Race":"Reading Race")+' \u00b7 Level '+comp.level+
+    '<div class="eyebrow">'+(chords?"Chord Race":keysGame?"Key Signature Race":"Reading Race")+
+      (bySd ? ' \u00b7 sudden death' : '')+' \u00b7 Level '+comp.level+
       ' \u00b7 '+(comp.bots.length+1)+' players</div>'+
     '<div class="bigxp" style="font-size:34px">'+(won ? "\u{1F3C6} You win" : comp.winner ? comp.winner+" wins" : "No winner")+'</div>'+
     '<div class="sub">'+outcome+'</div>'+
     '<div class="card" style="text-align:left">'+
-      '<div class="kv"><span class="kvk">'+(chords?"Chords named":"Your notes")+'</span>'+
+      '<div class="kv"><span class="kvk">'+
+          (chords?"Chords named":keysGame?"Signatures read":"Your notes")+'</span>'+
         '<span class="kvv tnum">'+comp.you.pos+' of '+total+'</span></div>'+
+      (bySd ? '<div class="kv"><span class="kvk">Scales named in the tiebreak</span>'+
+        '<span class="kvv tnum">'+comp.you.sd+'</span></div>' : '')+
       '<div class="kv"><span class="kvk">Matches won</span><span class="kvv tnum">'+(S.compWins||0)+'</span></div>'+
       '<div class="kv"><span class="kvk">Matches played</span><span class="kvv tnum">'+(S.compPlayed||0)+'</span></div>'+
     '</div>'+
@@ -3012,6 +3386,35 @@ document.addEventListener("click", e => {
     case "compstart": startComp(compLevel, compPlayers); break;
     case "compquit": compStop(); allOff(); comp = null; go("compsetup"); break;
     case "comphear": comp.flash = null; renderCompLive(); compHear(); break;
+    case "compkeyans": {
+      if(!comp || comp.over || comp.game !== "keys") break;
+      const q = el.dataset.q;
+
+      if(comp.phase === "sudden_death"){
+        /* A count race: a wrong answer costs the question, never your place. */
+        const want = comp.sdQ[comp.you.sdPos || 0];
+        if(!want) break;
+        if(q === want.answer) comp.you.sd++;
+        comp.you.sdPos = (comp.you.sdPos || 0) + 1;
+        comp.flash = q === want.answer ? "right" : "wrong";
+        render();
+        setTimeout(() => { if(comp && !comp.over && comp.phase === "sudden_death"){
+          comp.flash = null; render(); compHear();
+        } }, 420);
+        break;
+      }
+
+      if(comp.you.out || comp.you.done) break;
+      if(q !== comp.ex.answers[comp.you.pos]){
+        comp.you.out = true; comp.flash = "wrong";
+        render(); compLoop(); break;
+      }
+      comp.you.pos++; comp.flash = "right";
+      if(comp.you.pos >= comp.total){ comp.you.done = true; render(); compLoop(); break; }
+      render();
+      setTimeout(() => { if(comp && !comp.over && comp.phase === "main"){ comp.flash = null; render(); } }, 380);
+      break;
+    }
     case "compans": {
       if(!comp || comp.over || comp.game !== "chords") break;
       if(comp.you.out || comp.you.done) break;
@@ -3039,7 +3442,7 @@ document.addEventListener("click", e => {
     case "lbmetric": lbMetric = el.dataset.metric; render(); break;
     case "reset":
       if(confirm("Reset all XP, unlocks and practice history?")){
-        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,repeat:1}, account:null, visibility:"private"});
+        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
         save(); toast("Progress reset", true); go("home");
       }
       break;

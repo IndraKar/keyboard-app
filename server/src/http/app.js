@@ -22,6 +22,8 @@ import {
 import { handleWebhook, sweep } from "../billing/webhooks.js";
 import { LEVELS } from "../competition/passage.js";
 import { CHORD_LEVELS, CHORD_LABELS } from "../competition/chords.js";
+import { KEY_LEVELS } from "../competition/keys.js";
+import { KEYS as KEY_SIGNATURES, KEY_TIERS, keyLabel } from "../theory/keysignatures.js";
 import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
 import { verifyToken, issueToken } from "./tokens.js";
 import { verifySignature } from "./signature.js";
@@ -30,7 +32,7 @@ const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial Do
 const PROVIDERS = new Set(["stripe", "apple_app_store", "google_play"]);
 
 /** Ladders per game, so one lookup answers "is this a real level?" for both. */
-const LADDERS = { reading: LEVELS, chords: CHORD_LEVELS };
+const LADDERS = { reading: LEVELS, chords: CHORD_LEVELS, keys: KEY_LEVELS };
 const validGame = (g) => (Object.hasOwn(LADDERS, g) ? g : null);
 const validLevel = (game, level) => Number.isInteger(level) && !!LADDERS[game][level - 1];
 
@@ -165,7 +167,17 @@ export function createApp({
           games: [
             { id: "reading", label: GAMES.reading.label, wonBy: "first to finish", levels: LEVELS },
             { id: "chords", label: GAMES.chords.label, wonBy: "last player standing", levels: CHORD_LEVELS },
+            {
+              id: "keys", label: GAMES.keys.label,
+              wonBy: "last player standing, then sudden death",
+              levels: KEY_LEVELS.map(({ level, questions, seconds, blurb }) => ({ level, questions, seconds, blurb })),
+              suddenDeathMs: 30_000,
+            },
           ],
+          keySignatures: KEY_SIGNATURES.map((k) => ({
+            id: k.id, label: keyLabel(k), sharps: k.sharps, flats: k.flats,
+          })),
+          keyTiers: KEY_TIERS,
           chordLabels: CHORD_LABELS,
           maxPlayers: MAX_PLAYERS,
           minPlayers: MIN_PLAYERS,
@@ -357,6 +369,13 @@ export function createApp({
           if (match.game === "chords") {
             answer = String(body.answer ?? "");
             if (!match.passage.qualities.includes(answer)) {
+              return send(res, 400, { error: "invalid_answer" });
+            }
+          } else if (match.game === "keys") {
+            answer = String(body.answer ?? "");
+            // Must be one of the fifteen real signatures. Checking against the
+            // question's own options would leak which four were offered.
+            if (!KEY_SIGNATURES.some((k) => k.id === answer)) {
               return send(res, 400, { error: "invalid_answer" });
             }
           } else {

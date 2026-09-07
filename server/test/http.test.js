@@ -324,11 +324,21 @@ test("an oversized body is refused before it is parsed", async () => {
 
 // ------------------------------------------------------ Chord Race over HTTP
 
-test("the levels endpoint advertises both games and how each is won", async () => {
+test("the levels endpoint advertises all three games and how each is won", async () => {
   await withServer({}, async ({ call }) => {
     const r = await call("GET", "/v1/competition/levels");
-    assert.equal(r.body.games.length, 2);
-    const [reading, chords] = r.body.games;
+    assert.equal(r.body.games.length, 3);
+    const [reading, chords, keys] = r.body.games;
+    assert.equal(keys.id, "keys");
+    assert.equal(keys.levels.length, 3);
+    assert.equal(keys.levels[0].questions, 10, "ten questions, as specified");
+    assert.match(keys.wonBy, /sudden death/);
+    assert.equal(keys.suddenDeathMs, 30_000);
+    assert.equal(r.body.keySignatures.length, 15, "all fifteen signatures ship to the client");
+    assert.deepEqual(r.body.keyTiers["1"], ["C", "G", "D"]);
+    assert.deepEqual(r.body.keyTiers["2"], ["A", "B", "F", "E"]);
+    assert.equal(r.body.keyTiers["3"].length, 8);
+    assert.equal(r.body.keyTiers["4"].length, 15);
     assert.equal(reading.id, "reading");
     assert.equal(reading.levels.length, 5);
     assert.equal(chords.id, "chords");
@@ -423,5 +433,84 @@ test("a private chord lobby is created, joined and started as one", async () => 
     const started = await call("POST", "/v1/competition/private/start", { token: host, body: { code: made.body.code } });
     assert.equal(started.body.match.state, "running");
     assert.equal(started.body.match.answerCount, 12);
+  });
+});
+
+// ----------------------------------------------- Key Signature Race over HTTP
+
+test("a key race over HTTP: ten questions, one wrong is out, survivor wins", async () => {
+  await withServer({ devAuth: true }, async ({ call, matchmaker }) => {
+    const a = dev("kay"), b = dev("lee");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "keys", level: 1, players: 2, displayName: "Kay" } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "keys", level: 1, players: 2, displayName: "Lee" } });
+    const view = q.body.match;
+    assert.equal(view.game, "keys");
+    assert.equal(view.answerCount, 10);
+    assert.equal(view.round.suddenDeathMs, 30_000);
+    assert.equal(view.current.kind, "signature");
+    // Three options at level 1, because its pool IS three signatures. A fourth
+    // would have to be drawn from a tier the player has not been taught yet.
+    assert.equal(view.current.options.length, 3);
+    assert.equal(view.current.answer, undefined, "the answer must never reach a client");
+
+    const id = view.id;
+    const truth = matchmaker.get(id).passage.answers;
+
+    const right = await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: truth[0], clientElapsedMs: 900 } });
+    assert.equal(right.body.correct, true);
+    assert.equal(right.body.match.current.index, 1);
+
+    const wrong = await call("POST", `/v1/competition/match/${id}/answer`, { token: b, body: { answer: truth[0] === "C" ? "G" : "C" } });
+    assert.equal(wrong.body.eliminated, true);
+    assert.equal(wrong.body.match.state, "finished");
+    assert.equal(wrong.body.match.endReason, "last_standing");
+    assert.equal(wrong.body.match.winnerUserId, "kay");
+  });
+});
+
+test("two survivors reach sudden death over HTTP, and the tiebreak is scored there", async () => {
+  await withServer({ devAuth: true }, async ({ call, matchmaker }) => {
+    const a = dev("kay"), b = dev("lee");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "keys", level: 1, players: 2 } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "keys", level: 1, players: 2 } });
+    const id = q.body.match.id;
+    const truth = matchmaker.get(id).passage.answers;
+
+    // Both answer all ten correctly.
+    let last;
+    for (const t of [a, b]) {
+      for (let i = 0; i < 10; i++) {
+        last = await call("POST", `/v1/competition/match/${id}/answer`, { token: t, body: { answer: truth[i], clientElapsedMs: 500 * (i + 1) } });
+      }
+    }
+    const view = last.body.match;
+    assert.equal(view.state, "running", "ten questions with nobody out cannot be the end");
+    assert.equal(view.phase, "sudden_death");
+    assert.deepEqual(view.suddenDeath.contenders.sort(), ["kay", "lee"]);
+    assert.equal(view.current.kind, "scale", "the tiebreak asks what key the scale is in");
+    assert.equal(view.current.notes.length, 8);
+    assert.equal(view.current.midi.length, 8);
+    assert.equal(view.current.answer, undefined);
+
+    const sd = matchmaker.get(id).sudden_death;
+    const r = await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: sd.answers[0], clientElapsedMs: 1200 } });
+    assert.equal(r.body.correct, true);
+    assert.equal(r.body.eliminated, false, "the tiebreak eliminates nobody");
+    assert.equal(r.body.match.players.find((p) => p.userId === "kay").sdCorrect, 1);
+  });
+});
+
+test("an answer that is not one of the fifteen signatures is refused", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const a = dev("kay"), b = dev("lee");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "keys", level: 1, players: 2 } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "keys", level: 1, players: 2 } });
+    const id = q.body.match.id;
+    assert.equal((await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: "H" } })).status, 400);
+    assert.equal((await call("POST", "/v1/competition/queue", { token: a, body: { game: "keys", level: 4 } })).status, 400);
   });
 });

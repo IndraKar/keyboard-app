@@ -108,7 +108,7 @@ milestone lands.
   collection cannot.
 - A handful (3–5) of placeholder lessons per tier per category to validate the
   pipeline, not full V1 content volume (that's M4).
-**Exit criteria:** a user can open any of the three tiered categories from the Main
+**Exit criteria:** a user can open any of the four tiered categories from the Main
 Menu, see that category's Tier Ladder with tier 1 unlocked and later tiers visibly
 locked with a cost, complete a tier-1 theory/ear-training lesson with progress
 persisted (`user_progress`, §4.8), and reach every implemented category from the
@@ -341,14 +341,14 @@ best-effort output unambiguously marked as an estimate throughout the UI.
 
 ## M7a — Competition Mode
 
-> **Build status.** The engine is built and tested in `server/` — **both games**,
+> **Build status.** The engine is built and tested in `server/` — **all three games**,
 > server-side round generation, server-authoritative elimination, matchmaking
 > (queued per game *and* per level), private code lobbies, and local-clock ranking
 > with validation. Matches are polled over HTTP; the realtime channel is a
 > transport swap, not a redesign. The client side (a Competition screen wired to
 > this API rather than to the prototype's simulated opponents) is not built.
 >
-> **Two games, one engine.** Chord Race (PRD F-13b) was added after the Reading
+> **Three games, one engine.** Chord Race (PRD F-13b) was added after the Reading
 > Race was already working, and reused all of it — elimination, ranking, the
 > settle window, matchmaking, lobbies. The two games disagree in exactly two
 > declared places: `lastStanding` (Chord Race is won by outlasting, the Reading
@@ -403,8 +403,10 @@ and would feel it without being able to name it. Latency then affects when resul
 belongs in the first implementation rather than a later fairness pass.
 
 **Deliverables:**
-- **Two games** (PRD F-13a/F-13b): Reading Race, five levels, won by finishing first;
-  Chord Race, three levels, won by being the last player standing.
+- **Three games** (PRD F-13a/b/c): Reading Race, five levels, won by finishing first;
+  Chord Race, three levels, won by outlasting; Key Signature Race, three levels of ten
+  questions, won by outlasting and then — if two or more survive — by a thirty-second
+  sudden-death round of naming the key a scale is in.
 - Level ladders (bars/notes/time/key for one, chord count/time/qualities for the other)
   as content data, not constants, so balance can be retuned without a release.
 - Passage generation reusing the existing sight-reading generator with a per-level key
@@ -419,7 +421,9 @@ belongs in the first implementation rather than a later fairness pass.
   rejects impossibly fast reported times.
 - Live roster over a realtime channel; eliminated players remain visible.
 - `competition_matches` / `competition_entrants` (§4.11a); **no XP writes**.
-**Exit criteria:** both games are playable end to end; a Chord Race ends the moment one
+**Exit criteria:** all three games are playable end to end; a Key Signature Race that
+ends with two or more players still in goes to sudden death rather than declaring no
+winner, and a dead-level tiebreak terminates rather than looping; a Chord Race ends the moment one
 player is left, while a Reading Race with one survivor does not; a chord player is never
 matched into a reading lobby; eight clients see the same round and the same winner; a lobby
 request for nine or more is clamped to eight by the server; a client patched to skip a

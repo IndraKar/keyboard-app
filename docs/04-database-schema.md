@@ -296,13 +296,13 @@ to) as a gamification one.
 
 **`category_tiers`**
 `id`, `category` (enum: ear_training / sight_reading / playback_repeat — exactly
-Keyvoria's three tiered categories; Upload your file has no tier ladder, it's gated
+Keyvoria's four tiered categories; Upload your file has no tier ladder, it's gated
 purely by `entitlements`, §4.11), `tier_number` (int, **1–4** — every category has
 exactly four tiers, per PRD §1.4), `title`, `description`, `xp_cost` (int),
 `required_plan` (enum: free / premium). Unique on `(category, tier_number)`. Every
 curated `lessons` row (§4.3) belongs to exactly one of these via `lessons.tier_id`.
 
-The tier rule is uniform across all three categories, and seed data must satisfy it
+The tier rule is uniform across all four categories, and seed data must satisfy it
 (worth a CHECK constraint or a seed-validation test, since the whole pricing story
 depends on it holding):
 
@@ -416,7 +416,7 @@ answer, and both are why this gets its own structure:
 
 **`practice_intervals`**
 `id`, `user_id → users`, `category` (enum, nullable — null for Upload your file and
-Library practice, which sit outside the three tiered categories), `source_type`
+Library practice, which sit outside the four tiered categories), `source_type`
 (enum: attempt / ear_training_session / repeat_session / learn_my_music),
 `source_id` (uuid, the row in whichever table above), `started_at`, `ended_at`,
 `active_seconds` (int). Written once when a session closes.

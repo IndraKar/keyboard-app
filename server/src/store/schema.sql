@@ -41,10 +41,11 @@ CREATE TABLE IF NOT EXISTS processed_webhook_events (
 
 CREATE TABLE IF NOT EXISTS competition_matches (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  -- Two games share this table: 'reading' (race the passage, first to finish
-  -- wins) and 'chords' (name the quality, last player standing wins). They have
-  -- different ladder lengths, hence the per-game level check below.
-  game            text NOT NULL DEFAULT 'reading' CHECK (game IN ('reading','chords')),
+  -- Three games share this table: 'reading' (race the passage, first to finish
+  -- wins), 'chords' (name the quality, last standing wins) and 'keys' (name the
+  -- key signature, last standing then sudden death). They have different ladder
+  -- lengths, hence the per-game level check below.
+  game            text NOT NULL DEFAULT 'reading' CHECK (game IN ('reading','chords','keys')),
   level           smallint NOT NULL CHECK (level BETWEEN 1 AND 5),
   -- 8 is the hard cap (roadmap M7a). Enforced in the database as well as the
   -- service, so no future code path can quietly seat a ninth player.
@@ -60,17 +61,26 @@ CREATE TABLE IF NOT EXISTS competition_matches (
   ends_at         timestamptz,
   ended_at        timestamptz,
   winner_user_id  uuid REFERENCES users(id),
-  end_reason      text CHECK (end_reason IN ('completed','all_eliminated','timeout','last_standing')),
+  end_reason      text CHECK (end_reason IN
+                    ('completed','all_eliminated','timeout','last_standing','sudden_death','draw')),
+  -- How many tiebreak rounds ran (Key Signature Race only). 0 for a match that
+  -- never needed one; capped in code so this cannot grow without bound.
+  sudden_death_rounds smallint NOT NULL DEFAULT 0 CHECK (sudden_death_rounds BETWEEN 0 AND 3),
   created_at      timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT private_lobbies_have_a_code
     CHECK ((lobby_kind = 'private') = (join_code IS NOT NULL)),
   -- The chord ladder is three levels, not five. Without this a level 5 chord
   -- match would be storable and then ungeneratable.
   CONSTRAINT level_is_on_this_game_s_ladder
-    CHECK (level <= CASE game WHEN 'chords' THEN 3 ELSE 5 END),
+    CHECK (level <= CASE game WHEN 'chords' THEN 3 WHEN 'keys' THEN 3 ELSE 5 END),
   -- Only the reading race is read off a staff.
   CONSTRAINT reading_rounds_have_a_staff
-    CHECK ((game = 'reading') = (clef IS NOT NULL AND key_signature IS NOT NULL))
+    CHECK ((game = 'reading') = (clef IS NOT NULL AND key_signature IS NOT NULL)),
+  -- Only the Key Signature Race has a tiebreak, so only it may record rounds of
+  -- one. A 'draw' is likewise reachable from nowhere else.
+  CONSTRAINT only_the_key_race_has_a_tiebreak
+    CHECK (game = 'keys' OR (sudden_death_rounds = 0 AND end_reason IS DISTINCT FROM 'draw'
+                             AND end_reason IS DISTINCT FROM 'sudden_death'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS competition_open_join_code_idx
@@ -88,6 +98,11 @@ CREATE TABLE IF NOT EXISTS competition_entrants (
   -- validated server-side. Ranking uses THIS, not server arrival time: with
   -- players spread geographically, arrival order ranks pings, not musicians.
   client_elapsed_ms   integer CHECK (client_elapsed_ms IS NULL OR client_elapsed_ms > 0),
+  -- Sudden death is scored separately because it is a count race, not an
+  -- elimination: a wrong answer there costs the question and nothing else.
+  sd_answered         smallint NOT NULL DEFAULT 0,
+  sd_correct          smallint NOT NULL DEFAULT 0 CHECK (sd_correct <= sd_answered),
+  sd_elapsed_ms       integer CHECK (sd_elapsed_ms IS NULL OR sd_elapsed_ms > 0),
   placement           smallint,
   PRIMARY KEY (match_id, user_id)
 );

@@ -41,12 +41,13 @@ onto it, so a user's first interaction is choosing a program rather than reading
 dashboard. It absorbs both what an earlier draft called the separate "Learn tab"
 (since the four categories below *are* the curriculum) and that draft's Home/Dashboard
 tab, which sat in front of it and delayed the choice. V1 keeps it to exactly
-Keyvoria's four major learning categories:
+Keyvoria's five major learning categories:
 
 1. **Ear Training** (F-02a)
 2. **Sight-Reading** (F-02b)
-3. **Playback & Repeat** (F-02c)
-4. **Upload your file** (F-05) — **Premium**
+3. **Key Signatures** (F-02d)
+4. **Playback & Repeat** (F-02c)
+5. **Upload your file** (F-05) — **Premium**
 
 Each category has its own progression, independent of the others (F-03) — a user
 picks which skills to develop rather than being pushed through one linear
@@ -60,12 +61,12 @@ launch simplicity, revisitable post-V1.
 | | Free | Premium (Keyvoria Premium) |
 |---|---|---|
 | On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
-| Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
+| Ear Training / Sight-Reading / Key Signatures / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
 | Upload your file (F-05) | — | Any song → **MIDI file + sheet music + tutorial** |
 | Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
 | Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
 | Create Music (F-11) | — | Compose, edit, notate and export your own music |
-| Competition Mode (F-13) | — | Two games, up to 8 players; one mistake and you are out |
+| Competition Mode (F-13) | — | Three games, up to 8 players; one mistake and you are out |
 
 The full premium inventory, including what is already specified versus genuinely new,
 is in **F-05a**.
@@ -89,7 +90,7 @@ too (F-03) — earning rates and unlock costs are fixed values, not placeholders
 
 ### F-01 Structured learning content
 Content is organized **by category**, not by a level spanning all of them — each
-item below belongs to exactly one of the three tiered categories (Upload your file is
+item below belongs to exactly one of the four tiered categories (Upload your file is
 user-generated and has no authored-content quota of its own):
 
 - **Ear Training** — procedurally generated per F-02a's engine at play time; no
@@ -146,7 +147,7 @@ reframed as tags rather than paths.
   connected real MIDI keyboard is never range-limited by the app regardless of tier;
   the cap exists because the on-screen keyboard *is* the instrument for a free user
   with no hardware, not because the app restricts hardware you already own. The
-  entire free-tier curriculum — **tiers 1–3 in all three categories** — is authored
+  entire free-tier curriculum — **tiers 1–3 in all four categories** — is authored
   to fit within those 32 keys, so a free user with no hardware can complete every free
   tier end to end. **The 61-key keyboard is available only on Keyvoria Premium**, and tier
   4 is where content is deliberately written beyond the 32-key range — which is why the
@@ -250,8 +251,40 @@ the correct staff positions, in the standard order.
   tagged, and organized into this category's own XP-unlocked tier ladder (F-03).
 - Grading covers note accuracy and rhythm/timing, consistent with F-02.
 
+### F-02d Key Signatures
+Read the signature, name the key. Multiple choice, on the same four-tier ladder and
+the same XP rates as every other category (F-03).
+
+**The answer is always a pair.** A signature with two sharps is D major *and* B minor
+at the same time; asking for only one of them would be teaching a half-truth, so every
+option reads "D major / B minor". This also removes an ambiguity that would otherwise
+make some questions unanswerable.
+
+| Tier | Signatures | Why this grouping |
+|---|---|---|
+| **1** | C / Am, G / Em, D / Bm | The three a beginner meets first — none, one sharp, two |
+| **2** | A / F♯m, E / C♯m, B / G♯m, F / Dm | Where the relative minor is itself sharpened, which is the first genuinely confusing step — and F introduces the flat side |
+| **3** | F♯ / D♯m, C♯ / A♯m, B♭ / Gm, E♭ / Cm, A♭ / Fm, D♭ / B♭m, G♭ / E♭m, C♭ / A♭m | Six and seven accidentals, and the whole flat side beyond F |
+| **4** | All fifteen | Not recalling one signature but telling fifteen apart at speed — a different skill from any single tier |
+
+**Tiers widen the pool rather than changing the task**, because identifying a
+signature is recognition: what makes it hard is how many things it could have been.
+Tiers 1–3 partition the fifteen with no overlap and no gaps, so a learner who
+completes all three has met every signature exactly once before tier 4 mixes them.
+
+**Distractors are near neighbours** on the circle of fifths wherever the tier's pool
+allows it — if the answer is three sharps, the wrong options are two and four sharps.
+Random distractors would let most questions be answered by roughly counting marks,
+which tests nothing. Tier 1 offers three options rather than four, because its pool
+*is* three signatures and a fourth would have to come from a tier not yet taught.
+
+**Answering reveals the scale**, spelled through the signature — `A B C♯ D E F♯ G♯ A`
+— with the reminder that its first and last note is the tonic. That is the method for
+reading a key off the page rather than recalling it from a table, and it is also what
+the Competition tiebreak asks for (F-13c).
+
 ### F-02c Playback & Repeat
-Keyvoria's third category, and the home for both a procedurally-generated drill and
+Keyvoria's fourth category, and the home for both a procedurally-generated drill and
 the bulk of F-01's authored play-along content (exercises, chord progressions,
 classical pieces, original songs) — the throughline is "hear something, play it,"
 whether that's a generated note sequence or a real piece of music.
@@ -385,7 +418,7 @@ partly free does not define anything. The decision is recorded here rather than
 silently deleted, because the preview machinery still exists in the prototype and is
 one condition away from returning if the conversion numbers argue for it.
 
-What the free tier keeps is substantial and unchanged: **all three categories through
+What the free tier keeps is substantial and unchanged: **all four categories through
 tier 3, on the 32-key keyboard, with no time limits, no lesson counts and no ads.**
 That is the honest free product. Premium is tier 4, the 61-key keyboard, Upload your
 file, and Competition Mode.
@@ -476,6 +509,7 @@ plans the *gap*, not the whole list again.
 | Advanced Ear Training | Specified — tier 4 of F-02a | F-02a |
 | Advanced Sight-Reading | Specified — tier 4 of F-02b | F-02b |
 | Advanced Playback & Repeat | Specified — tier 4 of F-02c | F-02c |
+| Advanced Key Signatures | Specified — tier 4 of F-02d | F-02d |
 | **Upload your file** — upload your own music | Specified, **renamed** | F-05 |
 | Adjustable playback speeds | Specified — seven fixed steps | F-05 |
 | Section / measure looping | Specified | F-05 |
@@ -494,7 +528,7 @@ Two naming and scope notes, since both would otherwise create phantom work:
   *entry point* — it says what the user does — so Home tile and marketing use
   it, while F-05 remains the feature ID the other documents reference. There is one
   upload pipeline, not two.
-- **"Tier 4 across all four categories" applies to the three tiered categories.**
+- **"Tier 4" applies to the four tiered categories.**
   Upload your file has no tier ladder by design (F-03) — it is user content with no
   authored difficulty to unlock. Its Premium equivalent is full-length songs plus the
   advanced practice tools — the category is Premium end to end, with no free tier of
@@ -537,7 +571,7 @@ Subscription** action:
   mid-cycle; the screen then reads "Premium until 14 March" with a **Resume** action for
   the remainder of that window.
 - **The confirmation states both halves plainly.** What lapses at period end: tier 4
-  relocks in all three categories, the on-screen keyboard returns to 32 keys, and
+  relocks in all four categories, the on-screen keyboard returns to 32 keys, and
   Upload your file uploads become inaccessible. What does *not*: **XP, unlocked tiers
   1–3, progress, streaks and achievements are untouched, and uploaded files are
   retained rather than deleted** — resubscribing restores access instead of starting
@@ -568,7 +602,7 @@ badge you can buy is worth nothing to the person who earned it.
 | Award | Requirement |
 |---|---|
 | **Tier cleared** | Tier unlocked *and* 12 correct exercises played at that tier |
-| **🎧 / 📖 / 🔄 Category Master** | All four tiers cleared in that category |
+| **🎧 / 📖 / 🗝️ / 🔄 Category Master** | All four tiers cleared in that category |
 | **🎹 Keyvoria Master** | All three Category Masters. Requires Premium, since tier 4 is premium |
 | **💯 100% Curriculum Completion** | Keyvoria Master *and* at least one flawless (5/5) session in each category |
 | **🏆 Perfect Score** | Any session answered 5 out of 5 |
@@ -736,7 +770,7 @@ stranger's numbers under the previous user's name.
 
 ### F-13 Competition Mode — Premium
 Live head-to-head play, and one of the two features that require a subscription.
-**Competition has two games.** They share matchmaking, lobbies, the 8-player cap and
+**Competition has three games.** They share matchmaking, lobbies, the 8-player cap and
 the elimination rule, and differ in what they test and how they are won.
 
 #### F-13a Reading Race — first to finish
@@ -788,10 +822,48 @@ note would be a bad race.
 **Chord Race needs no keyboard on screen**, which is what makes room for six answer
 buttons and the live roster at the same time.
 
-#### Rules common to both games
+#### F-13c Key Signature Race — last player standing, then sudden death
+**Ten questions.** A signature is shown; every player names the key. **One wrong
+answer is out**, and the **last player standing wins**.
+
+| Level | Questions | Time | Signatures in play |
+|---|---|---|---|
+| 1 | 10 | **60s** | C, G, D and their relative minors |
+| 2 | 10 | **70s** | Up to five sharps, and the flat side begins with F |
+| 3 | 10 | **80s** | All fifteen |
+
+Levels are **cumulative**, not exclusive — level 2 still asks the level 1 signatures.
+A player who has just learned G major should be able to answer one at level 2, and a
+pool that excluded it would make the middle level harder than the top one for the
+wrong reason.
+
+**Sudden death.** Ten questions is short enough that a field of good readers can *all*
+survive it, and a competition whose common outcome is "no winner" is broken. So a
+round that ends with **two or more players still standing** — whether they answered
+all ten or were still in when the clock ran out — goes to a tiebreak:
+
+- **Thirty seconds.** Scales, one after another: *what key is this scale in?*
+- **Most correct wins.** This is the format because the first and last note of a scale
+  is its tonic (F-02d) — reading that off the page is the same skill under more
+  pressure, not a different one.
+- **Nothing is eliminated here.** A wrong answer costs the question and nothing else.
+  Eliminating on a wrong answer would make the tiebreak a second elimination round
+  rather than the count race it is; with two players left, the first to risk a guess
+  would lose to someone who simply answered nothing.
+- **A tie is broken by the player's own clock**, the same principle the main round
+  uses. Still level, and it runs again — up to **three rounds**, after which a shared
+  result stands. "Keep going until someone wins" is the kind of rule that loops
+  forever the one time it matters, and a draw between two inseparable players is a
+  better outcome than a match that never ends.
+
+Unlike Chord Race, this game is **not meaningfully cheatable**: the client is sent a
+signature to draw and four options to show, and neither reveals which option is right.
+The answer exists only on the server.
+
+#### Rules common to all three games
 - **The round runs until a winner is named.** A match ends when a player completes it,
-  when one player is left (Chord Race), when everyone is eliminated, or when the clock
-  expires — and the outcome is announced either way. "No winner" is a result, not a
+  when one player is left (Chord Race, Key Signature Race), when a tiebreak resolves,
+  when everyone is eliminated, or when the clock expires — and the outcome is announced either way. "No winner" is a result, not a
   hang.
 - **Eliminated players stay on screen**, greyed, showing how far they got. Watching the
   rest of the race is part of the appeal, and vanishing on your first mistake is a bad

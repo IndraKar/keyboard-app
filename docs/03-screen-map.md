@@ -66,13 +66,17 @@ shape.
 
 **This is where Keyvoria opens.** Home is both the landing screen and the
 curriculum — the user's first decision is which program to work on, not which summary
-card to read. Exactly **four** tiles, one per category (PRD §1.4):
+card to read. Exactly **five** tiles, one per category (PRD §1.4):
 
 1. **Ear Training** → this category's Tier Ladder (below)
 2. **Sight-Reading** → this category's Tier Ladder (below) — the drill itself has no
    setup screen, but the category still has a Tier Ladder to browse/unlock from
-3. **Playback & Repeat** → this category's Tier Ladder (below)
-4. **Upload your file** *(Premium badge if not entitled)* → the Premium gate
+3. **Key Signatures** → this category's Tier Ladder (below). Multiple choice, so its
+   exercise screen is the Ear Training shape with a staff instead of a play button:
+   clef and signature on the staff, the key pairs as options, and — once answered —
+   the scale spelled out with the reminder that its first and last note is the tonic.
+4. **Playback & Repeat** → this category's Tier Ladder (below)
+5. **Upload your file** *(Premium badge if not entitled)* → the Premium gate
    (§3.6, step 0) if not entitled, otherwise straight into the upload flow
 
 A **fifth tile, Competition** (PRD F-13, §3.6b) sits alongside them, also badged
@@ -107,7 +111,7 @@ one place**. Four surfaces describing the same subscription is four chances to p
 different things.
 
 **Above the tiles, one compact momentum strip** — the two things the retired Home tab
-did that a landing screen genuinely needs, kept deliberately small so the four tiles
+did that a landing screen genuinely needs, kept deliberately small so the category tiles
 stay the visual focus:
 
 - **Continue** — a single row resuming the last in-progress lesson/upload, shown only
@@ -130,7 +134,7 @@ A **Show Note Names** toggle (PRD F-02a) sits in this screen's header, not per-t
 it's one setting that applies to every keyboard shown anywhere in the app, so it's set
 once from the hub rather than re-toggled per mode.
 
-### 3.3.1 Category Tier Ladder (shared shape, used by all three tiered categories)
+### 3.3.1 Category Tier Ladder (shared shape, used by all four tiered categories)
 
 Tapping Ear Training, Sight-Reading, or Playback & Repeat opens that category's own
 **Tier Ladder** screen before any drill/practice screen — this is what replaced the
@@ -232,7 +236,7 @@ on-screen keyboard (§3.3.1a).
 
 ## 3.4 Shared surfaces: Lesson Player & Session Summary
 
-Used across all three tiered categories, not owned by any one of them:
+Used across all four tiered categories, not owned by any one of them:
 
 - **Lesson Player** (full-screen, entered from a category's Tier Ladder or from
   Library):
@@ -368,9 +372,9 @@ account gets the same **Premium gate** as Upload (§3.6 step 0) — the same lay
 purpose, since it is the same subscription and a user who just read the price should
 recognise the screen the second time.
 
-**Two games share these screens.** A segmented control at the top of Setup switches
-between **Reading Race** and **Chord Race**; the ladder below it, the rules line, and
-the Match screen all follow from that choice.
+**Three games share these screens.** A segmented control at the top of Setup switches
+between **Reading**, **Chords** and **Key Signatures**; the ladder below it, the rules
+line, and the Match screen all follow from that choice.
 
 1. **Setup** — the game switch, then that game's ladder: five levels for Reading Race
    (bars, note count, time limit, key signature), three for Chord Race (chord count,
@@ -391,6 +395,15 @@ the Match screen all follow from that choice.
    columns. Six options and eight roster rows have to share one phone screen, which is
    what the two-column grid and the smaller play button are for. A wrong answer marks
    you OUT immediately; the roster keeps updating while the rest of the field plays on.
+2c. **Match — Key Signature Race** — the same clock and roster, and no keyboard: a
+   staff carrying only a clef and a signature, and the key pairs as answer buttons in
+   two columns. A wrong answer marks you OUT.
+   **Sudden death** replaces the signature with a whole scale, adds a banner
+   explaining the format, and swaps the roster's progress bars for correct-answer
+   counts — the score has changed meaning, so the roster has to as well. It also drops
+   the "one wrong answer and you are out" line, since that is no longer true, and adds
+   a *Hear the scale again* button, because hearing it run up to its tonic is half of
+   naming the key.
 3. **Result** — the winner announced by name, how far you got, and lifetime wins. The
    wording follows the game: *"Cleared it first, with no mistakes"* versus *"Last one
    standing — with every chord named right."* Straight into *Play again* or *Change

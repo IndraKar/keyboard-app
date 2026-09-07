@@ -18,7 +18,7 @@ Everything here is plain Node 22 ESM with **no runtime dependencies**, so it
 runs and tests with no install step:
 
 ```
-npm test     # 90 tests, no network, no database
+npm test     # 122 tests, no network, no database
 npm start    # http://localhost:8787
 ```
 
@@ -30,6 +30,8 @@ npm start    # http://localhost:8787
 | `src/billing/webhooks.js` | Stripe / App Store / Play event normalisation, idempotency, and the missed-webhook sweep. |
 | `src/competition/passage.js` | Reading Race: passage generation, level ladder 1–5 (PRD F-13). |
 | `src/competition/chords.js` | Chord Race: chord generation, level ladder 1–3. |
+| `src/competition/keys.js` | Key Signature Race: ten-question rounds, level ladder 1–3, sudden-death scales. |
+| `src/theory/keysignatures.js` | The fifteen signatures. Everything except the tonics is derived. |
 | `src/competition/match.js` | The match engine: elimination, the settle window, local-clock ranking. |
 | `src/competition/matchmaking.js` | Queue by level; private lobbies by share code. |
 | `src/store/memory.js` | Reference store — six methods. |
@@ -65,11 +67,30 @@ player's own clock exists to prevent. Reported times are validated
 (`MIN_MS_PER_NOTE`), and a time that fails validation falls back to
 server-observed order rather than disqualifying the player.
 
-**Competition has two games, one engine.** Reading Race is won by finishing
-first; Chord Race is won by being the last player not eliminated. Those two
-differences — `lastStanding` and a per-game floor on plausible answer time —
-are declared in the `GAMES` table in `match.js`, and everything else
-(elimination, ranking, the settle window, matchmaking, lobbies) is shared.
+**Competition has three games, one engine.** Reading Race is won by finishing
+first; Chord Race and the Key Signature Race are won by being the last player
+not eliminated. The differences — `lastStanding`, a per-game floor on plausible
+answer time, and `suddenDeath` — are declared in the `GAMES` table in
+`match.js`, and everything else (elimination, ranking, the settle window,
+matchmaking, lobbies) is shared.
+
+**Only the Key Signature Race has a tiebreak.** Ten questions is short enough
+that a field of good readers can all survive it, and a competition whose common
+outcome is "no winner" is broken. Two or more survivors — whether they finished
+all ten or were still standing when the clock ran out — go to thirty seconds of
+"what key is this scale in", most correct wins, ties broken by the player's own
+clock. It repeats up to three times and then allows a draw, because "keep going
+until someone wins" is the kind of rule that loops forever the one time it
+matters. Nothing is eliminated in the tiebreak: a wrong answer costs the
+question and nothing else.
+
+**The theory table is derived, not typed twice.** `theory/keysignatures.js`
+holds fifteen tonics; the accidentals in each signature, every scale spelling
+and every relative minor come out of the sharp/flat order. Getting this wrong is
+silent — an app that teaches B major with four sharps produces confidently
+incorrect students and never throws — so all fifteen are asserted by hand in
+`test/keysignatures.test.js` against expectations written out rather than
+computed.
 
 **Chord Race is cheatable and the reading race is not.** The client has to be
 told which pitches to sound, and anyone reading those pitches can compute the
@@ -104,7 +125,7 @@ seam to replace.
 | `POST /v1/competition/private/start` | host only |
 | `GET /v1/competition/match/:id` | poll the race |
 | `POST /v1/competition/match/:id/note` | reading race: `{midi}` |
-| `POST /v1/competition/match/:id/answer` | Chord Race: `{answer}`, one of the level's qualities |
+| `POST /v1/competition/match/:id/answer` | Chord Race: `{answer}`, a quality. Key Race: `{answer}`, a key id such as `Bb` |
 
 Every `/v1/competition/*` route returns **402** without a live subscription.
 

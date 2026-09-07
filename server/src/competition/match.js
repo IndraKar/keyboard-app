@@ -15,6 +15,7 @@
 
 import { generatePassage, levelSpec } from "./passage.js";
 import { generateChordRound, chordLevelSpec } from "./chords.js";
+import { generateKeyRound, generateScaleRound, keyLevelSpec, SUDDEN_DEATH_MS } from "./keys.js";
 
 /**
  * The two Competition games. Both produce a round with an `answers` array and
@@ -46,6 +47,21 @@ export const GAMES = {
     lastStanding: true,
     minMsPerAnswer: 500, // a chord has to be heard before it can be named
   },
+  keys: {
+    id: "keys",
+    label: "Key Signature Race",
+    generate: (level, seed) => generateKeyRound(level, seed),
+    spec: (level) => keyLevelSpec(level),
+    lastStanding: true,
+    minMsPerAnswer: 400, // reading a signature is recognition, but not instant
+    /**
+     * The only game with a tiebreak. Ten questions is short enough that a field
+     * of good readers can all survive it, and a competition whose common
+     * outcome is "no winner" is broken. Survivors go to thirty seconds of
+     * "what key is this scale in" — most correct wins.
+     */
+    suddenDeath: true,
+  },
 };
 
 export function gameSpec(game) {
@@ -58,11 +74,24 @@ export const MAX_PLAYERS = 8; // roadmap M7a — supersedes an earlier "up to 16
 export const MIN_PLAYERS = 2;
 
 export const MATCH_STATE = { LOBBY: "lobby", RUNNING: "running", FINISHED: "finished" };
+export const PHASE = { MAIN: "main", SUDDEN_DEATH: "sudden_death" };
+
+/**
+ * How many sudden-death rounds may run before a tie is simply allowed to stand.
+ *
+ * A tie survives a round only when two players answer the same number correctly
+ * AND report the same elapsed time to the millisecond, so this is close to
+ * unreachable in practice. It exists because "keep going until someone wins" is
+ * the kind of rule that produces an infinite loop the one time it matters.
+ */
+export const MAX_SUDDEN_DEATH_ROUNDS = 3;
 export const END_REASON = {
   COMPLETED: "completed",
   ALL_ELIMINATED: "all_eliminated",
   TIMEOUT: "timeout",
-  LAST_STANDING: "last_standing", // Chord Race: everyone else went out
+  LAST_STANDING: "last_standing", // Chord/Key Race: everyone else went out
+  SUDDEN_DEATH: "sudden_death",   // the tiebreak named a winner
+  DRAW: "draw",                   // tied through every permitted tiebreak
 };
 
 /**
@@ -107,6 +136,11 @@ export function createMatch({ id, game = "reading", level, lobbyKind = "matched"
     ends_at: null,
     ended_at: null,
     settle_until: null,
+    // Sudden death (Key Signature Race only). `phase` is "main" until a round
+    // ends with two or more players still standing.
+    phase: PHASE.MAIN,
+    sudden_death: null,
+    sd_round: 0,
     winner_user_id: null,
     end_reason: null,
   };
@@ -129,6 +163,11 @@ export function join(match, userId, displayName) {
     finished_at: null,
     client_elapsed_ms: null,
     placement: null,
+    // Sudden death is scored separately: it is a count race, not an
+    // elimination, so it needs its own counters rather than reusing `pos`.
+    sd_pos: 0,
+    sd_correct: 0,
+    sd_elapsed_ms: null,
   });
   return { ok: true };
 }
@@ -151,7 +190,18 @@ export function start(match, now = Date.now()) {
   return { ok: true, match };
 }
 
+/** Still playing: not out, and not yet done. */
 const alive = (m) => [...m.entrants.values()].filter((e) => e.eliminated_at_note === null && !e.finished_at);
+
+/**
+ * Not eliminated — which INCLUDES players who finished the round.
+ *
+ * This is the set the tiebreak is for, and it is deliberately not `alive()`:
+ * someone who answered all ten correctly has survived, not left. Using
+ * `alive()` here produced an empty contender list, a tiebreak nobody was in,
+ * and a draw between no players.
+ */
+const survivors = (m) => [...m.entrants.values()].filter((e) => e.eliminated_at_note === null);
 
 /**
  * Rule on one answer — a key press in the reading race, a named chord quality
@@ -163,11 +213,14 @@ const alive = (m) => [...m.entrants.values()].filter((e) => e.eliminated_at_note
  */
 export function submitAnswer(match, userId, answer, { now = Date.now(), clientElapsedMs = null } = {}) {
   if (match.state !== MATCH_STATE.RUNNING) return { ok: false, reason: "not_running" };
-  const openUntil = Math.max(match.ends_at, match.settle_until ?? 0);
-  if (now > openUntil) return { ok: false, reason: "time_expired" };
 
   const e = match.entrants.get(userId);
   if (!e) return { ok: false, reason: "not_in_match" };
+
+  if (match.phase === PHASE.SUDDEN_DEATH) return submitSuddenDeath(match, e, answer, now, clientElapsedMs);
+
+  const openUntil = Math.max(match.ends_at, match.settle_until ?? 0);
+  if (now > openUntil) return { ok: false, reason: "time_expired" };
   if (e.eliminated_at_note !== null) return { ok: false, reason: "eliminated" };
   if (e.finished_at) return { ok: false, reason: "already_finished" };
 
@@ -191,6 +244,85 @@ export function submitAnswer(match, userId, answer, { now = Date.now(), clientEl
 export const submitNote = submitAnswer;
 
 /**
+ * One sudden-death answer.
+ *
+ * NOTHING IS ELIMINATED HERE. Sudden death asks who can name more scales in
+ * thirty seconds, so a wrong answer costs you the time it took and nothing
+ * else. Eliminating on a wrong answer would make the tiebreak a second
+ * elimination round rather than the count race it is meant to be — and with two
+ * players left, the first person to guess wrong would lose to someone who
+ * simply answered nothing.
+ */
+function submitSuddenDeath(match, e, answer, now, clientElapsedMs) {
+  if (now > match.sudden_death.ends_at) return { ok: false, reason: "time_expired" };
+  if (!match.sudden_death.contenders.includes(e.user_id)) return { ok: false, reason: "not_in_tiebreak" };
+
+  const expected = match.sudden_death.answers[e.sd_pos];
+  if (expected === undefined) return { ok: false, reason: "out_of_questions" };
+
+  const correct = answer === expected;
+  if (correct) e.sd_correct += 1;
+  e.sd_pos += 1;
+  e.sd_elapsed_ms = Number.isFinite(clientElapsedMs) ? clientElapsedMs : e.sd_elapsed_ms;
+
+  return {
+    ok: true, correct, eliminated: false, suddenDeath: true,
+    pos: e.sd_pos, correctCount: e.sd_correct,
+    resolved: resolve(match, now),
+  };
+}
+
+/**
+ * Begin (or repeat) the tiebreak. Contenders keep their main-round standing —
+ * being in sudden death already means you survived all ten.
+ */
+export function startSuddenDeath(match, now = Date.now(), seed) {
+  const contenders = survivors(match).map((e) => e.user_id);
+  if (contenders.length < 2) throw new Error("sudden death needs at least two contenders");
+  match.phase = PHASE.SUDDEN_DEATH;
+  match.sd_round += 1;
+  const round = generateScaleRound(match.level, seed ?? ((Math.random() * 2 ** 32) >>> 0));
+  match.sudden_death = {
+    round: match.sd_round,
+    contenders,
+    questions: round.questions,
+    answers: round.answers,
+    started_at: now,
+    ends_at: now + SUDDEN_DEATH_MS,
+  };
+  for (const id of contenders) {
+    const e = match.entrants.get(id);
+    e.sd_pos = 0;
+    e.sd_correct = 0;
+    e.sd_elapsed_ms = null;
+  }
+  return match;
+}
+
+/**
+ * Rank the tiebreak: most correct, then fastest by the player's own clock —
+ * the same principle the main round uses, for the same reason.
+ * @returns {{winner: string|null, tied: string[]}}
+ */
+export function suddenDeathResult(match) {
+  const sd = match.sudden_death;
+  const rows = sd.contenders.map((id) => match.entrants.get(id));
+  const best = Math.max(...rows.map((e) => e.sd_correct));
+  let leaders = rows.filter((e) => e.sd_correct === best);
+
+  if (leaders.length > 1) {
+    const timed = leaders.filter((e) => Number.isFinite(e.sd_elapsed_ms));
+    if (timed.length === leaders.length) {
+      const fastest = Math.min(...timed.map((e) => e.sd_elapsed_ms));
+      leaders = timed.filter((e) => e.sd_elapsed_ms === fastest);
+    }
+  }
+  return leaders.length === 1
+    ? { winner: leaders[0].user_id, tied: [] }
+    : { winner: null, tied: leaders.map((e) => e.user_id) };
+}
+
+/**
  * Decide whether the match is over, and if so who won.
  *
  * A match ends when someone finishes, when everyone is out, or when the clock
@@ -198,7 +330,9 @@ export const submitNote = submitAnswer;
  */
 export function resolve(match, now = Date.now()) {
   if (match.state === MATCH_STATE.FINISHED) return match;
+  if (match.phase === PHASE.SUDDEN_DEATH) return resolveSuddenDeath(match, now);
 
+  const spec = gameSpec(match.game);
   const finishers = [...match.entrants.values()].filter((e) => e.finished_at);
   const stillAlive = alive(match);
 
@@ -207,7 +341,7 @@ export function resolve(match, now = Date.now()) {
     if (match.settle_until === null) match.settle_until = now + SETTLE_MS;
     // End early only when nobody else could still finish.
     if (stillAlive.length === 0 || now >= match.settle_until) {
-      return finish(match, END_REASON.COMPLETED, now);
+      return endMainRound(match, END_REASON.COMPLETED, now);
     }
     return match;
   }
@@ -216,13 +350,53 @@ export function resolve(match, now = Date.now()) {
   // rest are out, there is nothing to play for and the round ends there. The
   // reading race deliberately does not do this — a lone survivor still has to
   // finish the passage, because that game is a race against the music.
-  if (gameSpec(match.game).lastStanding && stillAlive.length === 1 && match.entrants.size > 1) {
+  if (spec.lastStanding && stillAlive.length === 1 && match.entrants.size > 1) {
     return finish(match, END_REASON.LAST_STANDING, now);
   }
 
   if (stillAlive.length === 0) return finish(match, END_REASON.ALL_ELIMINATED, now);
-  if (now >= match.ends_at) return finish(match, END_REASON.TIMEOUT, now);
+  if (now >= match.ends_at) return endMainRound(match, END_REASON.TIMEOUT, now);
   return match;
+}
+
+/**
+ * The main round is over. Either that settles it, or it does not.
+ *
+ * For a game with a tiebreak, "two or more players still standing" is the case
+ * the tiebreak exists for — whether they got there by finishing all ten
+ * questions or by surviving to the clock. Everything else ends here as usual.
+ */
+function endMainRound(match, reason, now) {
+  const spec = gameSpec(match.game);
+  const left = survivors(match);
+
+  if (spec.suddenDeath && left.length >= 2 && match.sd_round < MAX_SUDDEN_DEATH_ROUNDS) {
+    return startSuddenDeath(match, now);
+  }
+  return finish(match, reason, now);
+}
+
+/**
+ * Sudden death ends when the clock does, or when every contender has answered
+ * the whole pool. A clear leader wins; a tie runs it again, up to the cap.
+ */
+function resolveSuddenDeath(match, now) {
+  const sd = match.sudden_death;
+  const contenders = sd.contenders.map((id) => match.entrants.get(id));
+  const exhausted = contenders.every((e) => e.sd_pos >= sd.answers.length);
+  if (now < sd.ends_at && !exhausted) return match;
+
+  const { winner, tied } = suddenDeathResult(match);
+  if (winner) {
+    match.winner_user_id = winner;
+    return finish(match, END_REASON.SUDDEN_DEATH, now);
+  }
+  if (match.sd_round < MAX_SUDDEN_DEATH_ROUNDS && tied.length >= 2) return startSuddenDeath(match, now);
+
+  // Tied through every permitted round. A shared result is a worse outcome than
+  // a winner, and a better one than a loop that never returns.
+  match.tied_user_ids = tied;
+  return finish(match, END_REASON.DRAW, now);
 }
 
 function finish(match, reason, now) {
@@ -233,6 +407,10 @@ function finish(match, reason, now) {
   ranked.forEach((e, i) => {
     match.entrants.get(e.user_id).placement = i + 1;
   });
+  if (reason === END_REASON.SUDDEN_DEATH || reason === END_REASON.DRAW) {
+    // The tiebreak already decided this; ranking must not overwrite it.
+    return match;
+  }
   const top = ranked[0];
   const wonByOutlasting = reason === END_REASON.LAST_STANDING && top && top.eliminated_at_note === null;
   match.winner_user_id = top && (top.finished_at || wonByOutlasting) ? top.user_id : null;
@@ -266,7 +444,24 @@ export function rank(match) {
     return plausible ? reported : serverMs;
   };
 
+  // When a match went to the tiebreak, the tiebreak IS the ranking for the
+  // players who reached it. Ordering them by their main-round time instead
+  // would put someone second who had just won the sudden death.
+  const sd = match.sudden_death;
+  const inTiebreak = sd ? new Set(sd.contenders) : null;
+
   return entrants.sort((a, b) => {
+    if (inTiebreak) {
+      const aT = inTiebreak.has(a.user_id), bT = inTiebreak.has(b.user_id);
+      if (aT !== bT) return aT ? -1 : 1;
+      if (aT && bT) {
+        if (a.sd_correct !== b.sd_correct) return b.sd_correct - a.sd_correct;
+        const at = Number.isFinite(a.sd_elapsed_ms) ? a.sd_elapsed_ms : Infinity;
+        const bt = Number.isFinite(b.sd_elapsed_ms) ? b.sd_elapsed_ms : Infinity;
+        if (at !== bt) return at - bt;
+        return 0;
+      }
+    }
     const af = !!a.finished_at, bf = !!b.finished_at;
     if (af !== bf) return af ? -1 : 1;
     if (af && bf) return scoreOf(a) - scoreOf(b);
@@ -287,22 +482,40 @@ export function isPlausibleClientTime(match, elapsedMs) {
 }
 
 /**
- * The one chord a player is currently on, and nothing beyond it.
+ * The one question a player is currently on, and nothing beyond it.
  *
- * The client has to be given pitches in order to sound the chord, so it can
- * always derive the current answer (see the note at the top of chords.js). What
- * it must never get is the REST of the round — that would turn a listening game
- * into a lookup, and would let a patched client answer the whole thing at once.
+ * Chord Race has to send pitches (see the note at the top of chords.js), so its
+ * current answer is derivable; the Key Signature Race's is not — a signature and
+ * four options say nothing about which option is right. What both share is that
+ * the REST of the round is never sent, so no client can work ahead.
+ *
  * Returns null once the player is out, finished, or the match is over.
  */
 export function currentFor(match, userId) {
-  if (match.game !== "chords") return null;
   const e = match.entrants.get(userId);
-  if (!e || e.eliminated_at_note !== null || e.finished_at) return null;
-  if (match.state !== MATCH_STATE.RUNNING) return null;
-  const chord = match.passage.chords[e.pos];
-  if (!chord) return null;
-  return { index: e.pos, notes: chord.notes.slice() };
+  if (!e || match.state !== MATCH_STATE.RUNNING) return null;
+
+  if (match.phase === PHASE.SUDDEN_DEATH) {
+    if (!match.sudden_death.contenders.includes(userId)) return null;
+    const q = match.sudden_death.questions[e.sd_pos];
+    if (!q) return null;
+    const { answer, ...safe } = q;
+    return { index: e.sd_pos, suddenDeath: true, round: match.sudden_death.round, ...safe };
+  }
+
+  if (e.eliminated_at_note !== null || e.finished_at) return null;
+
+  if (match.game === "chords") {
+    const chord = match.passage.chords[e.pos];
+    return chord ? { index: e.pos, notes: chord.notes.slice() } : null;
+  }
+  if (match.game === "keys") {
+    const q = match.passage.questions[e.pos];
+    if (!q) return null;
+    const { answer, ...safe } = q; // the answer is the one field that never ships
+    return { index: e.pos, ...safe };
+  }
+  return null; // the reading race renders the whole passage up front
 }
 
 /**
@@ -310,21 +523,26 @@ export function currentFor(match, userId) {
  *
  * Other players' progress IS included, because watching the race is the point.
  * The answers are not: the reading race gives staff positions (which is what
- * the player reads anyway), and Chord Race gives only a count and the list of
- * qualities to choose between.
+ * the player reads anyway), Chord Race gives a count and the qualities to
+ * choose between, and the Key Signature Race gives a count and nothing else.
  */
 export function publicView(match, forUserId = null) {
   const p = match.passage;
-  const round = match.game === "chords"
-    ? { game: "chords", count: p.count, qualities: p.qualities.slice() }
-    : { game: "reading", clef: p.clef, key: p.key, dias: p.dias, bars: p.bars };
+  const round =
+    match.game === "chords"
+      ? { game: "chords", count: p.count, qualities: p.qualities.slice() }
+      : match.game === "keys"
+        ? { game: "keys", count: p.count, suddenDeathMs: p.suddenDeathMs }
+        : { game: "reading", clef: p.clef, key: p.key, dias: p.dias, bars: p.bars };
 
+  const sd = match.sudden_death;
   return {
     id: match.id,
     game: match.game,
     level: match.level,
     state: match.state,
-    endsAt: match.ends_at,
+    phase: match.phase,
+    endsAt: match.phase === PHASE.SUDDEN_DEATH ? sd.ends_at : match.ends_at,
     seconds: match.seconds,
     round,
     // Kept under its old name so existing reading-race clients still work.
@@ -332,7 +550,11 @@ export function publicView(match, forUserId = null) {
     answerCount: p.answers.length,
     noteCount: p.answers.length,
     current: forUserId ? currentFor(match, forUserId) : null,
+    suddenDeath: sd
+      ? { round: sd.round, endsAt: sd.ends_at, contenders: sd.contenders.slice() }
+      : null,
     winnerUserId: match.winner_user_id,
+    tiedUserIds: match.tied_user_ids ?? null,
     endReason: match.end_reason,
     players: rank(match).map((e) => ({
       userId: e.user_id,
@@ -340,6 +562,7 @@ export function publicView(match, forUserId = null) {
       pos: e.pos,
       out: e.eliminated_at_note !== null,
       done: !!e.finished_at,
+      sdCorrect: e.sd_correct,
       placement: e.placement,
       you: e.user_id === forUserId,
     })),

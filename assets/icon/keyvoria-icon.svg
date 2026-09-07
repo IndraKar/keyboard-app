@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Keyvoria">
+  <title>Keyvoria</title>
+  <defs>
+    <linearGradient id="ivory" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1e6d8"/>
+      <stop offset="0.55" stop-color="#fbf4ea"/>
+      <stop offset="1" stop-color="#efe2d1"/>
+    </linearGradient>
+    <linearGradient id="ebony" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a302b"/>
+      <stop offset="0.55" stop-color="#1a1512"/>
+      <stop offset="1" stop-color="#0b0908"/>
+    </linearGradient>
+    <linearGradient id="lit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb27a"/>
+      <stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ef6d1c"/>
+    </linearGradient>
+    <linearGradient id="topshade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.28"/>
+      <stop offset="0.26" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.72" r="0.46">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- FULL BLEED. The artwork reaches all four edges with no padding and no
+       rounded corners of its own: iOS masks the square it is given, and Android
+       crops an adaptive icon to a circle, so a margin drawn here would read as a
+       gap on one platform and be cropped away on the other. -->
+  <rect width="1024" height="1024" fill="#0b0908"/>
+  <rect x="0.00" y="0" width="204.80" height="1024" fill="url(#ivory)"/>
+  <rect x="204.80" y="0" width="204.80" height="1024" fill="url(#ivory)"/>
+  <rect x="409.60" y="0" width="204.80" height="1024" fill="url(#lit)"/>
+  <rect x="614.40" y="0" width="204.80" height="1024" fill="url(#ivory)"/>
+  <rect x="819.20" y="0" width="204.80" height="1024" fill="url(#ivory)"/>
+  <rect x="202.80" y="0" width="4" height="1024" fill="#0b0908" opacity="0.34"/>
+  <rect x="407.60" y="0" width="4" height="1024" fill="#0b0908" opacity="0.34"/>
+  <rect x="612.40" y="0" width="4" height="1024" fill="#0b0908" opacity="0.34"/>
+  <rect x="817.20" y="0" width="4" height="1024" fill="#0b0908" opacity="0.34"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <rect x="147.46" y="-16" width="114.69" height="630.40" rx="14" fill="url(#ebony)"/>
+  <rect x="165.81" y="-16" width="16.06" height="554.40" rx="8" fill="#ffffff" opacity="0.10"/>
+  <rect x="352.26" y="-16" width="114.69" height="630.40" rx="14" fill="url(#ebony)"/>
+  <rect x="370.61" y="-16" width="16.06" height="554.40" rx="8" fill="#ffffff" opacity="0.10"/>
+  <rect x="761.86" y="-16" width="114.69" height="630.40" rx="14" fill="url(#ebony)"/>
+  <rect x="780.21" y="-16" width="16.06" height="554.40" rx="8" fill="#ffffff" opacity="0.10"/>
+  <rect width="1024" height="1024" fill="url(#topshade)"/>
+</svg>
