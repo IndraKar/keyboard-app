@@ -225,7 +225,11 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   max-width:88vw;text-align:center;
 }
 .toast.warn{background:var(--accent);color:#1a0f06;}
-.sndbadge{position:fixed;left:50%;transform:translateX(-50%);bottom:74px;z-index:55;
+/* Parked in the empty middle of the header bar, between the wordmark and the XP
+   pill. Anywhere lower covers something that matters: at the bottom it sat
+   squarely on the middle keys of the piano, and just under the header it hid
+   the exercise progress dots. */
+.sndbadge{position:fixed;left:50%;transform:translateX(-50%);top:11px;z-index:55;
   background:var(--accent);border:1px solid var(--accent);color:#1a0f06;
   font-size:11.5px;font-weight:700;padding:8px 16px;border-radius:999px;
   cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);}
@@ -466,10 +470,19 @@ function load(){
       S.masterBest = Object.assign({}, DEFAULTS.masterBest, p.masterBest || {});
       S.badges     = Object.assign({}, p.badges || {});
       S.account    = p.account || null;
-      S.tierCorrect = { ear:[0,0,0,0], sight:[0,0,0,0], repeat:[0,0,0,0] };
-      Object.keys(S.tierCorrect).forEach(k => {
+      /* The subscription flag was called `plus` before the plan was renamed
+         Keyvoria Premium. Carry it across rather than silently dropping a
+         subscriber back to the free tier on upgrade. */
+      if(p.premium === undefined && p.plus !== undefined) S.premium = !!p.plus;
+      /* Rebuild from CAT_KEYS, not from a hand-written list of categories.
+         A literal here is how adding Key Signatures broke every save that
+         predated it: `tierCorrect.keys` came back undefined, the first read of
+         it threw, and the whole app rendered blank for anyone with existing
+         progress. New categories must appear automatically. */
+      S.tierCorrect = {};
+      CAT_KEYS.forEach(k => {
         const src = (p.tierCorrect && p.tierCorrect[k]) || [];
-        for(let i=0;i<4;i++) S.tierCorrect[k][i] = src[i] || 0;
+        S.tierCorrect[k] = [0,0,0,0].map((_,i) => src[i] || 0);
       });
     }
   }catch(e){ /* private mode / blocked storage — run with defaults */ }
@@ -668,8 +681,11 @@ const EXERCISES_PER_SESSION = 5;
 const TIER_CLEAR_TARGET = 12;
 const CAT_KEYS = ["ear","sight","keys","repeat"];
 
-const tierProgress = (cat,n) => Math.min(TIER_CLEAR_TARGET, S.tierCorrect[cat][n-1]);
-const tierCleared  = (cat,n) => S.unlocked[cat] >= n && S.tierCorrect[cat][n-1] >= TIER_CLEAR_TARGET;
+/* Defensive reads. A save written by an older build has no row for a category
+   added since, and "no history" means zero — it must never mean a crash. */
+const tierRow      = cat => (S.tierCorrect && S.tierCorrect[cat]) || [0,0,0,0];
+const tierProgress = (cat,n) => Math.min(TIER_CLEAR_TARGET, tierRow(cat)[n-1] || 0);
+const tierCleared  = (cat,n) => (S.unlocked[cat]||0) >= n && (tierRow(cat)[n-1] || 0) >= TIER_CLEAR_TARGET;
 const categoryMastered = cat => [1,2,3,4].every(n => tierCleared(cat,n));
 const masteredCats = () => CAT_KEYS.filter(categoryMastered);
 /* Derived from CAT_KEYS rather than naming each category, so adding one cannot
@@ -3347,7 +3363,33 @@ const TAB_OF = { home:"home", ladder:"home", earmode:"home", play:"home", summar
                  leaderboard:"profile" };
 const SHOW_TABS = { home:1, library:1, profile:1 };
 
+/*
+  Anything thrown while building a screen used to leave the view element empty:
+  a black page, no controls, no way back — which is precisely what a save
+  written before a new category did. Rendering is now wrapped so a failure
+  becomes a message and a way out instead of a dead app.
+*/
 function render(){
+  try{
+    renderScreen();
+  }catch(err){
+    console.error("[keyvoria] render failed", err);
+    document.getElementById("view").innerHTML =
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="h1">Something went wrong</div>'+
+        '<div class="sub" style="margin-top:8px">Keyvoria could not draw this screen. '+
+        'Your saved progress may have been written by an older version.</div></div>'+
+        '<div class="card"><div class="faint" style="font-family:ui-monospace,monospace">'+
+          String(err && err.message || err)+'</div></div>'+
+        '<button class="btn block" data-go="home">Back to Home</button>'+
+        '<button class="btn ghost block" data-act="reset">Reset saved data</button>'+
+      '</div>';
+    const tb = document.getElementById("tabbar");
+    if(tb) tb.style.display = "none";
+  }
+}
+
+function renderScreen(){
   /* Rebuilding the view destroys key elements, so a pointerup can be lost and
      leave a note stuck in `held` — which would silently make that key dead. */
   held.clear();
@@ -3364,8 +3406,11 @@ function render(){
   } else tb.style.display = "none";
 
   if(curScreen === "play") wirePlay();
-  if(curScreen === "compmatch"){
-    /* Bring the passage's range into view on the 61-key board. */
+  if(curScreen === "compmatch" && comp && comp.game === "reading"){
+    /* Reading race only: it is the one Competition game played on the keyboard.
+       Chord Race and the Key Signature Race answer with buttons and have no
+       `notes` array, so wiring a note hook for them would read undefined the
+       moment a computer key was pressed. */
     const sc = document.querySelector(".kbscroll");
     if(sc && comp && sc.scrollWidth > sc.clientWidth){
       const lo = Math.min.apply(null, comp.ex.notes);
