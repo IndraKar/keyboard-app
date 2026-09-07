@@ -750,6 +750,7 @@ let earModeTier = 1;
 let cardBadge = "keyvoria_master";
 let lbMetric = "xp";
 let compLevel = 1;
+const COMP_MAX_PLAYERS = 8;   /* hard ceiling — see roadmap M7a */
 let compPlayers = 8;
 let session = null;
 let toastTimer = null;
@@ -1288,7 +1289,7 @@ function screenMenu(){
       '<span class="ticon">\u{1F3C1}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Competition</span>'+
       '<span class="tsub" style="display:block">'+
-        (S.plus ? 'Race up to 16 players \u00b7 '+(S.compWins||0)+' won'
+        (S.plus ? 'Race up to '+COMP_MAX_PLAYERS+' players \u00b7 '+(S.compWins||0)+' won'
                 : 'Race other players \u00b7 Keyvoria Plus')+'</span></span>'+
       (S.plus ? '' : '<span class="pill">Premium</span>')+'</button>'+
     (masteredCats().length
@@ -2367,8 +2368,9 @@ let comp = null;
 function startComp(level, count){
   const L = COMP_LEVELS[level-1];
   const ex = genCompPassage(level);
-  const bots = shuffle(BOT_NAMES).slice(0, Math.max(1, count-1)).map(n => ({
-    name:n, pos:0, out:false, done:false,
+  const n = Math.max(2, Math.min(COMP_MAX_PLAYERS, count));   /* never exceed the cap */
+  const bots = shuffle(BOT_NAMES).slice(0, n-1).map(nm => ({
+    name:nm, pos:0, out:false, done:false,
     /* Faster bots are likelier to slip — the trade-off the human faces too. */
     ms: 620 + rand(900),
     err: 0.015 + Math.random()*0.05 + (level-1)*0.004,
@@ -2449,13 +2451,16 @@ function screenCompSetup(){
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Competition</div><div style="width:34px"></div></div>'+
     '<div class="faint">Play the passage correctly, faster than everyone else. '+
-      '<b>The first wrong note puts you out</b> — so speed alone will not win it.</div>'+
+      '<b>The first wrong note puts you out</b> — so speed alone will not win it. '+
+      'Opponents are matched from anywhere, not just people near you.</div>'+
     '<div class="stack">'+rows+'</div>'+
     '<div class="card"><div class="row"><span class="kvk">Players in this match</span>'+
       '<span class="kvv tnum" id="cpcount">'+compPlayers+'</span></div>'+
       '<div class="seg" style="margin-top:10px">'+
-        [2,4,8,16].map(n => '<button class="seg-opt'+(compPlayers===n?" active":"")+'" data-act="compcount" data-n="'+n+'">'+n+'</button>').join("")+
-      '</div></div>'+
+        [2,4,6,8].map(n => '<button class="seg-opt'+(compPlayers===n?" active":"")+'" data-act="compcount" data-n="'+n+'">'+n+'</button>').join("")+
+      '</div>'+
+      '<div class="faint" style="margin-top:10px">Eight is the cap. Smaller matches start '+
+        'sooner, and everyone stays visible on one screen while you play.</div></div>'+
     '<button class="btn block" data-act="compstart">Enter match</button>';
 }
 

@@ -65,7 +65,7 @@ launch simplicity, revisitable post-V1.
 | Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
 | Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
 | Create Music (F-11) | — | Compose, edit, notate and export your own music |
-| Competition Mode (F-13) | — | Race up to 16 players; first wrong note is out |
+| Competition Mode (F-13) | — | Race up to 8 players; first wrong note is out |
 
 The full premium inventory, including what is already specified versus genuinely new,
 is in **F-05a**.
@@ -733,7 +733,7 @@ opt-in together — leaving a stale opt-in behind after a sign-out would publish
 stranger's numbers under the previous user's name.
 
 ### F-13 Competition Mode — Plus
-Live head-to-head play. Up to **16 players** race to perform the same passage, and
+Live head-to-head play. Up to **8 players** race to perform the same passage, and
 **the first wrong note eliminates you**. That single rule is what makes it a music
 game rather than a typing race: speed alone loses, because the fastest player who
 slips is out while a slower accurate one finishes.
@@ -767,7 +767,20 @@ accidentals under time pressure — a different and much harder skill.
   opposition. Wins and best-notes are tracked separately and feed the leaderboards
   (F-08) instead.
 
-**Real-time multiplayer is a server feature** — matchmaking, a lobby, synchronised
+**Eight players is a hard cap** (roadmap M7a supersedes an earlier "up to 16"): a
+smaller lobby fills far faster at launch, keeps the whole roster on one phone screen,
+and avoids turning most of the field into an audience the moment elimination starts.
+
+**Opponents come from anywhere, not just the same room.** Most users practise alone, so
+a same-room-only design would remove the feature's whole point. A **private lobby with
+a share code** covers the classroom and the couch on the same matchmaking path — one
+architecture, both cases.
+
+**Timing is measured on each player's own device**, from the moment the passage renders
+to the moment they finish, and validated server-side. Scoring on server-received time
+would hand every race to whoever has the shortest ping, which is not a musical skill.
+
+**Real-time multiplayer is a server feature** — matchmaking, lobbies, synchronised
 start, and server-authoritative elimination so a tampered client cannot claim a win.
 Until that lands, the mode is playable against simulated opponents, which exercises
 every rule above except the networking.

@@ -595,13 +595,20 @@ the screen map's Upload your file flow.
 **`competition_matches`**
 `id`, `level` (1–5), `key_signature`, `clef`, `passage` (jsonb — the note sequence every
 player receives; one passage per match, generated server-side so no client can see it
-early), `player_count`, `started_at`, `ended_at`, `winner_user_id` (nullable — null
+early), `player_count` (2–8; **8 is a hard cap**, clamped server-side — roadmap M7a),
+`lobby_kind` (enum: matched / private), `join_code` (nullable — set for private
+lobbies, which is how "everyone in one room" is served without a separate local
+transport), `started_at`, `ended_at`, `winner_user_id` (nullable — null
 when the clock expires with nobody finished), `end_reason` (enum: completed /
 all_eliminated / timeout).
 
 **`competition_entrants`**
 `match_id → competition_matches`, `user_id → users`, `notes_correct` (int),
-`eliminated_at_note` (nullable), `finished_at` (nullable), `placement` (int).
+`eliminated_at_note` (nullable), `finished_at` (nullable), `placement` (int),
+`client_elapsed_ms` (int — measured on the player's own device from passage render to
+completion). **Ranking uses `client_elapsed_ms`, not server arrival time**, so a player
+on a slow connection is not beaten by their ping (PRD F-13); the server validates it
+against the match window and rejects impossibly fast values.
 Primary key `(match_id, user_id)`.
 
 **Elimination is decided server-side.** The client reports key presses; the server

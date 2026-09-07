@@ -348,6 +348,9 @@ Entered from a Home tile, badged Premium when the user has no subscription.
 
 1. **Setup** — the five levels as a ladder, each stating bars, note count, time limit
    and key signature so the choice is informed; then a player count (2 / 4 / 8 / 16).
+   The count tops out at **8** (roadmap M7a) and the screen says why: smaller matches
+   start sooner and keep every player visible while you play. A **private lobby code**
+   lets a group skip matchmaking entirely.
 2. **Match** — a countdown clock that turns red inside the last five seconds, the
    passage on a staff with its key signature, the shared keyboard (§3.3.1a), and a
    **live roster**: every player as a name, a progress bar and a note count, sorted by

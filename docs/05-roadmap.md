@@ -333,22 +333,63 @@ best-effort output unambiguously marked as an estimate throughout the UI.
 
 ## M7a — Competition Mode
 **Size:** L — the netcode is the work; the music is already built.
-**Goal:** PRD F-13 — up to 16 players racing one passage, first wrong note out.
+**Goal:** PRD F-13 — players race one passage, first wrong note out.
+
+### Three decisions settled before build
+These are cheap to honour now and awkward to retrofit, so they are recorded here
+rather than left to implementation.
+
+**1. Eight players, hard cap.** Not sixteen. An earlier draft said "up to 16"; that is
+**superseded**. Three reasons, in order of how much they bite:
+- **Matchmaking.** Filling sixteen needs sixteen people wanting the *same level* at the
+  same moment. Split across five levels and a young user base, that is a long wait for
+  a twenty-second round. Eight fills roughly twice as fast, and a race that starts beats
+  a bigger race that doesn't.
+- **Elimination makes a crowd into an audience.** With first-wrong-note-out, most of the
+  field goes in the opening seconds; at level 5 that would be fourteen people watching
+  for eighty seconds.
+- **Eight rows fit a phone.** The roster shows ~7–8 rows before it scrolls. Past that a
+  player must choose between watching the race and reading the staff — and they will
+  choose the staff, so the extra players stop being visible at all.
+
+The cap is enforced server-side as well as in the UI; a lobby request for more is
+clamped, never honoured.
+
+**2. Internet-first, with private-code lobbies.** Opponents are matched from anywhere —
+a same-room-only design would be the wrong constraint for a learning app, where most
+users practise alone and the whole point is finding opponents when nobody nearby plays.
+"Same room" then comes free: a **private lobby joined by a share code** covers the
+classroom and the couch using the same matchmaking, the same server and the same cap.
+No second architecture, no local transport (LAN/Bluetooth) to build or support.
+
+**3. Score on the player's own device clock.** Measure from when the passage *renders on
+their screen* to when they finish, and have the server validate both the elapsed time
+and the notes. **Do not score on server-received time**: with players geographically
+spread, a competitor on 200 ms would lose every speed race to an identical one on 20 ms,
+and would feel it without being able to name it. Latency then affects when results
+*appear*, never who wins. This changes what the client reports, which is exactly why it
+belongs in the first implementation rather than a later fairness pass.
+
 **Deliverables:**
 - Level ladder 1–5 (bars, note count, time limit, key signature) as content data, not
-  constants, so the balance can be retuned without a release.
+  constants, so balance can be retuned without a release.
 - Passage generation reusing the existing sight-reading generator with a per-level key
   signature — no new content pipeline.
-- Lobby, matchmaking to a player count, synchronised start.
+- Matchmaking to a lobby size of 2–8, synchronised start, and **private lobbies by
+  share code** using the same path.
 - **Server-authoritative elimination**: the server holds the passage and rules on each
   key press. Anything else is cheatable by editing the page, and a race that can be
   cheated is worth less than no race.
+- Local-clock timing with server validation (decision 3), including a sanity bound that
+  rejects impossibly fast reported times.
 - Live roster over a realtime channel; eliminated players remain visible.
 - `competition_matches` / `competition_entrants` (§4.11a); **no XP writes**.
-**Exit criteria:** sixteen clients see the same passage and the same winner; a client
-patched to skip a wrong note is still eliminated by the server; a match with everyone
-eliminated ends cleanly, as does one where the clock expires; no `xp_events` row is
-written by any match.
+**Exit criteria:** eight clients see the same passage and the same winner; a lobby
+request for nine or more is clamped to eight by the server; a client patched to skip a
+wrong note is still eliminated server-side; two clients on deliberately different
+simulated latencies produce the same winner as they would on equal latency; a match
+where everyone is eliminated ends cleanly, as does one where the clock expires; no
+`xp_events` row is written by any match.
 
 ## M8 — Polish, accessibility, QA
 **Size:** M
