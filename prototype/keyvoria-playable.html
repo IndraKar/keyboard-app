@@ -226,8 +226,10 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 }
 .toast.warn{background:var(--accent);color:#1a0f06;}
 .sndbadge{position:fixed;left:50%;transform:translateX(-50%);bottom:74px;z-index:55;
-  background:var(--surface-2);border:1px solid var(--border);color:var(--dim);
-  font-size:11px;font-weight:600;padding:7px 14px;border-radius:999px;pointer-events:none;}
+  background:var(--accent);border:1px solid var(--accent);color:#1a0f06;
+  font-size:11.5px;font-weight:700;padding:8px 16px;border-radius:999px;
+  cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.sndbadge:active{transform:translateX(-50%) scale(.96);}
 .notice{background:var(--accent-soft);border:1px solid rgba(255,138,61,.3);border-radius:12px;padding:11px 13px;font-size:11.5px;color:var(--dim);line-height:1.55;}
 .notice.keep{background:var(--good-soft);border-color:rgba(94,230,165,.3);}
 .notice b{color:var(--text);}
@@ -423,7 +425,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
     <div class="xppill tnum"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2C12 2 6 9 6 14a6 6 0 0012 0c0-2-1-3.5-2-5 0 2-1 3-2 3-1.5 0-2-1.5-1-3.5C13.5 6 12 4 12 2z" fill="#ff8a3d"/></svg><span id="xpLabel">0</span> XP</div>
   </div>
   <div class="view" id="view"></div>
-  <div id="sndBadge" class="sndbadge">Tap anywhere to enable sound</div>
+  <button id="sndBadge" class="sndbadge" type="button" data-act="soundon">Tap to turn on sound</button>
   <nav class="tabbar" id="tabbar"></nav>
 </div>
 
@@ -752,29 +754,33 @@ const initials = () => {
 };
 
 /* ============================ audio ============================ */
-let ctx = null, master = null, audioReady = false;
-const voices = new Map();
+/*
+  Phone audio fails in three distinct ways, and only one of them is the famous
+  one. All three are handled here, because any of them alone is total silence
+  with no error anywhere.
 
-/* Mobile browsers only let an AudioContext start inside a real user gesture, and
-   a context created before that stays suspended — which is silence, not an error.
-   So prime it on the first interaction of any kind and remember that it worked. */
-function unlockAudio(){
-  const c = audio();
-  if(!c) return;
-  const done = () => {
-    if(c.state === "running" && !audioReady){
-      audioReady = true;
-      const b = c.createBuffer(1,1,22050);
-      const src = c.createBufferSource(); src.buffer = b;
-      src.connect(c.destination); src.start(0);
-      const badge = document.getElementById("sndBadge");
-      if(badge) badge.remove();
-    }
-  };
-  if(c.state === "suspended"){ c.resume().then(done).catch(()=>{}); } else done();
-}
-["pointerdown","keydown","touchstart"].forEach(ev =>
-  document.addEventListener(ev, unlockAudio, {passive:true}));
+  1. THE GESTURE RULE. A browser will not start an AudioContext outside a real
+     user interaction, and a context created before one stays suspended.
+
+  2. THE iOS SILENT SWITCH. This is the one that bites hardest, and the one this
+     app was getting wrong. Web Audio on iOS plays in the "ambient" audio
+     session category, which the physical ring/silent switch MUTES. A user whose
+     phone is on silent — most people, most of the time — hears nothing at all
+     while every other part of the app works perfectly. Two fixes, applied
+     together: `navigator.audioSession.type = "playback"` on iOS 16.4+, and, for
+     everything older, a silent looping <audio> element routed through the
+     context. An HTMLMediaElement uses the media category, which the switch does
+     not mute, and playing one moves the whole page out of "ambient".
+
+  3. INTERRUPTIONS. A call, a backgrounded tab or unplugged headphones suspend
+     the context, and it does NOT resume itself. So the state is re-checked on
+     every gesture and every return to the page, and the badge comes back if
+     sound has actually stopped working rather than disappearing forever after
+     the first success.
+*/
+let ctx = null, master = null, audioReady = false, silentEl = null;
+const voices = new Map();       /* live notes, held until released */
+const scheduled = new Set();    /* fire-and-forget notes already on the clock */
 
 function audio(){
   if(!ctx){
@@ -785,15 +791,134 @@ function audio(){
     master.gain.value = 0.85;
     master.connect(ctx.destination);
   }
-  if(ctx.state === "suspended") { try{ ctx.resume(); }catch(e){} }
+  /* `startRendering` exists only on an OfflineAudioContext, which cannot be
+     resumed and does not need to be. Guarding here keeps every note from
+     firing a pointless resume during offline rendering and tests. */
+  if(ctx.state === "suspended" && !ctx.startRendering){ try{ ctx.resume(); }catch(e){} }
   return ctx;
 }
+
+/* A few seconds of real silence as a data URI, built rather than pasted so
+   there is no opaque base64 blob in the source. */
+function silentWavUri(seconds){
+  const rate = 8000, n = Math.round(rate * seconds), bytes = 44 + n * 2;
+  const buf = new ArrayBuffer(bytes), v = new DataView(buf);
+  const w = (o, str) => { for(let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+  w(0,"RIFF"); v.setUint32(4, bytes-8, true); w(8,"WAVE"); w(12,"fmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  w(36,"data"); v.setUint32(40, n*2, true);        /* samples stay zero: silence */
+  const b = new Uint8Array(buf);
+  let str = "";
+  for(let i=0;i<b.length;i++) str += String.fromCharCode(b[i]);
+  return "data:audio/wav;base64," + btoa(str);
+}
+
+/* Move the page out of the silent-switch-muted "ambient" category. Must run
+   inside a user gesture, like everything else audio on iOS. */
+function primePlaybackCategory(){
+  try{
+    if(navigator.audioSession) navigator.audioSession.type = "playback";   /* iOS 16.4+ */
+  }catch(e){}
+
+  if(silentEl){ const p = silentEl.play(); if(p && p.catch) p.catch(()=>{}); return; }
+  try{
+    const el = document.createElement("audio");
+    el.setAttribute("playsinline", "");   /* without this iOS may go fullscreen */
+    el.loop = true;
+    el.preload = "auto";
+    el.src = silentWavUri(2);
+    el.style.display = "none";
+    document.body.appendChild(el);
+    /* Routing it through the context is what actually moves the session on the
+       older iOS versions; playing it alone is not always enough. */
+    const c = audio();
+    if(c && c.createMediaElementSource){
+      try{
+        const src = c.createMediaElementSource(el);
+        const g = c.createGain(); g.gain.value = 0;   /* it is already silent; belt and braces */
+        src.connect(g); g.connect(c.destination);
+      }catch(e){}
+    }
+    const p = el.play(); if(p && p.catch) p.catch(()=>{});
+    silentEl = el;
+  }catch(e){}
+}
+
+function setSoundBadge(show, text){
+  const badge = document.getElementById("sndBadge");
+  if(!badge) return;
+  badge.textContent = text || "Tap to turn on sound";
+  badge.hidden = !show;
+}
+
+/*
+  Called on every gesture — not just the first. Re-priming an already-running
+  context costs nothing, and it is what recovers sound after an interruption.
+
+  `fromGesture` matters more than it looks. Safari is happiest when the
+  AudioContext is CREATED inside a real user interaction; one created outside
+  can start suspended and, on some versions, never leave that state. So the
+  focus and visibility handlers only ever wake a context that already exists —
+  they never bring one into being. (A window focus event fires on load, which
+  is exactly how this app was creating its context before any tap.)
+*/
+function unlockAudio(fromGesture){
+  if(!ctx && !fromGesture) return;          /* never create outside a gesture */
+  const c = audio();
+  if(!c){ setSoundBadge(true, "This browser cannot play sound"); return; }
+  if(fromGesture) primePlaybackCategory();
+
+  const settle = () => {
+    if(c.state === "running"){
+      if(!audioReady){
+        audioReady = true;
+        /* An empty buffer play is the traditional confirmation that the output
+           path is genuinely open, not merely reported as running. */
+        try{
+          const b = c.createBuffer(1,1,22050);
+          const src = c.createBufferSource(); src.buffer = b;
+          src.connect(c.destination); src.start(0);
+        }catch(e){}
+      }
+      setSoundBadge(false);
+    } else {
+      audioReady = false;
+      setSoundBadge(true, "Tap to turn on sound");
+    }
+  };
+  if(c.state === "suspended"){
+    const p = c.resume();
+    if(p && p.then) p.then(settle).catch(settle); else settle();
+  } else settle();
+}
+
+/* Declaring the category does not start anything and needs no gesture, so it is
+   set at load as well as on the first tap — the earlier iOS knows this page
+   wants the playback session rather than the ambient one, the better. */
+try{ if(navigator.audioSession) navigator.audioSession.type = "playback"; }catch(e){}
+
+["pointerdown","touchstart","keydown","click"].forEach(ev =>
+  document.addEventListener(ev, () => unlockAudio(true), {passive:true}));
+/* Coming back from a call, another app or a locked screen leaves the context
+   suspended. Nothing resumes it on its own — but these are not gestures, so
+   they only ever revive a context the user already started. */
+document.addEventListener("visibilitychange", () => { if(!document.hidden) unlockAudio(false); });
+window.addEventListener("pageshow", () => unlockAudio(false));
+window.addEventListener("focus", () => unlockAudio(false));
+
+/* Is sound actually usable right now? Used by the badge and by Test sound. */
+function audioState(){
+  if(!(window.AudioContext || window.webkitAudioContext)) return "unsupported";
+  if(!ctx) return "idle";
+  return ctx.state;      /* "running" | "suspended" | "closed" */
+}
+
 function freq(m){ return 440 * Math.pow(2,(m-69)/12); }
 
-function startNote(m){
-  const c = audio(); if(!c) return;
-  if(voices.has(m)) stopNote(m, true);
-  const t = c.currentTime;
+/* One voice, built once so a live key press and a scheduled note cannot drift
+   apart in timbre. */
+function buildVoice(c, m, t){
   const g = c.createGain();
   const filt = c.createBiquadFilter();
   filt.type = "lowpass";
@@ -813,14 +938,24 @@ function startNote(m){
 
   o1.connect(g); o2.connect(g2); g2.connect(g); o3.connect(g3); g3.connect(g);
   g.connect(filt); filt.connect(master);
-  o1.start(t); o2.start(t); o3.start(t);
-  voices.set(m, {o:[o1,o2,o3], g, c});
+  return { o:[o1,o2,o3], g, c };
+}
+
+function startNote(m){
+  const c = audio(); if(!c) return;
+  if(voices.has(m)) stopNote(m, true);
+  const t = c.currentTime;
+  const v = buildVoice(c, m, t);
+  v.o.forEach(o => o.start(t));
+  voices.set(m, v);
 }
 function stopNote(m, now){
   const v = voices.get(m); if(!v) return;
   voices.delete(m);
+  releaseVoice(v, now ? 0.02 : 0.28);
+}
+function releaseVoice(v, rel){
   const t = v.c.currentTime;
-  const rel = now ? 0.02 : 0.28;
   try{
     v.g.gain.cancelScheduledValues(t);
     v.g.gain.setValueAtTime(Math.max(v.g.gain.value, 0.0002), t);
@@ -828,16 +963,77 @@ function stopNote(m, now){
   }catch(e){}
   v.o.forEach(o => { try{ o.stop(t + rel + 0.03); }catch(e){} });
 }
-function blip(m, dur){
-  startNote(m);
-  setTimeout(() => stopNote(m), Math.round(dur*1000));
+
+/*
+  A note placed on the AUDIO clock rather than a setTimeout.
+
+  Phone browsers throttle and coalesce timers — under load, when the screen
+  dims, whenever they feel like it — and an exercise whose notes arrive through
+  setTimeout comes out ragged or, if the tab is briefly backgrounded, not at
+  all. The audio clock is not subject to any of that: once a note is scheduled
+  it plays at exactly that time.
+*/
+function scheduleNote(m, at, dur){
+  const c = audio(); if(!c) return null;
+  const v = buildVoice(c, m, at);
+  const off = at + Math.max(0.05, dur);
+  try{
+    v.g.gain.cancelScheduledValues(off);
+    v.g.gain.setValueAtTime(0.126, off);           /* peak*0.42, where the decay lands */
+    v.g.gain.exponentialRampToValueAtTime(0.0001, off + 0.22);
+  }catch(e){}
+  v.o.forEach(o => { o.start(at); try{ o.stop(off + 0.28); }catch(e){} });
+  scheduled.add(v);
+  /* Housekeeping only — the sound is already scheduled and does not depend on
+     this timer firing on time, or at all. */
+  setTimeout(() => scheduled.delete(v), Math.max(0, (off + 0.4 - c.currentTime) * 1000) + 60);
+  return v;
 }
+
+function blip(m, dur){
+  const c = audio(); if(!c) return;
+  scheduleNote(m, c.currentTime + 0.02, dur);
+}
+
 /* Play a list of {midi, at, dur} in ms. Returns total ms. */
 function playPhrase(notes){
-  notes.forEach(n => setTimeout(() => blip(n.midi, n.dur/1000), n.at));
-  return notes.reduce((mx,n) => Math.max(mx, n.at + n.dur), 0);
+  const c = audio();
+  const total = notes.reduce((mx,n) => Math.max(mx, n.at + n.dur), 0);
+  if(!c) return total;
+  /* A short lead-in: scheduling at exactly currentTime can clip the attack of
+     the first note on a busy phone. */
+  const t0 = c.currentTime + 0.06;
+  notes.forEach(n => scheduleNote(n.midi, t0 + n.at/1000, n.dur/1000));
+  return total;
 }
-function allOff(){ Array.from(voices.keys()).forEach(m => stopNote(m, true)); }
+
+function allOff(){
+  Array.from(voices.keys()).forEach(m => stopNote(m, true));
+  scheduled.forEach(v => { try{ releaseVoice(v, 0.03); }catch(e){} });
+  scheduled.clear();
+}
+
+/* Plain words for what the audio engine is doing, for the Profile card. */
+function soundStatusLine(){
+  const st = audioState();
+  if(st === "unsupported") return "This browser cannot play sound.";
+  if(st === "running")     return "Sound is on.";
+  /* "Paused" is only honest once it has actually worked; before that it has
+     simply not been switched on yet, which is a different sentence. */
+  if(!audioReady)          return "Sound turns on the first time you tap the screen.";
+  return "Sound is paused — tap Test sound to turn it back on.";
+}
+
+/* A note the user asked for, from the Test sound button. Returns what happened
+   so the UI can say something more useful than nothing. */
+function testSound(){
+  unlockAudio(true);
+  const st = audioState();
+  if(st === "unsupported") return { ok:false, message:"This browser cannot play sound." };
+  if(st !== "running") return { ok:false, message:"Sound is blocked — tap the screen once, then try again." };
+  playPhrase([{midi:60,at:0,dur:320},{midi:64,at:170,dur:320},{midi:67,at:340,dur:520}]);
+  return { ok:true, message:"Played C–E–G. If you heard nothing, check the side switch and the volume." };
+}
 
 /* ============================ app state ============================ */
 let curScreen = "home";
@@ -1748,6 +1944,12 @@ function screenProfile(){
     '<button class="tile" data-go="leaderboard"><span class="ticon">\u{1F4CA}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Leaderboards</span>'+
       '<span class="tsub" style="display:block">'+(S.leaderboardOptIn?"On":"Off \u00b7 opt in to compare")+'</span></span>'+svg(IC.chev,18)+'</button>'+
+    '<div class="card"><div class="h2" style="margin-bottom:6px">Sound</div>'+
+      '<div class="sub" id="sndState">'+soundStatusLine()+'</div>'+
+      '<button class="btn ghost block" style="margin-top:10px" data-act="testsound">Test sound</button>'+
+      '<div class="faint" style="margin-top:9px">On an iPhone, check the switch on the side of the '+
+        'phone as well as the volume — it silences most web audio, and Keyvoria now asks iOS to '+
+        'ignore it, but an older phone may still need the switch flipped.</div></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
       '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
     '<button class="link" data-act="reset">Reset all progress</button>';
@@ -3277,6 +3479,20 @@ document.addEventListener("click", e => {
     return;
   }
   switch(act){
+    case "soundon": {
+      unlockAudio(true);
+      /* Confirm with an actual note: "sound is on" is only believable if you
+         can hear it. */
+      if(audioState() === "running") playPhrase([{midi:72,at:0,dur:260}]);
+      break;
+    }
+    case "testsound": {
+      const r = testSound();
+      toast(r.message, !r.ok);
+      const el = document.getElementById("sndState");
+      if(el) el.textContent = soundStatusLine();
+      break;
+    }
     case "names":
       S.noteNames = !S.noteNames; save(); render(); break;
     case "unlock":

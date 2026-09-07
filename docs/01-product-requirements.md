@@ -906,6 +906,26 @@ discover.
 
 ## 1.5 Non-functional requirements
 
+- **Sound must work on a phone, unconditionally.** Keyvoria without audio is not a
+  degraded app, it is a broken one — Ear Training, Playback & Repeat, Chord Race and
+  the Key Signature tiebreak all *are* their sound. Three mobile failure modes have to
+  be handled explicitly, because each one is total silence with no error anywhere:
+  1. **The gesture rule.** No browser starts an audio context outside a real user
+     interaction, and one created beforehand stays suspended. The app must create its
+     context *inside* a gesture, not merely resume it there — Safari can leave a
+     context created outside one permanently stuck.
+  2. **The iOS ring/silent switch.** Web Audio plays in the "ambient" audio session
+     category, which the physical switch mutes. A user on silent — most people, most
+     of the time — hears nothing while every other part of the app works. The app must
+     ask for the **playback** category (`navigator.audioSession` on iOS 16.4+) and,
+     for older versions, hold the session with a silent looping media element.
+  3. **Interruptions.** A call, a backgrounded tab or unplugged headphones suspend the
+     context and nothing resumes it. The app must re-check on return and tell the user
+     when sound is off, rather than failing quietly.
+  Playback is scheduled on the **audio clock, not `setTimeout`** — phone browsers
+  throttle timers, and an exercise whose notes arrive on a throttled timer comes out
+  ragged or not at all. There must also be a way for a user to *test* sound and be
+  told what is wrong, since "I hear nothing" is otherwise unactionable.
 - **Latency:** MIDI note-to-feedback round trip must feel instantaneous for rhythm
   grading to be meaningful — target end-to-end input latency budget of ≤20ms added by
   the app on top of device/OS MIDI latency.

@@ -154,6 +154,12 @@ export interface MidiTransport {
   the standard BLE MIDI peripheral flow — both are addressed in the native module, not
   in shared JS.
 
+**The web `audio-engine` owns the three mobile unlock problems** (PRD §1.5): creating
+the context inside a user gesture rather than before one, claiming the **playback**
+audio session so the iOS silent switch does not mute it, and recovering from
+interruptions. These belong in the shared engine and not in any screen — a per-screen
+fix is one screen away from being forgotten, and the failure is silent.
+
 Same pattern for `audio-engine` (Web Audio API + Tone.js on web; native audio module —
 evaluate `react-native-audio-api` vs. a thin Expo module over `AVAudioEngine`/Oboe — on
 native) and for file-system/upload handling.
