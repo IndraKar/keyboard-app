@@ -247,7 +247,7 @@ flowchart TB
 
 ## 2.6a Billing & subscription lifecycle
 
-Keyvoria Plus is one $5.95/month subscription sold on three storefronts, and the
+Keyvoria Premium is one $5.95/month subscription sold on three storefronts, and the
 storefronts are not equivalent — this is the main reason billing gets its own section
 rather than being a detail of the API.
 
@@ -302,7 +302,7 @@ that covers concretely, all keyed off one `user_id` in Postgres (§4, database s
   `user_progress`, §4.9b/§4.8) — spend XP to unlock a Sight-Reading tier on mobile on
   the train, the exact same unlocked tier (and the lessons it reveals) is there on
   desktop at a real keyboard, same record either way.
-- **Entitlements/subscription state** (`entitlements`) — buy Keyvoria Plus on one
+- **Entitlements/subscription state** (`entitlements`) — buy Keyvoria Premium on one
   device, the 61-key on-screen keyboard, Upload your file, and every category's
   premium-only tiers unlock everywhere, immediately, since the check is a live read
   against Postgres, not a per-device flag.
@@ -354,7 +354,7 @@ scaffolds the monorepo layout above directly into it — no prior app code to re
 migrate.
 ## 2.10 The premium capability layer
 
-**Problem this solves.** Today three separate places ask "is this user on Plus?" — the
+**Problem this solves.** Today three separate places ask "is this user on Premium?" — the
 keyboard's range, tier 4's purchase check, and Upload your file's preview cap. That is
 already three; the features in PRD F-09/F-10/F-11 would make it eight or nine, each a
 separate `plan === "paid"` test scattered through unrelated code. That is how a

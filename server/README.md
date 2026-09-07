@@ -1,6 +1,6 @@
 # Keyvoria server — M7 (billing) and M7a (Competition Mode)
 
-The parts of Keyvoria Plus that **cannot** live in the client: who is entitled to
+The parts of Keyvoria Premium that **cannot** live in the client: who is entitled to
 what, and who won a race.
 
 ## Why this exists as its own thing
@@ -9,7 +9,7 @@ The rest of Keyvoria so far is documentation plus a single-file playable
 prototype. Two features from the $5.95/month plan can't be built that way:
 
 - **Entitlement.** A paywall drawn in the client is a suggestion. If the check
-  isn't on a server, anyone who opens dev tools has Plus.
+  isn't on a server, anyone who opens dev tools has Premium.
 - **Competition.** If the client generates the passage, it knows the answers
   before the round starts. If the client reports its own result, the leaderboard
   is a self-report. Both have to be server-side or the mode is decorative.
@@ -18,7 +18,7 @@ Everything here is plain Node 22 ESM with **no runtime dependencies**, so it
 runs and tests with no install step:
 
 ```
-npm test     # 67 tests, no network, no database
+npm test     # 90 tests, no network, no database
 npm start    # http://localhost:8787
 ```
 
@@ -28,7 +28,8 @@ npm start    # http://localhost:8787
 | --- | --- |
 | `src/billing/subscription.js` | The subscription lifecycle as pure functions. Every access rule lives here. |
 | `src/billing/webhooks.js` | Stripe / App Store / Play event normalisation, idempotency, and the missed-webhook sweep. |
-| `src/competition/passage.js` | Server-side passage generation, level ladder 1–5 (PRD F-13). |
+| `src/competition/passage.js` | Reading Race: passage generation, level ladder 1–5 (PRD F-13). |
+| `src/competition/chords.js` | Chord Race: chord generation, level ladder 1–3. |
 | `src/competition/match.js` | The match engine: elimination, the settle window, local-clock ranking. |
 | `src/competition/matchmaking.js` | Queue by level; private lobbies by share code. |
 | `src/store/memory.js` | Reference store — six methods. |
@@ -54,7 +55,7 @@ signing secret is configured — falling open there would let anyone who finds t
 URL grant themselves a subscription forever.
 
 **Webhooks also get lost**, so `sweep()` enforces period ends and grace
-expiries on a timer. Without it a dropped webhook means someone keeps Plus for
+expiries on a timer. Without it a dropped webhook means someone keeps Premium for
 free and nothing ever errors.
 
 **The match holds open for 750 ms after the first finish** (`SETTLE_MS`). This
@@ -63,6 +64,20 @@ server processed first, which is decided by ping — exactly what ranking by the
 player's own clock exists to prevent. Reported times are validated
 (`MIN_MS_PER_NOTE`), and a time that fails validation falls back to
 server-observed order rather than disqualifying the player.
+
+**Competition has two games, one engine.** Reading Race is won by finishing
+first; Chord Race is won by being the last player not eliminated. Those two
+differences — `lastStanding` and a per-game floor on plausible answer time —
+are declared in the `GAMES` table in `match.js`, and everything else
+(elimination, ranking, the settle window, matchmaking, lobbies) is shared.
+
+**Chord Race is cheatable and the reading race is not.** The client has to be
+told which pitches to sound, and anyone reading those pitches can compute the
+quality. Pre-rendering audio would not fix it — audio can be analysed. So the
+round is revealed one chord at a time at each player's own position, answers
+have a 500 ms plausibility floor, and the server remains the only authority on
+correctness. That bounds the advantage; it does not remove it, and the header of
+`chords.js` says so rather than implying the game is secure.
 
 **Competition writes no XP.** Your result depends on your opponents, so it
 cannot feed a progression number that is supposed to mean your own skill.
@@ -81,14 +96,15 @@ seam to replace.
 | `POST /v1/subscription/cancel` | 409 + `manageUrl` for App Store / Play |
 | `POST /v1/subscription/resume` | undoes a pending cancel |
 | `POST /v1/webhooks/:provider` | `stripe` \| `apple_app_store` \| `google_play` |
-| `POST /v1/competition/queue` | join the ladder for a level |
-| `GET /v1/competition/queue/:level` | poll; also drives the wait-timeout start |
+| `POST /v1/competition/queue` | `{game, level, players}` — `game` is `reading` (default) or `chords` |
+| `GET /v1/competition/queue/:level?game=` | poll; also drives the wait-timeout start |
 | `DELETE /v1/competition/queue` | leave |
 | `POST /v1/competition/private` | open a lobby, returns a 5-character code |
 | `POST /v1/competition/private/join` | join by code (case-insensitive) |
 | `POST /v1/competition/private/start` | host only |
 | `GET /v1/competition/match/:id` | poll the race |
-| `POST /v1/competition/match/:id/note` | the only scoring path |
+| `POST /v1/competition/match/:id/note` | reading race: `{midi}` |
+| `POST /v1/competition/match/:id/answer` | Chord Race: `{answer}`, one of the level's qualities |
 
 Every `/v1/competition/*` route returns **402** without a live subscription.
 

@@ -321,3 +321,107 @@ test("an oversized body is refused before it is parsed", async () => {
     assert.equal(r.status, 413);
   });
 });
+
+// ------------------------------------------------------ Chord Race over HTTP
+
+test("the levels endpoint advertises both games and how each is won", async () => {
+  await withServer({}, async ({ call }) => {
+    const r = await call("GET", "/v1/competition/levels");
+    assert.equal(r.body.games.length, 2);
+    const [reading, chords] = r.body.games;
+    assert.equal(reading.id, "reading");
+    assert.equal(reading.levels.length, 5);
+    assert.equal(chords.id, "chords");
+    assert.equal(chords.levels.length, 3);
+    assert.equal(chords.wonBy, "last player standing");
+    assert.deepEqual(chords.levels[0].qualities, ["major", "minor"]);
+    assert.deepEqual(chords.levels[2].qualities,
+      ["major", "minor", "major7", "minor7", "augmented", "diminished"]);
+    assert.equal(r.body.chordLabels.major7, "Major 7th");
+  });
+});
+
+test("Chord Race is gated by the same subscription check", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const r = await call("POST", "/v1/competition/queue", { token: dev("free2"), body: { game: "chords", level: 1 } });
+    assert.equal(r.status, 402);
+  });
+});
+
+test("a chord match: one wrong quality is out, and the survivor wins by outlasting", async () => {
+  await withServer({ devAuth: true }, async ({ call, matchmaker }) => {
+    const a = dev("ann"), b = dev("ben");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "chords", level: 1, players: 2, displayName: "Ann" } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "chords", level: 1, players: 2, displayName: "Ben" } });
+    const view = q.body.match;
+    assert.equal(view.game, "chords");
+    assert.equal(view.answerCount, 8);
+    assert.deepEqual(view.round.qualities, ["major", "minor"]);
+    assert.ok(view.current.notes.length >= 3, "the client is given the pitches it has to sound");
+    assert.equal(view.current.index, 0);
+
+    const id = view.id;
+    // Read the real answer the way only the server can, to drive the test.
+    const truth = matchmaker.get(id).passage.answers;
+
+    const right = await call("POST", `/v1/competition/match/${id}/answer`, {
+      token: a, body: { answer: truth[0], clientElapsedMs: 1200 },
+    });
+    assert.equal(right.body.correct, true);
+    assert.equal(right.body.match.current.index, 1, "the next chord is revealed only now");
+
+    const wrong = await call("POST", `/v1/competition/match/${id}/answer`, {
+      token: b, body: { answer: truth[0] === "major" ? "minor" : "major" },
+    });
+    assert.equal(wrong.body.correct, false);
+    assert.equal(wrong.body.eliminated, true);
+    assert.equal(wrong.body.match.state, "finished");
+    assert.equal(wrong.body.match.endReason, "last_standing");
+    assert.equal(wrong.body.match.winnerUserId, "ann",
+      "Ann wins on chord 2 of 8 — last player standing, exactly as specified");
+  });
+});
+
+test("a chord answer outside the level's own pool is refused", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const a = dev("ann"), b = dev("ben");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "chords", level: 1, players: 2 } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "chords", level: 1, players: 2 } });
+    const id = q.body.match.id;
+
+    // Diminished is a level 3 quality; it is not on level 1's answer buttons.
+    assert.equal((await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: "diminished" } })).status, 400);
+    assert.equal((await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: 60 } })).status, 400);
+    assert.equal((await call("POST", "/v1/competition/queue", { token: a, body: { game: "chords", level: 4 } })).status, 400);
+    assert.equal((await call("POST", "/v1/competition/queue", { token: a, body: { game: "solitaire", level: 1 } })).status, 400);
+  });
+});
+
+test("the two games queue separately over HTTP", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const a = dev("ann"), b = dev("ben");
+    for (const t of [a, b]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+    await call("POST", "/v1/competition/queue", { token: a, body: { game: "reading", level: 1, players: 2 } });
+    const q = await call("POST", "/v1/competition/queue", { token: b, body: { game: "chords", level: 1, players: 2 } });
+    assert.equal(q.body.match, null, "different games must not be matched together");
+    assert.equal((await call("GET", "/v1/competition/queue/1?game=chords", { token: b })).body.waiting, 1);
+    assert.equal((await call("GET", "/v1/competition/queue/1", { token: a })).body.waiting, 1);
+  });
+});
+
+test("a private chord lobby is created, joined and started as one", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const host = dev("h2"), guest = dev("g2");
+    for (const t of [host, guest]) await call("POST", "/v1/dev/subscribe", { token: t, body: {} });
+    const made = await call("POST", "/v1/competition/private", { token: host, body: { game: "chords", level: 3 } });
+    assert.equal(made.body.match.game, "chords");
+    assert.equal(made.body.match.round.qualities.length, 6);
+    await call("POST", "/v1/competition/private/join", { token: guest, body: { code: made.body.code } });
+    const started = await call("POST", "/v1/competition/private/start", { token: host, body: { code: made.body.code } });
+    assert.equal(started.body.match.state, "running");
+    assert.equal(started.body.match.answerCount, 12);
+  });
+});

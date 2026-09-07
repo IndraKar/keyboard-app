@@ -334,3 +334,215 @@ test("a match cannot start with fewer than two players", () => {
   assert.equal(r.ok, false);
   assert.equal(r.reason, "not_enough_players");
 });
+
+// ======================================================================
+// Chord Race — the second Competition game
+// ======================================================================
+
+const { CHORD_LEVELS, CHORD_INTERVALS, generateChordRound, chordLevelSpec } =
+  await import("../src/competition/chords.js");
+const { submitAnswer, currentFor, gameSpec, GAMES } = await import("../src/competition/match.js");
+
+function chordMatch(level = 1, players = 4, seed = 11) {
+  const m = createMatch({ id: "c1", game: "chords", level, seed, now: T0 });
+  for (let i = 0; i < players; i++) join(m, `u${i}`, `P${i}`);
+  start(m, T0);
+  return m;
+}
+const answerAt = (m, i) => m.passage.answers[i];
+const wrongAt = (m, i) => m.passage.qualities.find((q) => q !== answerAt(m, i));
+
+test("the three chord levels are exactly the qualities that were asked for", () => {
+  assert.deepEqual(CHORD_LEVELS[0].qualities, ["major", "minor"]);
+  assert.deepEqual(CHORD_LEVELS[1].qualities, ["major", "minor", "major7", "minor7"]);
+  assert.deepEqual(CHORD_LEVELS[2].qualities,
+    ["major", "minor", "major7", "minor7", "augmented", "diminished"]);
+  assert.equal(CHORD_LEVELS.length, 3);
+  assert.throws(() => chordLevelSpec(4), /no such chord level/);
+});
+
+test("a round only ever asks for qualities its level teaches", () => {
+  for (const spec of CHORD_LEVELS) {
+    for (let seed = 1; seed <= 200; seed++) {
+      const round = generateChordRound(spec.level, seed);
+      assert.equal(round.answers.length, spec.count);
+      for (const q of round.answers) {
+        assert.ok(spec.qualities.includes(q),
+          `level ${spec.level} produced ${q}, which it does not teach`);
+      }
+    }
+  }
+});
+
+test("chord pitches stay inside the free 32-key range", () => {
+  for (const spec of CHORD_LEVELS) {
+    for (let seed = 1; seed <= 300; seed++) {
+      for (const c of generateChordRound(spec.level, seed).chords) {
+        assert.deepEqual(c.notes, CHORD_INTERVALS[c.quality].map((iv) => c.root + iv));
+        for (const n of c.notes) {
+          assert.ok(n >= FREE_LO && n <= FREE_HI, `chord note ${n} is off the free keyboard`);
+        }
+      }
+    }
+  }
+});
+
+test("a round is reproducible from its seed, and different seeds differ", () => {
+  assert.deepEqual(generateChordRound(2, 42), generateChordRound(2, 42));
+  const a = generateChordRound(3, 1).answers.join(), b = generateChordRound(3, 2).answers.join();
+  assert.notEqual(a, b);
+});
+
+test("no quality appears three times in a row — that would reward guessing a pattern", () => {
+  for (let seed = 1; seed <= 400; seed++) {
+    const ans = generateChordRound(1, seed).answers; // level 1 has only two options: the worst case
+    for (let i = 2; i < ans.length; i++) {
+      assert.ok(!(ans[i] === ans[i - 1] && ans[i] === ans[i - 2]),
+        `seed ${seed} produced three ${ans[i]} in a row`);
+    }
+  }
+});
+
+test("one wrong quality ends the run, exactly like a wrong note", () => {
+  const m = chordMatch(1, 4);
+  const r = submitAnswer(m, "u0", wrongAt(m, 0), { now: T0 + 2000 });
+  assert.equal(r.correct, false);
+  assert.equal(r.eliminated, true);
+  assert.equal(submitAnswer(m, "u0", answerAt(m, 0), { now: T0 + 3000 }).reason, "eliminated");
+});
+
+test("LAST PLAYER STANDING wins Chord Race without finishing the round", () => {
+  const m = chordMatch(2, 3);
+  submitAnswer(m, "u0", answerAt(m, 0), { now: T0 + 1000 }); // u0 gets one right
+  submitAnswer(m, "u1", wrongAt(m, 0), { now: T0 + 1500 });
+  assert.equal(m.state, MATCH_STATE.RUNNING, "two are still in it");
+
+  submitAnswer(m, "u2", wrongAt(m, 0), { now: T0 + 2000 });
+  assert.equal(m.state, MATCH_STATE.FINISHED);
+  assert.equal(m.end_reason, END_REASON.LAST_STANDING);
+  assert.equal(m.winner_user_id, "u0", "the survivor wins even though the round was not completed");
+  assert.equal(m.entrants.get("u0").placement, 1);
+  assert.equal(m.entrants.get("u0").finished_at, null, "they won by outlasting, not by finishing");
+});
+
+test("the reading race does NOT end on a lone survivor — that game is against the music", () => {
+  const m = seatedMatch(1, 3);
+  submitNote(m, "u1", m.passage.notes[0] === 60 ? 61 : 60, { now: T0 + 500 });
+  submitNote(m, "u2", m.passage.notes[0] === 60 ? 61 : 60, { now: T0 + 600 });
+  assert.equal(m.state, MATCH_STATE.RUNNING, "the survivor still has to play the passage");
+  playAll(m, "u0", { now: T0 + 2000 });
+  assert.equal(m.state, MATCH_STATE.FINISHED);
+  assert.equal(m.end_reason, END_REASON.COMPLETED);
+});
+
+test("everyone out in Chord Race is a result, not a hang, and nobody wins", () => {
+  const m = chordMatch(1, 2);
+  submitAnswer(m, "u0", wrongAt(m, 0), { now: T0 + 1000 });
+  assert.equal(m.state, MATCH_STATE.FINISHED, "one wrong leaves a single survivor");
+  assert.equal(m.winner_user_id, "u1");
+
+  const solo = createMatch({ id: "c2", game: "chords", level: 1, seed: 5, now: T0 });
+  join(solo, "only", "Only"); join(solo, "other", "Other");
+  start(solo, T0);
+  submitAnswer(solo, "only", wrongAt(solo, 0), { now: T0 + 100 });
+  submitAnswer(solo, "other", answerAt(solo, 0), { now: T0 + 200 });
+  assert.equal(solo.winner_user_id, "other");
+});
+
+test("finishing the round still respects the settle window, so a rival can land too", () => {
+  const m = chordMatch(1, 2);
+  const done = m.passage.answers.length;
+  let r;
+  for (let i = 0; i < done; i++) {
+    r = submitAnswer(m, "u0", answerAt(m, i), { now: T0 + 1000 + i, clientElapsedMs: 900 * (i + 1) });
+  }
+  assert.equal(r.finished, true);
+  assert.equal(m.state, MATCH_STATE.RUNNING,
+    "u1 is still playing — ending here would hand the win to whoever the server heard from first");
+
+  resolve(m, T0 + 1000 + done + SETTLE_MS);
+  assert.equal(m.state, MATCH_STATE.FINISHED);
+  assert.equal(m.end_reason, END_REASON.COMPLETED);
+  assert.equal(m.winner_user_id, "u0");
+});
+
+test("a rival who finishes inside the settle window on a faster own clock wins", () => {
+  const m = chordMatch(1, 2);
+  const n = m.passage.answers.length;
+  for (let i = 0; i < n; i++) submitAnswer(m, "u0", answerAt(m, i), { now: T0 + 5000, clientElapsedMs: 12000 });
+  // u1 reaches the server 300ms later but played it 3 seconds faster.
+  for (let i = 0; i < n; i++) submitAnswer(m, "u1", answerAt(m, i), { now: T0 + 5300, clientElapsedMs: 9000 });
+  resolve(m, T0 + 5000 + SETTLE_MS);
+  assert.equal(m.winner_user_id, "u1", "ping must not decide a chord race either");
+});
+
+test("a chord answer has a higher plausibility floor than a key press", () => {
+  const chords = chordMatch(1, 2), reading = seatedMatch(1, 2);
+  assert.equal(gameSpec("chords").minMsPerAnswer, 500);
+  assert.equal(gameSpec("reading").minMsPerAnswer, MIN_MS_PER_NOTE);
+  // 8 chords in 2s is nobody hearing anything.
+  assert.equal(isPlausibleClientTime(chords, 2000), false);
+  assert.equal(isPlausibleClientTime(chords, 9000), true);
+  // The same 2s over 4 read notes is fast but human.
+  assert.equal(isPlausibleClientTime(reading, 2000), true);
+});
+
+test("a player is shown ONE chord — their own — and never the rest of the round", () => {
+  const m = chordMatch(3, 2);
+  const first = currentFor(m, "u0");
+  assert.equal(first.index, 0);
+  assert.deepEqual(first.notes, m.passage.chords[0].notes);
+
+  submitAnswer(m, "u0", answerAt(m, 0), { now: T0 + 1000 });
+  assert.equal(currentFor(m, "u0").index, 1, "the next chord is revealed only once the last is answered");
+  assert.equal(currentFor(m, "u1").index, 0, "each player sees their own position, not someone else's");
+
+  submitAnswer(m, "u1", wrongAt(m, 0), { now: T0 + 1200 });
+  assert.equal(currentFor(m, "u1"), null, "an eliminated player is shown nothing further");
+  assert.equal(currentFor(seatedMatch(1, 2), "u0"), null, "the reading race has no per-chord reveal");
+});
+
+test("the public view of a chord match carries the options but not the answers", () => {
+  const m = chordMatch(2, 2);
+  const v = publicView(m, "u0");
+  assert.equal(v.game, "chords");
+  assert.equal(v.answerCount, CHORD_LEVELS[1].count);
+  assert.deepEqual(v.round.qualities, CHORD_LEVELS[1].qualities);
+  const json = JSON.stringify({ ...v, current: null });
+  assert.ok(!json.includes("chords\":[{"), "the chord list must not be serialised to a client");
+  for (const key of ["answers", "root"]) {
+    assert.ok(!json.includes(`"${key}"`), `${key} leaked into the public view`);
+  }
+  assert.equal(v.current.index, 0, "the player's own current chord is included");
+});
+
+test("matchmaking keeps the two games in separate queues", () => {
+  const mm = createMatchmaker({ now: () => T0 });
+  mm.enqueue("a", "A", 1, 2, "reading");
+  const r = mm.enqueue("b", "B", 1, 2, "chords");
+  assert.equal(r.match, null, "a chord player must not be pulled into a reading race");
+  assert.equal(mm.queueLength(1, "reading"), 1);
+  assert.equal(mm.queueLength(1, "chords"), 1);
+
+  const formed = mm.enqueue("c", "C", 1, 2, "chords");
+  assert.ok(formed.match);
+  assert.equal(formed.match.game, "chords");
+  assert.deepEqual([...formed.match.entrants.keys()], ["b", "c"]);
+  assert.equal(mm.queueLength(1, "reading"), 1, "the reading queue is untouched");
+});
+
+test("a private chord lobby keeps its game", () => {
+  const mm = createMatchmaker({ now: () => T0 });
+  const { code, match } = mm.createPrivate("host", "Host", 3, Math.random, "chords");
+  assert.equal(match.game, "chords");
+  assert.equal(match.passage.qualities.length, 6);
+  assert.equal(mm.byCode(code).game, "chords");
+  assert.throws(() => mm.createPrivate("x", "X", 1, Math.random, "solitaire"), /no such game/);
+});
+
+test("both games are registered and disagree only where they should", () => {
+  assert.deepEqual(Object.keys(GAMES), ["reading", "chords"]);
+  assert.equal(GAMES.reading.lastStanding, false);
+  assert.equal(GAMES.chords.lastStanding, true);
+  assert.throws(() => createMatch({ id: "x", game: "nope", level: 1 }), /no such game/);
+});

@@ -29,7 +29,7 @@ flowchart TD
     M11 --> M14["M14 · Advanced analysis"]
 ```
 
-**V1 ships at M9.** M10–M14 are the Keyvoria Plus expansion (PRD F-05a, F-09–F-11) and
+**V1 ships at M9.** M10–M14 are the Keyvoria Premium expansion (PRD F-05a, F-09–F-11) and
 sit deliberately *after* beta launch: none of them is needed to prove the core learning
 product, and holding the launch for a composer would be the wrong trade. They are
 sequenced so each ships and is usable on its own.
@@ -188,7 +188,7 @@ into actual numbers per tier, tuned by whoever's authoring the content.
 - **The 32-key range is a hard authoring constraint for tiers 1–3** in all three
   categories — every passage, exercise, song arrangement, and generated sequence in
   those tiers must be playable within the free 32-key range (F2–C5), verified by the content linter, not
-  by reviewer judgement. Tier 4 is the only place content may span the full 61 keys, which only Keyvoria Plus provides,
+  by reviewer judgement. Tier 4 is the only place content may span the full 61 keys, which only Keyvoria Premium provides,
   which is what makes the premium tier and the premium keyboard one coherent offer.
 - Genre tags (Pop/Rock, Jazz-basics, etc. — confirm which 2+ per PRD F-01's
   `DECISION NEEDED`) applied to Playback & Repeat / Library content.
@@ -279,7 +279,7 @@ routes the user toward unlocking it rather than a dead end.
 > gate is what makes the plan real, and it does not depend on the pipeline.
 
 **Size:** XL — this is Keyvoria's main conversion path (PRD F-05: free 30-second
-preview, full song on Plus) and the
+preview, full song on Premium) and the
 single most complex milestone content-wise; a prior draft split this into two
 milestones (a free MIDI/MusicXML one and a paid MP3 one) — merged into one here
 since the feature itself merged.
@@ -341,12 +341,28 @@ best-effort output unambiguously marked as an estimate throughout the UI.
 
 ## M7a — Competition Mode
 
-> **Build status.** The engine is built and tested in `server/` — level ladder,
-> server-side passage generation, server-authoritative elimination, matchmaking,
-> private code lobbies, and local-clock ranking with validation. Matches are
-> polled over HTTP; the realtime channel is a transport swap, not a redesign. The
-> client side (a Competition screen wired to this API rather than to the
-> prototype's simulated opponents) is not built.
+> **Build status.** The engine is built and tested in `server/` — **both games**,
+> server-side round generation, server-authoritative elimination, matchmaking
+> (queued per game *and* per level), private code lobbies, and local-clock ranking
+> with validation. Matches are polled over HTTP; the realtime channel is a
+> transport swap, not a redesign. The client side (a Competition screen wired to
+> this API rather than to the prototype's simulated opponents) is not built.
+>
+> **Two games, one engine.** Chord Race (PRD F-13b) was added after the Reading
+> Race was already working, and reused all of it — elimination, ranking, the
+> settle window, matchmaking, lobbies. The two games disagree in exactly two
+> declared places: `lastStanding` (Chord Race is won by outlasting, the Reading
+> Race by finishing) and a per-game floor on plausible answer time (a chord has to
+> be *heard* before it can be named, so 500 ms against the reading race's 90 ms).
+> Everything else is shared, which is the test of whether the first game was built
+> generally enough.
+>
+> **A limitation recorded rather than papered over.** Chord Race is cheatable by a
+> patched client and the Reading Race is not: the client must be told which
+> pitches to sound, so it can always derive the current answer. The round is
+> therefore revealed one chord at a time at each player's own position, answers
+> carry a plausibility floor, and the server stays the only authority on
+> correctness — which bounds the advantage without removing it.
 
 **Size:** L — the netcode is the work; the music is already built.
 **Goal:** PRD F-13 — players race one passage, first wrong note out.
@@ -387,10 +403,13 @@ and would feel it without being able to name it. Latency then affects when resul
 belongs in the first implementation rather than a later fairness pass.
 
 **Deliverables:**
-- Level ladder 1–5 (bars, note count, time limit, key signature) as content data, not
-  constants, so balance can be retuned without a release.
+- **Two games** (PRD F-13a/F-13b): Reading Race, five levels, won by finishing first;
+  Chord Race, three levels, won by being the last player standing.
+- Level ladders (bars/notes/time/key for one, chord count/time/qualities for the other)
+  as content data, not constants, so balance can be retuned without a release.
 - Passage generation reusing the existing sight-reading generator with a per-level key
-  signature — no new content pipeline.
+  signature, and chord generation reusing the ear-training chord table — no new content
+  pipeline for either.
 - Matchmaking to a lobby size of 2–8, synchronised start, and **private lobbies by
   share code** using the same path.
 - **Server-authoritative elimination**: the server holds the passage and rules on each
@@ -400,7 +419,9 @@ belongs in the first implementation rather than a later fairness pass.
   rejects impossibly fast reported times.
 - Live roster over a realtime channel; eliminated players remain visible.
 - `competition_matches` / `competition_entrants` (§4.11a); **no XP writes**.
-**Exit criteria:** eight clients see the same passage and the same winner; a lobby
+**Exit criteria:** both games are playable end to end; a Chord Race ends the moment one
+player is left, while a Reading Race with one survivor does not; a chord player is never
+matched into a reading lobby; eight clients see the same round and the same winner; a lobby
 request for nine or more is clamped to eight by the server; a client patched to skip a
 wrong note is still eliminated server-side; two clients on deliberately different
 simulated latencies produce the same winner as they would on equal latency; a match

@@ -383,6 +383,28 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .cstat{width:42px;text-align:right;flex-shrink:0;font-size:10px;color:var(--faint);}
 .crow.me .cstat{color:var(--accent);}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+
+/* ---- Premium panel on Home -------------------------------------------- */
+.prempanel{text-align:left}
+.premtitle{font-weight:650;letter-spacing:-.01em;color:var(--gold)}
+.premprice{font-weight:700;font-size:17px;color:var(--gold)}
+.premprice .faint{font-size:12px;font-weight:500}
+.premlist{margin-top:10px;display:flex;flex-direction:column;gap:9px}
+.premrow{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.35}
+.premrow .grow{display:flex;flex-direction:column;gap:1px}
+.premcheck{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;font-weight:700;background:rgba(228,178,86,.18);color:var(--gold);margin-top:1px}
+.premsub{color:var(--muted);font-size:12px}
+.idrow.premium .avatar.gold{background:rgba(228,178,86,.16);color:var(--gold)}
+/* Chord Race feedback line under the play button */
+/* Six options plus a live roster have to share one phone screen, so Chord Race
+   pairs them up and shrinks the play button. Ear training keeps the single
+   column — it never has more than four. */
+.opts.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opts.grid2 .opt{justify-content:center;text-align:center;padding:12px 10px;font-size:13px}
+.playbtn.sm{width:72px;height:72px;box-shadow:0 0 0 8px rgba(255,138,61,.07)}
+.faint.good{color:var(--good);font-weight:600}
+.faint.bad{color:var(--bad);font-weight:600}
 </style>
 
 <div class="app">
@@ -406,7 +428,7 @@ const SAVE_KEY = "keyvoria.v1";
 const DEFAULTS = {
   xp: 0, lifetimeXp: 0,
   unlocked: { ear: 1, sight: 1, repeat: 1 },
-  plus: false, cancelPending: false,
+  premium: false, cancelPending: false,
   noteNames: true,
   exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
   /* mastery */
@@ -508,18 +530,22 @@ const INTERVALS = [
 ];
 const byStep = s => INTERVALS.find(i => i.s === s);
 const CHORDS = {
-  Major:[0,4,7], Minor:[0,3,7], Augmented:[0,4,8], Diminished:[0,3,6]
+  Major:[0,4,7], Minor:[0,3,7], Augmented:[0,4,8], Diminished:[0,3,6],
+  /* Four-note qualities. Used by Chord Race levels 2-3; the ear-training pools
+     in EAR_QUALITIES are unchanged, so adding these does not alter that
+     curriculum. */
+  "Major 7th":[0,4,7,11], "Minor 7th":[0,3,7,10]
 };
 
 /* Free keyboard: F2-C5 = 32 keys (19 white, 13 black).
    Chosen so the free range spans the entire bass staff (G2-A3) and the treble
    staff's lower octave (C4-C5) — the old 25-key C3-C5 squeezed bass passages into
-   the top of their staff. Plus: C2-C7 = 61 keys. */
+   the top of their staff. Premium: C2-C7 = 61 keys. */
 const FREE_LO = 41, FREE_HI = 72;
-const PLUS_LO = 36, PLUS_HI = 96;
-const keyCount = () => (S.plus ? PLUS_HI - PLUS_LO : FREE_HI - FREE_LO) + 1;
-const kbLo = () => S.plus ? PLUS_LO : FREE_LO;
-const kbHi = () => S.plus ? PLUS_HI : FREE_HI;
+const PREM_LO = 36, PREM_HI = 96;
+const keyCount = () => (S.premium ? PREM_HI - PREM_LO : FREE_HI - FREE_LO) + 1;
+const kbLo = () => S.premium ? PREM_LO : FREE_LO;
+const kbHi = () => S.premium ? PREM_HI : FREE_HI;
 
 const rand = n => Math.floor(Math.random()*n);
 const pick = a => a[rand(a.length)];
@@ -750,6 +776,7 @@ let earModeTier = 1;
 let cardBadge = "keyvoria_master";
 let lbMetric = "xp";
 let compLevel = 1;
+let compGame = "reading";     /* "reading" | "chords" — Competition has two games */
 const COMP_MAX_PLAYERS = 8;   /* hard ceiling — see roadmap M7a */
 let compPlayers = 8;
 let session = null;
@@ -798,7 +825,7 @@ function awardCorrectExercise(tierN){
 }
 function tryUnlock(catKey, tierN){
   const cost = TIER_COST[tierN];
-  if(tierN === 4 && !S.plus){ go("paywall"); return; }
+  if(tierN === 4 && !S.premium){ go("paywall"); return; }
   if(S.xp < cost){ toast("Need " + (cost - S.xp) + " more XP", true); return; }
   S.xp -= cost;
   S.unlocked[catKey] = tierN;
@@ -887,8 +914,12 @@ function genSight(tier){
      keyboard (F2-C5) and needs at most one ledger line. The bass window is now the
      actual bass staff (G2-A3) rather than the cramped C3-C4 the 25-key range forced. */
   let loDia, hiDia;
-  if(clef === "treble"){ loDia = 28; hiDia = 35; }   /* C4 - C5 */
+  if(clef === "treble"){ loDia = 28; hiDia = 34; }   /* C4 - B4 */
   else                 { loDia = 18; hiDia = 26; }   /* G2 - A3, the full bass staff */
+  /* Why B4 and not C5: the window has to allow for the key signature. In a sharp
+     key the staff's top C becomes C#5 = MIDI 73, which is one semitone past the
+     free keyboard's top key — so the exercise would ask for a note that is not on
+     screen. Tier 4 can reach higher because it is Premium, and Premium is 61 keys. */
   if(tier === 4){ if(clef === "treble"){ hiDia = 39; } else { loDia = 17; } }
 
   const span = hiDia - loDia;
@@ -918,7 +949,7 @@ function genSight(tier){
 function genRepeat(tier){
   const count = tier === 1 ? 3 : tier === 2 ? 4 : tier === 3 ? 5 : 6;
   const gap = tier === 1 ? 620 : tier === 2 ? 520 : tier === 3 ? 440 : 380;
-  const lo = tier === 4 ? PLUS_LO+12 : 52, hi = tier === 4 ? PLUS_HI-12 : 71;
+  const lo = tier === 4 ? PREM_LO+12 : 52, hi = tier === 4 ? PREM_HI-12 : 71;
   const scale = whiteNotesIn(lo, hi);
   const notes = [];
   for(let i=0;i<count;i++) notes.push(pick(scale));
@@ -1111,7 +1142,7 @@ function keyboardHTML(opts){
     html += '<div class="bk" data-midi="'+m+'" role="button" aria-label="'+midiName(m)+'"'+
             ' style="left:'+unit(left)+';width:'+unit(bkW)+'"></div>';
   }
-  const rangeLabel = S.plus ? "61 keys · Keyvoria Plus · scroll for more" : "32 keys · Free";
+  const rangeLabel = S.premium ? "61 keys · Keyvoria Premium · scroll for more" : "32 keys · Free";
   const meta = opts.meta === false ? "" :
     '<div class="kbmeta"><span class="faint">'+rangeLabel+'</span>'+
     '<span class="faint">'+(S.noteNames ? "Note names on" : "Note names off")+'</span></div>';
@@ -1247,6 +1278,35 @@ function tierProgressLabel(catKey){
   return "Tier " + u + " of 4 · " + TIER_XP[u] + " XP per correct exercise";
 }
 
+/* The subscription, explained on Home rather than only at the moment of refusal.
+   A user who only ever meets the price on a gate screen learns what Premium
+   costs before they learn what it is; this is the other order. Subscribers get
+   the same block collapsed to a status row — they have already bought it, so
+   selling to them again is just noise. */
+function premiumPanel(){
+  if(S.premium){
+    return '<button class="idrow premium" data-go="profile">'+
+      '<span class="avatar gold">'+svg(IC.gold,14)+'</span>'+
+      '<span class="grow"><span class="idname">Keyvoria Premium'+
+        (S.cancelPending ? ' \u00b7 ending 14 March' : '')+'</span>'+
+      '<span class="idmeta">'+(S.cancelPending
+        ? 'Cancelled \u2014 active until then'
+        : 'Active \u00b7 $5.95 / month \u00b7 manage or cancel')+'</span></span>'+
+      svg(IC.chev,16)+'</button>';
+  }
+  return '<div class="card gold prempanel">'+
+    '<div class="row"><span class="premtitle">Keyvoria Premium</span>'+
+      '<span class="premprice tnum">$5.95<span class="faint">/mo</span></span></div>'+
+    '<div class="faint" style="margin-top:6px">Everything in Keyvoria is free through tier 3 '+
+      'on the 32-key keyboard. Premium is what adds the rest:</div>'+
+    '<div class="premlist">'+premiumFeatures().map(([k,v]) =>
+      '<div class="premrow"><span class="premcheck">\u2713</span>'+
+      '<span class="grow"><b>'+k+'</b><span class="premsub">'+v+'</span></span></div>').join("")+
+    '</div>'+
+    '<button class="btn gold block" style="margin-top:12px" data-go="paywall">See what\u2019s included</button>'+
+  '</div>';
+}
+
 function screenMenu(){
   const t = k => {
     const c = CATS[k];
@@ -1282,16 +1342,17 @@ function screenMenu(){
       '<span class="ticon gold">'+svg(IC.gold,23)+'</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Upload your file</span>'+
       '<span class="tsub" style="display:block">'+
-        (S.plus ? 'Upload a song, we’ll build the full tutorial'
-                : 'Upload a song — first 30 seconds free')+'</span></span>'+
-      (S.plus ? '' : '<span class="pill">30s free</span>')+'</button>'+
-    '<button class="tile'+(S.plus?" warm":"")+'" data-act="competition">'+
+        (S.premium ? 'Upload a song, we’ll build the full tutorial'
+                : 'MIDI + sheet music from any song')+'</span></span>'+
+      (S.premium ? '' : '<span class="pill">Premium</span>')+'</button>'+
+    '<button class="tile'+(S.premium?" warm":"")+'" data-act="competition">'+
       '<span class="ticon">\u{1F3C1}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Competition</span>'+
       '<span class="tsub" style="display:block">'+
-        (S.plus ? 'Race up to '+COMP_MAX_PLAYERS+' players \u00b7 '+(S.compWins||0)+' won'
-                : 'Race other players \u00b7 Keyvoria Plus')+'</span></span>'+
-      (S.plus ? '' : '<span class="pill">Premium</span>')+'</button>'+
+        (S.premium ? 'Reading Race &amp; Chord Race \u00b7 '+(S.compWins||0)+' won'
+                : 'Two games \u00b7 up to '+COMP_MAX_PLAYERS+' players')+'</span></span>'+
+      (S.premium ? '' : '<span class="pill">Premium</span>')+'</button>'+
+    premiumPanel()+
     (masteredCats().length
       ? '<button class="tile master" data-go="master">'+
           '<span class="ticon gold" style="font-size:22px">\u{1F3B9}</span>'+
@@ -1310,7 +1371,7 @@ function screenLadder(){
   c.tiers.forEach(t => {
     const done = t.n <= u, next = t.n === u+1;
     const cost = TIER_COST[t.n];
-    const needsPlus = t.n === 4 && !S.plus;
+    const needsPremium = t.n === 4 && !S.premium;
     const afford = S.xp >= cost;
     let cls = "tier" + (next ? " cur" : "") + (done ? " open" : "");
     let node = done ? "done" : next ? "cur" : "lock";
@@ -1320,12 +1381,12 @@ function screenLadder(){
       body += '<div class="unlockrow"><span class="cost">'+TIER_XP[t.n]+' XP per correct exercise</span>'+
               '<span class="btn sm" style="pointer-events:none">Practise</span></div>';
     } else if(next){
-      const label = needsPlus ? "Get Plus" : afford ? "Unlock" : "Need "+(cost-S.xp)+" more";
-      const bcls = needsPlus ? "btn sm gold" : afford ? "btn sm" : "btn sm off";
-      body += '<div class="unlockrow"><span class="cost'+(afford||needsPlus?"":" short")+'">'+cost.toLocaleString()+' XP'+(needsPlus?" + Plus":"")+'</span>'+
+      const label = needsPremium ? "Get Premium" : afford ? "Unlock" : "Need "+(cost-S.xp)+" more";
+      const bcls = needsPremium ? "btn sm gold" : afford ? "btn sm" : "btn sm off";
+      body += '<div class="unlockrow"><span class="cost'+(afford||needsPremium?"":" short")+'">'+cost.toLocaleString()+' XP'+(needsPremium?" + Premium":"")+'</span>'+
               '<button class="'+bcls+'" data-act="unlock" data-cat="'+ladderCat+'" data-tier="'+t.n+'">'+label+'</button></div>';
     } else {
-      body += '<div class="unlockrow"><span class="cost short">'+cost.toLocaleString()+' XP'+(t.n===4?" + Keyvoria Plus":"")+'</span></div>';
+      body += '<div class="unlockrow"><span class="cost short">'+cost.toLocaleString()+' XP'+(t.n===4?" + Keyvoria Premium":"")+'</span></div>';
     }
     const attrs = done
       ? (ladderCat === "ear"
@@ -1500,15 +1561,15 @@ function screenProfile(){
     cats += '<div class="kv"><span class="kvk">'+CATS[k].name+'</span><span class="kvv">Tier '+S.unlocked[k]+' of 4</span></div>';
   });
   let sub;
-  if(!S.plus){
+  if(!S.premium){
     sub = '<div class="sub" style="margin-bottom:11px">You’re on the <b>Free</b> plan — tiers 1–3 in every category, 32-key keyboard.</div>'+
           '<button class="btn gold block" data-go="paywall">Upgrade · $5.95/month</button>';
   } else if(S.cancelPending){
-    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--accent)">Plus until 14 March</span></div>'+
+    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--accent)">Premium until 14 March</span></div>'+
           '<div class="sub" style="margin:8px 0 11px">Cancelled — you keep everything until then.</div>'+
           '<button class="btn block" data-act="resume">Resume subscription</button>';
   } else {
-    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--good)">Keyvoria Plus</span></div>'+
+    sub = '<div class="kv"><span class="kvk">Plan</span><span class="kvv" style="color:var(--good)">Keyvoria Premium</span></div>'+
           '<div class="kv"><span class="kvk">Price</span><span class="kvv tnum">$5.95 / month</span></div>'+
           '<div class="kv"><span class="kvk">Renews</span><span class="kvv">14 March 2026</span></div>'+
           '<div class="kv"><span class="kvk">Purchased on</span><span class="kvv">Web · cancel here</span></div>'+
@@ -1519,7 +1580,7 @@ function screenProfile(){
       ? '<button class="tile" data-go="account"><span class="avatar lg">'+initials()+'</span>'+
         '<span class="grow"><span class="ttitle" style="display:block">'+(S.account.nickname||S.account.name)+'</span>'+
         '<span class="tsub" style="display:block">'+(isPublic()?"Public profile":"Private profile")+
-        ' \u00b7 '+(S.plus?"Keyvoria Plus":"Free plan")+'</span></span>'+svg(IC.chev,18)+'</button>'
+        ' \u00b7 '+(S.premium?"Keyvoria Premium":"Free plan")+'</span></span>'+svg(IC.chev,18)+'</button>'
       : '<button class="tile warm" data-go="signin"><span class="avatar ghost">?</span>'+
         '<span class="grow"><span class="ttitle" style="display:block">Sign in</span>'+
         '<span class="tsub" style="display:block">Save your progress and sync across devices</span></span>'+
@@ -1817,6 +1878,11 @@ const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 /* Free users get the opening 30 seconds of any upload. Measured on the SONG's own
    timeline, not wall-clock, so slowing the tempo down never shrinks how much music
    you get — a learner practising at 0.25x still gets the full 30 seconds of material. */
+/* The 30-second preview.
+   Currently UNREACHABLE by design: Upload your file is now Premium-only, so
+   every account that gets here already has the whole song. The machinery is
+   left intact because it is one condition away from coming back — reopen the
+   gate in the `learnmusic` action and `isPreview` starts firing again. */
 const PREVIEW_MS = 30000;
 
 function parseMidiFile(buf){
@@ -1907,12 +1973,12 @@ let upload = null;          /* {fileName, title, raw, notes, estimated, bpm} */
    upgrade mid-tutorial can widen the keyboard AND lift the preview cap in one call. */
 function rebuildUpload(){
   if(!upload) return;
-  const limited = S.plus ? upload.raw : upload.raw.filter(n => n.at < PREVIEW_MS);
+  const limited = S.premium ? upload.raw : upload.raw.filter(n => n.at < PREVIEW_MS);
   upload.notes = fitToKeyboard(limited.length ? limited : upload.raw.slice(0,1));
   upload.fullCount = upload.raw.length;
   upload.songMs = upload.raw.length
     ? upload.raw[upload.raw.length-1].at + upload.raw[upload.raw.length-1].dur : 0;
-  upload.isPreview = !S.plus && upload.notes.length < upload.raw.length;
+  upload.isPreview = !S.premium && upload.notes.length < upload.raw.length;
 }
 let tut = null;             /* {speed, mode, loop, pos, playing, timers} */
 
@@ -2074,8 +2140,7 @@ function screenUpload(){
         '<div class="h2" style="margin-top:10px">Upload a song</div>'+
         '<div class="sub center" style="margin-top:6px">MP3, M4A or WAV — or a MIDI file for an exact transcription.</div>'+
         '<div class="faint center" style="margin-top:8px">'+
-          (S.plus ? 'Keyvoria Plus — full-length tutorials'
-                  : 'Free: the first 30 seconds of any song. Plus unlocks the whole thing.')+'</div>'+
+          'Keyvoria Premium — full-length tutorials'+'</div>'+
         '<label class="btn gold" style="margin-top:16px;cursor:pointer">Choose a file'+
           '<input type="file" id="songFile" accept=".mp3,.m4a,.wav,.aac,.ogg,.mid,.midi,audio/*" style="display:none">'+
         '</label>'+
@@ -2152,7 +2217,7 @@ function screenTutorial(){
             Math.round(total/Math.max(1,u.fullCount)*100)+'%"></div>' : '')+
         '</div>'+
         '<div class="faint" style="margin-top:7px">Note '+Math.min(t.pos+1,total)+' of '+total+
-          (u.isPreview ? ' · '+(u.fullCount-total)+' more with Plus' : '')+'</div>'+
+          (u.isPreview ? ' · '+(u.fullCount-total)+' more with Premium' : '')+'</div>'+
       '</div>'+
       '<div class="nchips">'+upcoming+'</div>'+
       (t.mode==="listen"
@@ -2318,16 +2383,57 @@ function screenUploadGate(){
       '<div class="h2">Upload your file</div><div style="width:34px"></div></div>'+
     '<div class="stack" style="justify-content:center;flex:1">'+
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
-      '<div class="center"><div class="h1">Keyvoria Plus · $5.95/month</div>'+
-        '<div class="sub" style="margin-top:6px">Transcribing a whole song into MIDI and sheet music is a Plus feature.</div></div>'+
-      '<div class="card">'+
-        '<div class="kv"><span class="kvk">Free</span><span class="kvv">First 30 seconds of any song</span></div>'+
-        '<div class="kv"><span class="kvk">Plus · $5.95/mo</span><span class="kvv" style="color:var(--gold)">The whole song, every time</span></div>'+
-        '<div class="kv"><span class="kvk">Also included</span><span class="kvv">Tier 4 · 61 keys · Competition</span></div>'+
-      '</div>'+
-      '<button class="btn gold block" data-go="paywall">Get Plus — $5.95/month</button>'+
-      '<button class="btn ghost block" data-act="freeupload">Try it free — first 30 seconds</button>'+
+      '<div class="center"><div class="h1">Keyvoria Premium</div>'+
+        '<div class="sub" style="margin-top:6px"><b>$5.95 a month</b> to use this feature. '+
+        'Upload a song and Keyvoria transcribes it into a MIDI file and engraved sheet music, '+
+        'then builds a tutorial you can slow right down.</div></div>'+
+      premiumFeatureList()+
+      '<button class="btn gold block" data-go="paywall">See Keyvoria Premium — $5.95/month</button>'+
+      '<button class="btn ghost block" data-go="home">Not now</button>'+
     '</div>';
+}
+
+/* The gate shown when a free account taps Competition. Same shape as the upload
+   gate on purpose: both are the same subscription, and a user who has just been
+   told the price once should recognise the screen the second time. */
+function screenCompGate(){
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Competition</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">\u{1F3C1}</div>'+
+      '<div class="center"><div class="h1">Keyvoria Premium</div>'+
+        '<div class="sub" style="margin-top:6px"><b>$5.95 a month</b> to use this feature. '+
+        'Race up to '+COMP_MAX_PLAYERS+' players in two games — read a passage against the clock, '+
+        'or name chords by ear until only one player is left.</div></div>'+
+      premiumFeatureList()+
+      '<button class="btn gold block" data-go="paywall">See Keyvoria Premium — $5.95/month</button>'+
+      '<button class="btn ghost block" data-go="home">Not now</button>'+
+    '</div>';
+}
+
+/* One list, used by both gates, the paywall and the Home panel. Written once so
+   the four places that sell the subscription cannot drift apart and start
+   promising different things. */
+function premiumFeatures(){
+  return [
+    ["Upload your file", "Any song becomes a MIDI file, sheet music and a tutorial"],
+    ["Competition Mode", "Reading Race and Chord Race, up to "+COMP_MAX_PLAYERS+" players"],
+    ["Tier 4", "The expert tier in Ear Training, Sight-Reading and Playback & Repeat"],
+    ["61 keys", "The full 5-octave keyboard those tiers need, up from 32"]
+  ];
+}
+function premiumFeatureList(){
+  /* Same rows as the Home panel rather than key/value pairs: these labels are
+     too long for a two-column row and were wrapping into each other. */
+  return '<div class="card" style="text-align:left">'+
+    '<div class="premlist">'+premiumFeatures().map(([k,v]) =>
+      '<div class="premrow"><span class="premcheck">\u2713</span>'+
+      '<span class="grow"><b>'+k+'</b><span class="premsub">'+v+'</span></span></div>').join("")+
+    '</div>'+
+    '<div class="kv" style="margin-top:12px"><span class="kvk">Price</span>'+
+      '<span class="kvv tnum" style="color:var(--gold)">$5.95 / month</span></div>'+
+  '</div>';
 }
 
 /* ============================ Competition Mode ============================
@@ -2348,7 +2454,11 @@ function genCompPassage(lv){
   const L = COMP_LEVELS[lv-1];
   const key = pick(L.keys), alter = keyAlter(key);
   const clef = Math.random() < 0.5 ? "treble" : "bass";
-  const loDia = clef === "treble" ? 28 : 18, hiDia = clef === "treble" ? 35 : 26;
+  /* Same one-semitone allowance for the key signature as genSight: a sharp key
+     turns the staff's top C into C#5, which is off the free 32-key keyboard.
+     Competition is Premium, but the passage stays inside the FREE range on
+     purpose — a race decided by whose keyboard rendered the note is a bad race. */
+  const loDia = clef === "treble" ? 28 : 18, hiDia = clef === "treble" ? 34 : 26;
   const dias = [];
   let d = loDia + rand(hiDia - loDia + 1);
   for(let i=0;i<L.notes;i++){
@@ -2363,31 +2473,80 @@ function genCompPassage(lv){
   return { clef, key, alter, dias, notes: dias.map(x => diaToMidi(x, alter)), pos:0 };
 }
 
+/* ---- Chord Race ---------------------------------------------------------
+   The second Competition game. A chord sounds; everyone names its quality.
+   One wrong answer is out, and the LAST PLAYER STANDING wins — where the
+   reading race is won by finishing first. The two win conditions are the
+   reason to have two games: one is a race, the other is a nerve test.
+
+   Levels widen the pool of qualities rather than speeding anything up,
+   because what makes a chord hard to name is how many things it could be. */
+const COMP_CHORD_LEVELS = [
+  { n:1, count:8,  secs:40, quals:["Major","Minor"],
+    blurb:"Major or minor" },
+  { n:2, count:10, secs:55, quals:["Major","Minor","Major 7th","Minor 7th"],
+    blurb:"Sevenths join in" },
+  { n:3, count:12, secs:70, quals:["Major","Minor","Major 7th","Minor 7th","Augmented","Diminished"],
+    blurb:"Augmented and diminished too" }
+];
+const compLevels = () => compGame === "chords" ? COMP_CHORD_LEVELS : COMP_LEVELS;
+
+function genCompChords(lv){
+  const L = COMP_CHORD_LEVELS[lv-1];
+  const chords = [];
+  for(let i=0;i<L.count;i++){
+    let q = pick(L.quals);
+    /* Never three of the same in a row: a run of majors invites answering by
+       pattern instead of by ear, which is not the skill being tested. */
+    if(i>=2 && q===chords[i-1].q && q===chords[i-2].q) q = pick(L.quals.filter(x=>x!==q));
+    const root = 48 + rand(13);                    /* C3-C4: the top of a
+                                                      major 7th still lands
+                                                      inside the free 32 keys */
+    chords.push({ q, root, notes: CHORDS[q].map(iv => root+iv) });
+  }
+  return { game:"chords", quals:L.quals.slice(), chords, answers: chords.map(c => c.q) };
+}
+
+/* Sound the chord the player is currently on. Notes are spread by 30ms so the
+   attack reads as one chord rather than a cluster of separate strikes. */
+function compHear(){
+  if(!comp || comp.over || comp.game !== "chords") return;
+  const c = comp.ex.chords[comp.you.pos];
+  if(!c || comp.you.out || comp.you.done) return;
+  playPhrase(c.notes.map((m,i) => ({ midi:m, at:i*30, dur:1250 })));
+}
+
 let comp = null;
 
 function startComp(level, count){
-  const L = COMP_LEVELS[level-1];
-  const ex = genCompPassage(level);
+  const chords = compGame === "chords";
+  const L = compLevels()[level-1];
+  const ex = chords ? genCompChords(level) : genCompPassage(level);
+  const total = chords ? ex.chords.length : ex.notes.length;
   const n = Math.max(2, Math.min(COMP_MAX_PLAYERS, count));   /* never exceed the cap */
   const bots = shuffle(BOT_NAMES).slice(0, n-1).map(nm => ({
     name:nm, pos:0, out:false, done:false,
-    /* Faster bots are likelier to slip — the trade-off the human faces too. */
-    ms: 620 + rand(900),
-    err: 0.015 + Math.random()*0.05 + (level-1)*0.004,
+    /* A chord has to be heard before it can be named, so chord bots think for
+       much longer than reading bots — and they are wrong far more often, since
+       naming a quality by ear is harder than finding a key you can see. */
+    ms: chords ? 1500 + rand(2000) : 620 + rand(900),
+    err: chords ? 0.05 + Math.random()*0.09 + (level-1)*0.03
+               : 0.015 + Math.random()*0.05 + (level-1)*0.004,
     next: 0
   }));
   comp = {
-    level, ex, bots, secs:L.secs, endsAt: Date.now() + L.secs*1000,
-    you:{ pos:0, out:false, done:false }, over:false, winner:null, t0:Date.now()
+    game: compGame, level, ex, total, bots, secs:L.secs, endsAt: Date.now() + L.secs*1000,
+    you:{ pos:0, out:false, done:false }, over:false, winner:null, t0:Date.now(), flash:null
   };
   go("compmatch");
+  if(chords) setTimeout(compHear, 450);   /* let the screen settle before the first chord */
   compLoop();
 }
 function compStop(){ if(comp && comp.raf) clearTimeout(comp.raf); }
 
 function compLoop(){
   if(!comp || comp.over || curScreen !== "compmatch") return;
-  const now = Date.now(), total = comp.ex.notes.length;
+  const now = Date.now(), total = comp.total;
   comp.bots.forEach(b => {
     if(b.out || b.done) return;
     if(!b.next) b.next = now + b.ms;
@@ -2399,9 +2558,17 @@ function compLoop(){
     }
   });
   const finisher = comp.bots.find(b => b.done);
+  const standing = comp.bots.filter(b => !b.out && !b.done);
+  const youStanding = !comp.you.out && !comp.you.done;
+
   if(comp.you.done)      finishComp("you");
   else if(finisher)      finishComp(finisher.name);
   else if(now >= comp.endsAt) finishComp(null);
+  /* Chord Race ends the moment one player is left: that IS the win condition,
+     so playing out the remaining chords alone would be theatre. The reading
+     race deliberately does not do this — there you still have to play it. */
+  else if(comp.game === "chords" && standing.length + (youStanding?1:0) === 1)
+    finishComp(youStanding ? "you" : standing[0].name);
   else {
     const alive = comp.bots.filter(b=>!b.out).length + (comp.you.out ? 0 : 1);
     if(alive === 0) finishComp(null);
@@ -2420,7 +2587,7 @@ function finishComp(winner){
 }
 /* Only the volatile parts repaint each frame; a full render would fight the keyboard. */
 function renderCompLive(){
-  const total = comp.ex.notes.length;
+  const total = comp.total;
   const left = Math.max(0, Math.ceil((comp.endsAt - Date.now())/1000));
   const t = document.getElementById("compclock");
   if(t){ t.textContent = left + "s"; t.className = "compclock tnum" + (left <= 5 ? " urgent" : ""); }
@@ -2428,6 +2595,11 @@ function renderCompLive(){
   if(list) list.innerHTML = compRows(total);
   const prog = document.getElementById("compprog");
   if(prog) prog.textContent = comp.you.pos + " / " + total;
+  const fx = document.getElementById("compflash");
+  if(fx){
+    fx.textContent = comp.flash === "right" ? "Correct" : comp.flash === "wrong" ? "Wrong — you are out" : "Tap to hear it again";
+    fx.className = "faint center" + (comp.flash === "right" ? " good" : comp.flash === "wrong" ? " bad" : "");
+  }
 }
 function compRows(total){
   const rows = [{name:"You", pos:comp.you.pos, out:comp.you.out, done:comp.you.done, me:true}]
@@ -2442,17 +2614,33 @@ function compRows(total){
 }
 
 function screenCompSetup(){
-  const rows = COMP_LEVELS.map(L =>
-    '<button class="tier'+(compLevel===L.n?" cur":"")+'" data-act="complevel" data-l="'+L.n+'" style="width:100%;text-align:left">'+
+  const chords = compGame === "chords";
+  const games = [["reading","Reading Race"],["chords","Chord Race"]].map(([g,label]) =>
+    '<button class="seg-opt'+(compGame===g?" active":"")+'" data-act="compgame" data-g="'+g+'">'+label+'</button>').join("");
+
+  const rows = compLevels().map(L => {
+    const title = chords ? 'Level '+L.n+' \u00b7 '+L.count+' chords'
+                         : 'Level '+L.n+' \u00b7 '+L.notes+' notes';
+    const sub   = chords ? L.quals.join(" \u00b7 ")+' \u00b7 '+L.secs+'s'
+                         : L.bars+' bar'+(L.bars>1?"s":"")+' \u00b7 '+L.blurb+' \u00b7 '+L.secs+'s';
+    return '<button class="tier'+(compLevel===L.n?" cur":"")+'" data-act="complevel" data-l="'+L.n+'" style="width:100%;text-align:left">'+
       '<span class="node '+(compLevel===L.n?"cur":"lock")+'">'+L.n+'</span>'+
-      '<span class="grow"><span class="tiertitle">Level '+L.n+' · '+L.notes+' notes</span>'+
-      '<span class="tiersub">'+L.bars+' bar'+(L.bars>1?"s":"")+' · '+L.blurb+' · '+L.secs+'s</span></span></button>').join("");
+      '<span class="grow"><span class="tiertitle">'+title+'</span>'+
+      '<span class="tiersub">'+sub+'</span></span></button>';
+  }).join("");
+
+  const rules = chords
+    ? 'A chord is played; name it before anyone else gets it wrong. '+
+      '<b>One wrong answer puts you out</b>, and the <b>last player standing wins</b> \u2014 '+
+      'you do not have to be fastest, you have to be right.'
+    : 'Play the passage correctly, faster than everyone else. '+
+      '<b>The first wrong note puts you out</b> \u2014 so speed alone will not win it.';
+
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Competition</div><div style="width:34px"></div></div>'+
-    '<div class="faint">Play the passage correctly, faster than everyone else. '+
-      '<b>The first wrong note puts you out</b> — so speed alone will not win it. '+
-      'Opponents are matched from anywhere, not just people near you.</div>'+
+    '<div class="seg">'+games+'</div>'+
+    '<div class="faint">'+rules+' Opponents are matched from anywhere, not just people near you.</div>'+
     '<div class="stack">'+rows+'</div>'+
     '<div class="card"><div class="row"><span class="kvk">Players in this match</span>'+
       '<span class="kvv tnum" id="cpcount">'+compPlayers+'</span></div>'+
@@ -2465,37 +2653,68 @@ function screenCompSetup(){
 }
 
 function screenCompMatch(){
-  const ex = comp.ex, total = ex.notes.length, L = COMP_LEVELS[comp.level-1];
+  if(comp.game === "chords") return screenCompChordMatch();
+  const ex = comp.ex, total = comp.total, L = COMP_LEVELS[comp.level-1];
   return '<div class="exhead">'+
       '<button class="iconbtn" data-act="compquit" aria-label="Leave">'+svg(IC.close,13)+'</button>'+
       '<div class="compclock tnum" id="compclock">'+L.secs+'s</div>'+
       '<div class="faint tnum" id="compprog">0 / '+total+'</div></div>'+
     '<div class="exbody">'+
-      '<div class="row"><span class="eyebrow">Level '+comp.level+' · '+(ex.clef==="treble"?"Treble":"Bass")+
-        (ex.key!=="C" ? " · "+KEYS[ex.key].name : "")+'</span>'+
+      '<div class="row"><span class="eyebrow">Level '+comp.level+' \u00b7 '+(ex.clef==="treble"?"Treble":"Bass")+
+        (ex.key!=="C" ? " \u00b7 "+KEYS[ex.key].name : "")+'</span>'+
         '<span class="faint">'+L.bars+' bar'+(L.bars>1?"s":"")+'</span></div>'+
       '<div class="staffcard">'+staffSVG(ex)+'</div>'+
       '<div class="complist" id="complist">'+compRows(total)+'</div>'+
     '</div>'+ keyboardHTML({});
 }
 
+/* No keyboard here: Chord Race is decided by ear, and the six answer buttons
+   need the room the keyboard would take. */
+function screenCompChordMatch(){
+  const total = comp.total, L = COMP_CHORD_LEVELS[comp.level-1];
+  const done = comp.you.out || comp.you.done;
+  const opts = comp.ex.quals.map(q =>
+    '<button class="opt'+(done?" locked":"")+'" data-act="compans" data-q="'+q+'">'+q+'</button>').join("");
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="compquit" aria-label="Leave">'+svg(IC.close,13)+'</button>'+
+      '<div class="compclock tnum" id="compclock">'+L.secs+'s</div>'+
+      '<div class="faint tnum" id="compprog">'+comp.you.pos+' / '+total+'</div></div>'+
+    '<div class="exbody">'+
+      '<div class="row"><span class="eyebrow">Chord Race \u00b7 Level '+comp.level+'</span>'+
+        '<span class="faint">last one standing</span></div>'+
+      '<div class="prompt">'+(done ? (comp.you.out ? "You are out" : "Round complete")
+                                   : "Which chord is this?")+'</div>'+
+      '<button class="playbtn sm" data-act="comphear" aria-label="Play the chord again">'+svg(IC.play,24)+'</button>'+
+      '<div class="faint center" id="compflash">Tap to hear it again</div>'+
+      '<div class="opts grid2">'+opts+'</div>'+
+      '<div class="complist" id="complist">'+compRows(total)+'</div>'+
+    '</div>';
+}
+
 function screenCompResult(){
-  const won = comp.winner === "you", total = comp.ex.notes.length;
+  const won = comp.winner === "you", total = comp.total, chords = comp.game === "chords";
+  const outcome = won
+      ? (chords ? "Last one standing — with every chord named right." : "Cleared it first, with no mistakes.")
+      : comp.you.out
+        ? (chords ? "You named a chord wrong — that ends your run." : "You played a wrong note — that ends your run.")
+        : comp.winner
+          ? (chords ? "Everyone else was still in it when you went out." : "Someone finished before you did.")
+          : "Time ran out with nobody finished.";
   return '<div class="stack center" style="justify-content:center;flex:1">'+
-    '<div class="eyebrow">Level '+comp.level+' · '+(comp.bots.length+1)+' players</div>'+
-    '<div class="bigxp" style="font-size:34px">'+(won ? "🏆 You win" : comp.winner ? comp.winner+" wins" : "No winner")+'</div>'+
-    '<div class="sub">'+(won ? "Cleared it first, with no mistakes."
-        : comp.you.out ? "You played a wrong note — that ends your run."
-        : comp.winner ? "Someone finished before you did." : "Time ran out with nobody finished.")+'</div>'+
+    '<div class="eyebrow">'+(chords?"Chord Race":"Reading Race")+' \u00b7 Level '+comp.level+
+      ' \u00b7 '+(comp.bots.length+1)+' players</div>'+
+    '<div class="bigxp" style="font-size:34px">'+(won ? "\u{1F3C6} You win" : comp.winner ? comp.winner+" wins" : "No winner")+'</div>'+
+    '<div class="sub">'+outcome+'</div>'+
     '<div class="card" style="text-align:left">'+
-      '<div class="kv"><span class="kvk">Your notes</span><span class="kvv tnum">'+comp.you.pos+' of '+total+'</span></div>'+
+      '<div class="kv"><span class="kvk">'+(chords?"Chords named":"Your notes")+'</span>'+
+        '<span class="kvv tnum">'+comp.you.pos+' of '+total+'</span></div>'+
       '<div class="kv"><span class="kvk">Matches won</span><span class="kvv tnum">'+(S.compWins||0)+'</span></div>'+
       '<div class="kv"><span class="kvk">Matches played</span><span class="kvv tnum">'+(S.compPlayed||0)+'</span></div>'+
     '</div>'+
     '<div class="faint">Competition does not award XP — the result depends on who else is in the '+
       'match, and XP is only ever earned for your own correct exercises.</div>'+
     '<button class="btn block" data-act="compstart">Play again</button>'+
-    '<button class="btn ghost block" data-go="compsetup">Change level</button>'+
+    '<button class="btn ghost block" data-go="compsetup">Change level or game</button>'+
   '</div>';
 }
 
@@ -2504,24 +2723,27 @@ function screenPaywall(){
     '<div style="width:34px"></div><div style="width:34px"></div></div>'+
     '<div class="stack center" style="justify-content:center;flex:1">'+
       '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
-      '<div class="h1">Keyvoria Plus</div>'+
-      '<div class="sub">Tiers 1–3 and the 32-key keyboard are always free. Plus adds <b>tier 4</b> in every category, the full <b>61-key</b> keyboard those tiers need, and Upload your file.</div>'+
-      '<div class="card gold"><div class="h2" style="color:var(--gold)">$5.95<span class="sub"> / month</span></div></div>'+
-      '<button class="btn gold block" data-act="upgrade">Upgrade now</button>'+
+      '<div class="h1">Keyvoria Premium</div>'+
+      '<div class="sub">Tiers 1\u20133 and the 32-key keyboard are free, always. '+
+        'Premium adds the two things you cannot do on a free account \u2014 '+
+        '<b>Upload your file</b> and <b>Competition Mode</b> \u2014 plus <b>tier 4</b> '+
+        'in every category and the <b>61-key</b> keyboard those tiers need.</div>'+
+      premiumFeatureList()+
+      '<button class="btn gold block" data-act="upgrade">Subscribe \u2014 $5.95/month</button>'+
       '<button class="btn ghost block" data-go="home">Not now</button>'+
     '</div>';
 }
 
 function screenCancel(){
   return '<div class="exhead"><button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.close,13)+'</button>'+
-    '<div class="h2">Cancel Plus</div><div style="width:34px"></div></div>'+
+    '<div class="h2">Cancel Premium</div><div style="width:34px"></div></div>'+
     '<div class="stack">'+
       '<div class="sub">Your subscription stays active until <b>14 March 2026</b>. Nothing changes before then.</div>'+
       '<div class="notice"><b>After 14 March you’ll lose</b><br>· Tier 4 in all three categories<br>· The 61-key keyboard (back to 32 keys)<br>· Access to your Upload your file uploads</div>'+
       '<div class="notice keep"><b>You keep everything else</b><br>· All '+S.lifetimeXp.toLocaleString()+' XP you’ve earned<br>· Every tier 1–3 you unlocked<br>· Progress and practice history<br>· Your uploaded files — kept, not deleted</div>'+
       '<div class="faint">Resubscribe any time and everything comes straight back.</div>'+
       '<button class="btn ghost block" data-act="confirmcancel">Cancel subscription</button>'+
-      '<button class="btn block" data-go="profile">Keep Keyvoria Plus</button>'+
+      '<button class="btn block" data-go="profile">Keep Keyvoria Premium</button>'+
     '</div>';
 }
 
@@ -2532,7 +2754,7 @@ const SCREENS = {
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   achievements:screenAchievements, card:screenCard,
-  uploadgate:screenUploadGate,
+  uploadgate:screenUploadGate, compgate:screenCompGate,
   compsetup:screenCompSetup, compmatch:screenCompMatch, compresult:screenCompResult,
   upload:screenUpload, confirm:screenConfirm, processing:screenProcessing,
   result:screenResult, tutorial:screenTutorial,
@@ -2703,10 +2925,10 @@ document.addEventListener("click", e => {
     case "toladder": ladderCat = session.cat; go("ladder"); break;
     case "upgrade": {
       const hadUpload = !!upload;
-      S.plus = true; S.cancelPending = false; save();
+      S.premium = true; S.cancelPending = false; save();
       rebuildUpload();
       if(upload && upload.midi) buildOutputs();
-      toast("Keyvoria Plus active · 61 keys and full songs unlocked");
+      toast("Keyvoria Premium active · 61 keys and full songs unlocked");
       if(hadUpload && tut){ tutStop(); tut.pos = 0; go("tutorial"); }
       else go("home");
       break;
@@ -2715,10 +2937,9 @@ document.addEventListener("click", e => {
       S.cancelPending = false; save(); toast("Subscription resumed"); render(); break;
     case "confirmcancel":
       S.cancelPending = true; save();
-      toast("Cancelled — Plus active until 14 March", true);
+      toast("Cancelled — Premium active until 14 March", true);
       go("profile"); break;
-    case "learnmusic": go(S.plus ? "upload" : "uploadgate"); break;
-    case "freeupload": go("upload"); break;
+    case "learnmusic": go(S.premium ? "upload" : "uploadgate"); break;
     case "unlockfull": go("paywall"); break;
     case "confirmsong": {
       const ti = document.getElementById("songTitle");
@@ -2778,11 +2999,35 @@ document.addEventListener("click", e => {
         save(); toast("Signed out", true); go("home");
       }
       break;
-    case "competition": go(S.plus ? "compsetup" : "paywall"); break;
+    case "competition": go(S.premium ? "compsetup" : "compgate"); break;
+    case "compgame":
+      compGame = el.dataset.g;
+      /* The chord ladder is three levels, not five: switching games with level 5
+         selected must not leave the setup screen pointing at a level that does
+         not exist. */
+      compLevel = Math.min(compLevel, compLevels().length);
+      render(); break;
     case "complevel": compLevel = parseInt(el.dataset.l,10); render(); break;
     case "compcount": compPlayers = parseInt(el.dataset.n,10); render(); break;
     case "compstart": startComp(compLevel, compPlayers); break;
-    case "compquit": compStop(); comp = null; go("compsetup"); break;
+    case "compquit": compStop(); allOff(); comp = null; go("compsetup"); break;
+    case "comphear": comp.flash = null; renderCompLive(); compHear(); break;
+    case "compans": {
+      if(!comp || comp.over || comp.game !== "chords") break;
+      if(comp.you.out || comp.you.done) break;
+      const q = el.dataset.q;
+      if(q !== comp.ex.answers[comp.you.pos]){
+        /* One wrong answer, exactly as specified. No second chance, no partial
+           credit — that is what makes the last player standing mean something. */
+        comp.you.out = true; comp.flash = "wrong"; allOff();
+        renderCompLive(); compLoop(); break;
+      }
+      comp.you.pos++; comp.flash = "right";
+      if(comp.you.pos >= comp.total){ comp.you.done = true; renderCompLive(); compLoop(); break; }
+      renderCompLive();
+      setTimeout(() => { if(comp && !comp.over){ comp.flash = null; renderCompLive(); compHear(); } }, 500);
+      break;
+    }
     case "card":
       cardBadge = el.dataset.badge; go("card"); break;
     case "share": shareBadge(badgeById(cardBadge)); break;

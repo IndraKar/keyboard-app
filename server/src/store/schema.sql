@@ -41,24 +41,36 @@ CREATE TABLE IF NOT EXISTS processed_webhook_events (
 
 CREATE TABLE IF NOT EXISTS competition_matches (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Two games share this table: 'reading' (race the passage, first to finish
+  -- wins) and 'chords' (name the quality, last player standing wins). They have
+  -- different ladder lengths, hence the per-game level check below.
+  game            text NOT NULL DEFAULT 'reading' CHECK (game IN ('reading','chords')),
   level           smallint NOT NULL CHECK (level BETWEEN 1 AND 5),
   -- 8 is the hard cap (roadmap M7a). Enforced in the database as well as the
   -- service, so no future code path can quietly seat a ninth player.
   player_count    smallint NOT NULL CHECK (player_count BETWEEN 2 AND 8),
   lobby_kind      text NOT NULL CHECK (lobby_kind IN ('matched','private')),
   join_code       text,
-  key_signature   text NOT NULL,
-  clef            text NOT NULL CHECK (clef IN ('treble','bass')),
+  -- Reading-race only: a chord round has neither a key signature nor a clef.
+  key_signature   text,
+  clef            text CHECK (clef IN ('treble','bass')),
   seed            bigint NOT NULL,
   passage         jsonb NOT NULL,
   started_at      timestamptz,
   ends_at         timestamptz,
   ended_at        timestamptz,
   winner_user_id  uuid REFERENCES users(id),
-  end_reason      text CHECK (end_reason IN ('completed','all_eliminated','timeout')),
+  end_reason      text CHECK (end_reason IN ('completed','all_eliminated','timeout','last_standing')),
   created_at      timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT private_lobbies_have_a_code
-    CHECK ((lobby_kind = 'private') = (join_code IS NOT NULL))
+    CHECK ((lobby_kind = 'private') = (join_code IS NOT NULL)),
+  -- The chord ladder is three levels, not five. Without this a level 5 chord
+  -- match would be storable and then ungeneratable.
+  CONSTRAINT level_is_on_this_game_s_ladder
+    CHECK (level <= CASE game WHEN 'chords' THEN 3 ELSE 5 END),
+  -- Only the reading race is read off a staff.
+  CONSTRAINT reading_rounds_have_a_staff
+    CHECK ((game = 'reading') = (clef IS NOT NULL AND key_signature IS NOT NULL))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS competition_open_join_code_idx
@@ -67,6 +79,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS competition_open_join_code_idx
 CREATE TABLE IF NOT EXISTS competition_entrants (
   match_id            uuid NOT NULL REFERENCES competition_matches(id) ON DELETE CASCADE,
   user_id             uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- Notes in the reading race, chords named in Chord Race: one counter, since
+  -- the engine treats both as "answers correct so far".
   notes_correct       smallint NOT NULL DEFAULT 0,
   eliminated_at_note  smallint,
   finished_at         timestamptz,

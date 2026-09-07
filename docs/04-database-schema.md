@@ -87,7 +87,7 @@ every screen that renders a keyboard, not reconfigured per session).
 
 **`entitlements`**
 `id`, `user_id → users`, `plan` (enum: free / trial / paid — `paid` means an active
-Keyvoria Plus subscription, $5.95/month per PRD §1.4), `starts_at`, `expires_at`.
+Keyvoria Premium subscription, $5.95/month per PRD §1.4), `starts_at`, `expires_at`.
 This table answers only "what can this user access right now," so it stays small and
 fast — it is read on nearly every gated action. The commercial state behind it
 (provider, renewal date, cancellation) lives in `subscriptions` (§4.10b); cancelling
@@ -311,7 +311,7 @@ depends on it holding):
 | 1 | `0` | `75` | `free` | Pre-unlocked for every user; no purchase row needed |
 | 2 | `750` | `100` | `free` | XP purchase |
 | 3 | `1250` | `125` | `free` | XP purchase |
-| 4 | `2000` | `150` | `premium` | XP purchase **and** active Keyvoria Plus |
+| 4 | `2000` | `150` | `premium` | XP purchase **and** active Keyvoria Premium |
 
 `xp_per_correct_exercise` is a column on `category_tiers`, not a constant in client
 code — the whole economy is then tunable by a content migration rather than an app
@@ -452,7 +452,7 @@ state of their commercial relationship," which is where cancellation lives.
 `purchase_platform` (enum: web / ios / android — where it was bought, which
 determines where it can be cancelled), `status` (enum: active / trialing /
 cancel_pending / expired / grace_period / billing_retry), `price_cents` (`595` for
-Keyvoria Plus at $5.95/month), `currency`, `current_period_start`, `current_period_end`,
+Keyvoria Premium at $5.95/month), `currency`, `current_period_start`, `current_period_end`,
 `cancel_at_period_end` (bool), `cancelled_at` (nullable — when the user *requested*
 cancellation, distinct from when access ends), `created_at`, `updated_at`.
 
@@ -461,7 +461,7 @@ Notes that matter for the cancel flow:
 - **Cancellation sets `cancel_at_period_end = true`; it does not touch
   `entitlements`.** Access continues until `current_period_end`, at which point the
   provider webhook moves `status` to `expired` and a job downgrades `entitlements.plan`
-  to `free`. This is what makes "Plus until 14 March" truthful rather than a UI
+  to `free`. This is what makes "Premium until 14 March" truthful rather than a UI
   fiction. Resuming before that date clears the flag with no billing event at all.
 - **Only `provider = stripe` can be cancelled by our backend.** Apple and Google own
   their subscriptions; there is no server-side cancel API for them, so the app
@@ -593,26 +593,32 @@ the screen map's Upload your file flow.
 ## 4.11a Competition Mode (PRD F-13)
 
 **`competition_matches`**
-`id`, `level` (1–5), `key_signature`, `clef`, `passage` (jsonb — the note sequence every
-player receives; one passage per match, generated server-side so no client can see it
-early), `player_count` (2–8; **8 is a hard cap**, clamped server-side — roadmap M7a),
+`id`, `game` (enum: reading / chords — the two Competition games, PRD F-13a/F-13b),
+`level` (1–5 for reading, 1–3 for chords; a CHECK enforces the per-game ladder length so
+a level 5 chord match cannot be stored and then fail to generate), `key_signature` and
+`clef` (**nullable — reading only**; a chord round has neither, and a second CHECK ties
+both columns to `game = 'reading'` rather than leaving them meaninglessly empty),
+`passage` (jsonb — the round every player receives, generated server-side so no client
+can see it early), `player_count` (2–8; **8 is a hard cap**, clamped server-side — roadmap M7a),
 `lobby_kind` (enum: matched / private), `join_code` (nullable — set for private
 lobbies, which is how "everyone in one room" is served without a separate local
 transport), `started_at`, `ended_at`, `winner_user_id` (nullable — null
 when the clock expires with nobody finished), `end_reason` (enum: completed /
-all_eliminated / timeout).
+all_eliminated / timeout / **last_standing** — the last of these is how a Chord Race
+normally ends, with one player left rather than a round completed).
 
 **`competition_entrants`**
-`match_id → competition_matches`, `user_id → users`, `notes_correct` (int),
-`eliminated_at_note` (nullable), `finished_at` (nullable), `placement` (int),
-`client_elapsed_ms` (int — measured on the player's own device from passage render to
-completion). **Ranking uses `client_elapsed_ms`, not server arrival time**, so a player
+`match_id → competition_matches`, `user_id → users`, `notes_correct` (int — notes in a
+Reading Race, chords named in a Chord Race; one counter, since the engine treats both as
+"answers correct so far"), `eliminated_at_note` (nullable), `finished_at` (nullable),
+`placement` (int), `client_elapsed_ms` (int — measured on the player's own device from
+the round rendering to completion). **Ranking uses `client_elapsed_ms`, not server arrival time**, so a player
 on a slow connection is not beaten by their ping (PRD F-13); the server validates it
 against the match window and rejects impossibly fast values.
 Primary key `(match_id, user_id)`.
 
-**Elimination is decided server-side.** The client reports key presses; the server
-holds the passage and rules on them. A client-authoritative match would be trivially
+**Elimination is decided server-side.** The client reports key presses (or named chord
+qualities); the server holds the round and rules on them. A client-authoritative match would be trivially
 winnable by editing the page, and a competitive mode that can be cheated is worth less
 than no competitive mode at all.
 

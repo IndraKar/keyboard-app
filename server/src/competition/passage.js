@@ -111,14 +111,20 @@ export function generatePassage(level, seed = (Math.random() * 2 ** 32) >>> 0) {
     d = Math.max(loDia, Math.min(hiDia, d));
   }
 
+  const notes = dias.map((x) => diatonicToMidi(x, alter));
   return {
     seed,
+    game: "reading",
     level,
     key,
     clef,
     bars: spec.bars,
     seconds: spec.seconds,
     dias,
-    notes: dias.map((x) => diatonicToMidi(x, alter)),
+    notes,
+    // `answers` is the engine's vocabulary: one entry per thing the player must
+    // get right, whatever the game. Here they are pitches; in Chord Race they
+    // are quality names. The engine never needs to know which.
+    answers: notes,
   };
 }

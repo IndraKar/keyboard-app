@@ -21,12 +21,18 @@ import {
 } from "../billing/subscription.js";
 import { handleWebhook, sweep } from "../billing/webhooks.js";
 import { LEVELS } from "../competition/passage.js";
-import { MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitNote, MATCH_STATE } from "../competition/match.js";
+import { CHORD_LEVELS, CHORD_LABELS } from "../competition/chords.js";
+import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
 import { verifyToken, issueToken } from "./tokens.js";
 import { verifySignature } from "./signature.js";
 
 const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial DoS
 const PROVIDERS = new Set(["stripe", "apple_app_store", "google_play"]);
+
+/** Ladders per game, so one lookup answers "is this a real level?" for both. */
+const LADDERS = { reading: LEVELS, chords: CHORD_LEVELS };
+const validGame = (g) => (Object.hasOwn(LADDERS, g) ? g : null);
+const validLevel = (game, level) => Number.isInteger(level) && !!LADDERS[game][level - 1];
 
 function send(res, status, body, extraHeaders = {}) {
   const payload = body === null ? "" : JSON.stringify(body);
@@ -155,7 +161,18 @@ export function createApp({
       }
 
       if (method === "GET" && url.pathname === "/v1/competition/levels") {
-        return send(res, 200, { levels: LEVELS, maxPlayers: MAX_PLAYERS, minPlayers: MIN_PLAYERS });
+        return send(res, 200, {
+          games: [
+            { id: "reading", label: GAMES.reading.label, wonBy: "first to finish", levels: LEVELS },
+            { id: "chords", label: GAMES.chords.label, wonBy: "last player standing", levels: CHORD_LEVELS },
+          ],
+          chordLabels: CHORD_LABELS,
+          maxPlayers: MAX_PLAYERS,
+          minPlayers: MIN_PLAYERS,
+          // The reading ladder under its old key, so a client written against
+          // the single-game API keeps working.
+          levels: LEVELS,
+        });
       }
 
       // ----------------------------------------------------------- webhooks
@@ -254,11 +271,13 @@ export function createApp({
         if (body === null) return send(res, 400, { error: "invalid_json" });
         const name = String(body.displayName || url.searchParams.get("name") || "Player").slice(0, 24);
 
-        // POST /v1/competition/queue — join the ladder for a level.
+        // POST /v1/competition/queue — join the ladder for a level of a game.
         if (seg[2] === "queue" && method === "POST") {
+          const game = validGame(body.game ?? "reading");
+          if (!game) return send(res, 400, { error: "invalid_game" });
           const level = Number(body.level);
-          if (!LEVELS[level - 1]) return send(res, 400, { error: "invalid_level" });
-          const r = matchmaker.enqueue(userId, name, level, Number(body.players ?? 8));
+          if (!validLevel(game, level)) return send(res, 400, { error: "invalid_level" });
+          const r = matchmaker.enqueue(userId, name, level, Number(body.players ?? 8), game);
           if (!r.ok) return send(res, 409, { error: r.reason });
           return send(res, 200, {
             waiting: r.waiting, match: r.match ? publicView(r.match, userId) : null,
@@ -268,28 +287,34 @@ export function createApp({
         // GET /v1/competition/queue/:level — poll. Polling is also what drives
         // the wait-timeout path, so a lone pair of players still get a match.
         if (seg[2] === "queue" && seg[3] && method === "GET") {
+          const game = validGame(url.searchParams.get("game") ?? "reading");
+          if (!game) return send(res, 400, { error: "invalid_game" });
           const level = Number(seg[3]);
-          if (!LEVELS[level - 1]) return send(res, 400, { error: "invalid_level" });
+          if (!validLevel(game, level)) return send(res, 400, { error: "invalid_level" });
           const mine = findMatchFor(userId);
           if (mine) return send(res, 200, { waiting: 0, match: publicView(mine, userId) });
-          const r = matchmaker.tryForm(level);
+          const r = matchmaker.tryForm(level, game);
           const placed = r.match?.entrants.has(userId) ? r.match : findMatchFor(userId);
           return send(res, 200, {
-            waiting: matchmaker.queueLength(level),
+            waiting: matchmaker.queueLength(level, game),
             match: placed ? publicView(placed, userId) : null,
           });
         }
 
         if (seg[2] === "queue" && method === "DELETE") {
+          const game = validGame(body.game ?? url.searchParams.get("game") ?? "reading");
+          if (!game) return send(res, 400, { error: "invalid_game" });
           const level = Number(body.level ?? url.searchParams.get("level"));
-          return send(res, 200, { left: matchmaker.leaveQueue(userId, level) });
+          return send(res, 200, { left: matchmaker.leaveQueue(userId, level, game) });
         }
 
         // Private lobbies — the "everyone in the same room" case.
         if (seg[2] === "private" && !seg[3] && method === "POST") {
+          const game = validGame(body.game ?? "reading");
+          if (!game) return send(res, 400, { error: "invalid_game" });
           const level = Number(body.level);
-          if (!LEVELS[level - 1]) return send(res, 400, { error: "invalid_level" });
-          const r = matchmaker.createPrivate(userId, name, level);
+          if (!validLevel(game, level)) return send(res, 400, { error: "invalid_level" });
+          const r = matchmaker.createPrivate(userId, name, level, Math.random, game);
           return send(res, 200, { code: r.code, match: publicView(r.match, userId) });
         }
 
@@ -321,16 +346,28 @@ export function createApp({
           return send(res, 200, { match: publicView(match, userId) });
         }
 
-        // POST /v1/competition/match/:id/note — the only scoring path.
-        if (seg[2] === "match" && seg[3] && seg[4] === "note" && method === "POST") {
+        // POST /v1/competition/match/:id/{note,answer} — the only scoring path.
+        // Two spellings, one handler: the reading race posts a MIDI number, and
+        // Chord Race posts a quality name.
+        if (seg[2] === "match" && seg[3] && (seg[4] === "note" || seg[4] === "answer") && method === "POST") {
           const match = matchmaker.get(seg[3]);
           if (!match || !match.entrants.has(userId)) return send(res, 404, { error: "no_such_match" });
-          const midi = Number(body.midi);
-          if (!Number.isInteger(midi) || midi < 0 || midi > 127) {
-            return send(res, 400, { error: "invalid_midi" });
+
+          let answer;
+          if (match.game === "chords") {
+            answer = String(body.answer ?? "");
+            if (!match.passage.qualities.includes(answer)) {
+              return send(res, 400, { error: "invalid_answer" });
+            }
+          } else {
+            answer = Number(body.midi ?? body.answer);
+            if (!Number.isInteger(answer) || answer < 0 || answer > 127) {
+              return send(res, 400, { error: "invalid_midi" });
+            }
           }
+
           const clientElapsedMs = body.clientElapsedMs === undefined ? null : Number(body.clientElapsedMs);
-          const r = submitNote(match, userId, midi, { now: now(), clientElapsedMs });
+          const r = submitAnswer(match, userId, answer, { now: now(), clientElapsedMs });
           if (!r.ok) return send(res, 409, { error: r.reason, match: publicView(match, userId) });
           return send(res, 200, {
             correct: r.correct, eliminated: !!r.eliminated, finished: !!r.finished,

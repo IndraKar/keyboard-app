@@ -72,12 +72,13 @@ card to read. Exactly **four** tiles, one per category (PRD §1.4):
 2. **Sight-Reading** → this category's Tier Ladder (below) — the drill itself has no
    setup screen, but the category still has a Tier Ladder to browse/unlock from
 3. **Playback & Repeat** → this category's Tier Ladder (below)
-4. **Upload your file** *("30s free" badge if not entitled)* → the price reminder
+4. **Upload your file** *(Premium badge if not entitled)* → the Premium gate
    (§3.6, step 0) if not entitled, otherwise straight into the upload flow
 
-A **fifth tile, Competition** (PRD F-13, §3.6b) sits alongside them, badged Premium
-without a subscription. A **sixth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
-badged for Plus when `compose.create` is not granted. There is no "Warm Up"/"Free Play"
+A **fifth tile, Competition** (PRD F-13, §3.6b) sits alongside them, also badged
+Premium without a subscription and also gated outright. These two tiles are the only
+ones in Keyvoria a free account cannot open at all. A **sixth tile, Create Music**, appears post-V1 (§3.10, PRD F-11) — shown to everyone,
+badged for Premium when `compose.create` is not granted. There is no "Warm Up"/"Free Play"
 tile in V1 (PRD §1.4). Every tile leads into
 that category's own space and returns here on exit rather than dead-ending — since
 this is the home screen, "back out of what I was doing" and "go home" are the same
@@ -89,6 +90,22 @@ Signed out, the same row reads "Sign in to save your progress · Google, Yahoo o
 and leads to sign-in. It is deliberately a single row rather than a banner: Home's job
 is still choosing a program, and identity earns one line, not a hero.
 
+**Below the tiles, the Keyvoria Premium panel.** One card that names the price and
+lists what the subscription includes — Upload your file, Competition Mode, tier 4, the
+61-key keyboard — sitting directly under the two tiles that carry a Premium badge, so
+the badge has an explanation immediately beneath it. This is the one place the offer is
+made in full rather than at the moment of refusal: a user who only ever meets the price
+on a gate screen learns what Premium *costs* before they learn what it *is*.
+
+For subscribers the same block collapses to a single status row — "Keyvoria Premium ·
+Active · $5.95 / month · manage or cancel" — which routes to Profile. Selling the
+subscription to someone who has already bought it is noise, but hiding the row entirely
+would leave them with no obvious route to manage or cancel it.
+
+The panel, the two gate screens and the paywall all render from **one feature list in
+one place**. Four surfaces describing the same subscription is four chances to promise
+different things.
+
 **Above the tiles, one compact momentum strip** — the two things the retired Home tab
 did that a landing screen genuinely needs, kept deliberately small so the four tiles
 stay the visual focus:
@@ -98,7 +115,7 @@ stay the visual focus:
   rendering an empty state.
 - **Today's Daily Challenge** — one line with its bonus-XP reward, collapsing to a
   "done" checkmark once completed.
-- **Recommended session** (Plus, post-V1 — §3.11) — when one is offered, a single row
+- **Recommended session** (Premium, post-V1 — §3.11) — when one is offered, a single row
   naming what it targets. Dismissible in one tap, and a dismissal is remembered.
 - **Spendable XP balance** sits in the header next to the Show Note Names toggle, as
   a number, not a card — it's the figure that decides whether a tier is affordable, so
@@ -129,7 +146,7 @@ old cross-category "Learn tab" skill tree, scoped to one category at a time:
   decision.
 - **Tier 4** (`required_plan = premium`) shows a lock + a **Premium** badge rather
   than a plain XP cost — distinguishing "you can't afford this yet" from "this needs
-  Keyvoria Plus" is important, since they call for different next actions. Its
+  Keyvoria Premium" is important, since they call for different next actions. Its
   upsell copy names both halves of what the subscription buys: the bonus tier *and*
   the 61-key keyboard its content is written for.
 - Tapping **Unlock** on an affordable tier is a confirmation step (spending XP is
@@ -147,7 +164,7 @@ Practice Screen. It is not a per-mode fallback; it's the default instrument, and
 screens are laid out around it rather than reflowing when no hardware is present.
 
 - **Range is entitlement-driven, not screen-driven**: 32 keys (F2–C5) on Free, 61 keys on
-  Keyvoria Plus (PRD F-02, §1.4). The same component, one range prop.
+  Keyvoria Premium (PRD F-02, §1.4). The same component, one range prop.
 - **Show Note Names** (§3.5) applies to it on every screen identically.
 - When real MIDI hardware is connected, the on-screen keyboard stays visible and
   mirrors incoming notes as a visualization; the user can still tap it. Input from
@@ -250,12 +267,14 @@ Used across all three tiered categories, not owned by any one of them:
 two deliberately: nothing is generated until the user agrees Keyvoria identified the
 right song.
 
-0. **Price reminder** *(free users only)* — one screen naming **$5.95/month**, what
-   free gets (the first 30 seconds), what Plus adds (the whole song, tier 4, the 61-key
-   keyboard, Competition), and two ways forward: *Get Plus* or *Try it free*.
-   Subscribers never see it. It is a signpost, not a wall — the free path is one tap
-   away and worded as an offer, because a user who has already been told the price and
-   still chose the preview is a better prospect than one who was blocked.
+0. **Premium gate** *(free users only)* — one screen naming **$5.95/month** and the
+   whole subscription: Upload your file, Competition Mode, tier 4 and the 61-key
+   keyboard. Subscribers never see it. This **is** a wall now, not a signpost: an
+   earlier draft offered a free 30-second preview here, and that was reversed (PRD
+   F-05) so that Upload and Competition together define what paying for Keyvoria means.
+   The screen still reads as an offer rather than a refusal, and it names the entire
+   subscription rather than only the feature that was tapped — a user should meet the
+   full proposition once, not a different fragment at every locked door.
 1. **Upload** — file picker accepting MP3/M4A/WAV and MIDI/MusicXML, on app and web
    alike. Copy states plainly that MIDI is exact and audio is best-effort.
 2. **Confirm the song** — the detected title (editable inline), the file name, notes
@@ -342,22 +361,40 @@ Visibility is **Private by default** and appears in exactly two places: this flo
 the achievement-card screen (which links back here). One setting, one meaning, no
 per-surface duplicates that can drift apart.
 
-## 3.6b Competition Mode (Plus, PRD F-13)
+## 3.6b Competition Mode (Premium, PRD F-13)
 
-Entered from a Home tile, badged Premium when the user has no subscription.
+Entered from a Home tile, badged Premium when the user has no subscription. A free
+account gets the same **Premium gate** as Upload (§3.6 step 0) — the same layout on
+purpose, since it is the same subscription and a user who just read the price should
+recognise the screen the second time.
 
-1. **Setup** — the five levels as a ladder, each stating bars, note count, time limit
-   and key signature so the choice is informed; then a player count (2 / 4 / 8 / 16).
-   The count tops out at **8** (roadmap M7a) and the screen says why: smaller matches
-   start sooner and keep every player visible while you play. A **private lobby code**
-   lets a group skip matchmaking entirely.
-2. **Match** — a countdown clock that turns red inside the last five seconds, the
-   passage on a staff with its key signature, the shared keyboard (§3.3.1a), and a
-   **live roster**: every player as a name, a progress bar and a note count, sorted by
-   position, with finished players on top and eliminated ones greyed but still listed.
-   Your row is highlighted. A wrong note flashes the key red and marks you OUT.
-3. **Result** — the winner announced by name, how far you got, and lifetime wins.
-   Straight into *Play again* or *Change level*.
+**Two games share these screens.** A segmented control at the top of Setup switches
+between **Reading Race** and **Chord Race**; the ladder below it, the rules line, and
+the Match screen all follow from that choice.
+
+1. **Setup** — the game switch, then that game's ladder: five levels for Reading Race
+   (bars, note count, time limit, key signature), three for Chord Race (chord count,
+   time limit, and which qualities are in play). Switching to Chord Race with level 4
+   or 5 selected clamps the selection, since that ladder is three long. Then a player
+   count (2 / 4 / 6 / 8), topping out at **8** (roadmap M7a), with the screen saying
+   why: smaller matches start sooner and keep every player visible while you play. A
+   **private lobby code** lets a group skip matchmaking entirely.
+2. **Match — Reading Race** — a countdown clock that turns red inside the last five
+   seconds, the passage on a staff with its key signature, the shared keyboard
+   (§3.3.1a), and a **live roster**: every player as a name, a progress bar and a note
+   count, sorted by position, with finished players on top and eliminated ones greyed
+   but still listed. Your row is highlighted. A wrong note flashes the key red and
+   marks you OUT.
+2b. **Match — Chord Race** — the same clock and the same live roster, but **no
+   keyboard**: a play button that sounds the current chord (and replays it on demand),
+   a feedback line under it, and the level's qualities as answer buttons in two
+   columns. Six options and eight roster rows have to share one phone screen, which is
+   what the two-column grid and the smaller play button are for. A wrong answer marks
+   you OUT immediately; the roster keeps updating while the rest of the field plays on.
+3. **Result** — the winner announced by name, how far you got, and lifetime wins. The
+   wording follows the game: *"Cleared it first, with no mistakes"* versus *"Last one
+   standing — with every chord named right."* Straight into *Play again* or *Change
+   level or game*.
 
 The roster repaints on its own timer rather than through a full screen render, so the
 keyboard never rebuilds mid-match — a re-render would drop a held key and cost someone
@@ -411,14 +448,14 @@ Its own labelled section on the Profile screen — reachable in one tap from the
 bar, never buried behind a Settings sub-screen. Cancelling must not be harder to find
 than subscribing was.
 
-**Not subscribed:** current plan reads "Free," with what Plus adds (tier 4 in every
+**Not subscribed:** current plan reads "Free," with what Premium adds (tier 4 in every
 category, the 61-key keyboard, Upload your file) and the upgrade CTA at $5.95/month.
 
 **Subscribed:** plan, price, and **renewal date**, plus a **Cancel Subscription**
 action. Cancelling is explicit about what it does and doesn't do:
 
 - Access continues to the end of the period already paid for — cancelling never
-  revokes Plus mid-cycle. The screen then reads "Plus until 14 March," and a
+  revokes Premium mid-cycle. The screen then reads "Premium until 14 March," and a
   **Resume Subscription** action replaces Cancel for the rest of that window.
 - The confirmation names what lapses at period end: tier 4 relocks in all three
   categories, the on-screen keyboard returns to 32 keys, and Upload your file uploads
@@ -476,10 +513,10 @@ See PRD F-08.
 - Notification preferences (daily reminder, streak-risk nudge).
 - App settings (audio output, accessibility options), support/help.
 
-## 3.10 Create Music — the composer (Plus, PRD F-11)
+## 3.10 Create Music — the composer (Premium, PRD F-11)
 
 Entered from Home as a fifth tile, shown only when `compose.create` is
-granted (architecture §2.10). Free users see it with a Plus badge and a preview of
+granted (architecture §2.10). Free users see it with a Premium badge and a preview of
 what it does, not a hidden feature — a locked door you can see is a better upsell than
 a door you never knew existed.
 
@@ -497,7 +534,7 @@ a door you never knew existed.
     looped for recording.
   - **Quantize control** — grid selector with a live preview and an explicit *off*.
     Changing it never alters the recording (DB §4.13); the score and playback re-render.
-  - The shared on-screen keyboard (§3.3.1a) at the bottom, 61 keys under Plus.
+  - The shared on-screen keyboard (§3.3.1a) at the bottom, 61 keys under Premium.
 - **Score view** — the same composition as standard notation, generated automatically.
   Toggled from the composer rather than a separate destination, so the user can see
   what their playing looks like written down while they work.
@@ -508,7 +545,7 @@ a door you never knew existed.
   since a composition is the same shape the grading engine already consumes
   (architecture §2.11). No new practice surface.
 
-## 3.11 Personalized practice (Plus, PRD F-09/F-10)
+## 3.11 Personalized practice (Premium, PRD F-09/F-10)
 
 - **Recommended session card** — appears on Home momentum strip (§3.3) and on
   Profile, naming what it targets in the user's words: "Diminished chords and tritones
@@ -519,7 +556,7 @@ a door you never knew existed.
   and trend. Skills below their observation threshold read **"Not enough practice
   yet"** with the count so far, never a percentage. Showing "64%" from three attempts
   would present noise as a verdict.
-- **Attempt analysis** (Session Summary, Plus) — the timing profile as a distribution
+- **Attempt analysis** (Session Summary, Premium) — the timing profile as a distribution
   around the beat, labelled in plain language: *consistently early*, *consistently
   late*, or *inconsistent*. These need different advice, and a single rhythm score
   cannot tell them apart.
@@ -544,9 +581,9 @@ Progress: Achievements · Streaks · Progress Analytics
 Utility: Unit Preview (bottom sheet) · MIDI Device Management · Notification
 Preferences · Settings
 
-Create Music (Plus): My Compositions · Composer · Score view · Export sheet
+Create Music (Premium): My Compositions · Composer · Score view · Export sheet
 
-Personalized practice (Plus): Recommended session card · Skill breakdown · Attempt
+Personalized practice (Premium): Recommended session card · Skill breakdown · Attempt
 analysis
 
 Retired: **Home / Dashboard** — its start-an-activity content moved to Home

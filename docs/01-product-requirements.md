@@ -55,17 +55,17 @@ all categories at once; the closest earlier draft had one, and it's retired in f
 of per-category progression. Free/warm-up play remains cut from V1's Home screen for
 launch simplicity, revisitable post-V1.
 
-**Free vs. Premium — Keyvoria Plus, $5.95/month.**
+**Free vs. Premium — Keyvoria Premium, $5.95/month.**
 
-| | Free | Premium (Keyvoria Plus) |
+| | Free | Premium (Keyvoria Premium) |
 |---|---|---|
 | On-screen keyboard | **32 keys** (F2–C5), available in *every* category | **61 keys** (C2–C7), everywhere |
 | Ear Training / Sight-Reading / Playback & Repeat | **Tiers 1–3**, XP-unlocked (F-03) | + **tier 4** — the bonus/hardcore tier in each category, which needs the 61-key range |
-| Upload your file (F-05) | **First 30 seconds** of any upload | **Full-length** tutorials |
+| Upload your file (F-05) | — | Any song → **MIDI file + sheet music + tutorial** |
 | Advanced performance analysis (F-09) | — | Timing profile, trends, hand independence |
 | Personalized practice (F-10) | — | Generated sessions targeting your weakest skills |
 | Create Music (F-11) | — | Compose, edit, notate and export your own music |
-| Competition Mode (F-13) | — | Race up to 8 players; first wrong note is out |
+| Competition Mode (F-13) | — | Two games, up to 8 players; one mistake and you are out |
 
 The full premium inventory, including what is already specified versus genuinely new,
 is in **F-05a**.
@@ -73,10 +73,16 @@ is in **F-05a**.
 **The tier rule is fixed and uniform:** every tiered category has exactly **four
 tiers**. Tiers 1–3 are free (tier 1 costs 0 XP and is unlocked from the start; tiers
 2 and 3 are XP purchases). **Tier 4 is always the premium tier** — it requires an
-active Keyvoria Plus subscription *and* its XP cost. There is no per-category
+active Keyvoria Premium subscription *and* its XP cost. There is no per-category
 variation in where the paywall falls, which keeps the offer explainable in one
-sentence: *tiers 1–3, 32 keys and a 30-second song preview are free; tier 4, the full
-61-key keyboard and full-length songs are $5.95/month.*
+sentence: *tiers 1–3 on 32 keys are free; tier 4, the 61-key keyboard, Upload your
+file and Competition Mode are $5.95/month.*
+
+**Two features are Premium-only, with no free path at all: Upload your file and
+Competition Mode.** Everything else in Keyvoria has a free version that is genuinely
+usable — three full categories, three tiers each, no ads and no session limits. These
+two are what the subscription *is*, which is why they are also what the Home page
+explains.
 
 The billing mechanic is a **$5.95/month subscription**. The XP numbers are now set
 too (F-03) — earning rates and unlock costs are fixed values, not placeholders.
@@ -142,7 +148,7 @@ reframed as tags rather than paths.
   with no hardware, not because the app restricts hardware you already own. The
   entire free-tier curriculum — **tiers 1–3 in all three categories** — is authored
   to fit within those 32 keys, so a free user with no hardware can complete every free
-  tier end to end. **The 61-key keyboard is available only on Keyvoria Plus**, and tier
+  tier end to end. **The 61-key keyboard is available only on Keyvoria Premium**, and tier
   4 is where content is deliberately written beyond the 32-key range — which is why the
   two ship together in the same subscription rather than as separate perks.
 
@@ -304,7 +310,7 @@ because it makes XP cosmetic. Instead:
   | 1 | **0** — unlocked from the start | — |
   | 2 | **750 XP** | 10 |
   | 3 | **1,250 XP** | 17 (or 13 correct tier-2 exercises) |
-  | 4 | 2,000 XP **+ Keyvoria Plus** | 27 (or 16 correct tier-3 exercises) |
+  | 4 | 2,000 XP **+ Keyvoria Premium** | 27 (or 16 correct tier-3 exercises) |
 
   Tier 1 is free and already unlocked in every category; each subsequent tier is
   **purchased** by spending accumulated XP — a deliberate, permanent "unlock" action the user chooses
@@ -332,7 +338,7 @@ because it makes XP cosmetic. Instead:
   than being deferred to a session total.
 - **Four tiers per category; tier 4 is premium.** Every tiered category has exactly
   four tiers. Tier 1 is free and pre-unlocked (0 XP). Tiers 2 and 3 are free-tier XP
-  purchases. **Tier 4 — the bonus tier — is gated behind Keyvoria Plus *in addition
+  purchases. **Tier 4 — the bonus tier — is gated behind Keyvoria Premium *in addition
   to* its XP cost**, so a free user can save XP indefinitely and still not reach
   hardcore content without upgrading. That gate isn't arbitrary: tier 4 content is
   authored beyond the 32-key range, so it genuinely needs the 61-key keyboard that
@@ -362,29 +368,27 @@ because it makes XP cosmetic. Instead:
   songs (classical + original), filterable by difficulty, skill tag, genre, duration,
   category, and completion status.
 
-### F-05 "Upload your file" (F-05) — free preview, premium in full
+### F-05 "Upload your file" (F-05) — Keyvoria Premium only
 *"Upload your file" is the user-facing name; F-05 remains its ID throughout these
 documents. Earlier drafts called it "Learn My Music" and "Submit Your Clip" — one
 upload pipeline throughout, renamed twice.*
-The fourth Home category, and Keyvoria's main conversion path. **It is no longer
-gated behind a hard paywall.** Anyone can upload a song and get a real tutorial for its
-**first 30 seconds**; Keyvoria Plus unlocks the whole song.
+The fourth Home category, and Keyvoria's main conversion path. **It requires Keyvoria
+Premium.** A free account sees the tile, taps it, and gets one screen naming the price
+and what the subscription includes. There is no free upload.
 
-This supersedes an earlier draft that locked the category entirely. A paywall in front
-of an unproven feature asks the user to buy something they have never used; letting
-them upload *their own* song and actually play the opening of it is a far stronger case
-for the subscription than any description of the feature could be. It also serves the
-beginner directly: 30 seconds of a song they chose is a complete, achievable practice
-goal, not a teaser.
+**This supersedes the 30-second free preview.** An earlier draft let anyone upload a
+song and practise its first 30 seconds, on the argument that letting someone play the
+opening of *their own* song sells the subscription better than describing it. That
+argument still holds, and it was overruled deliberately: Upload and Competition are now
+the two things that define what paying for Keyvoria means, and a feature that is
+partly free does not define anything. The decision is recorded here rather than
+silently deleted, because the preview machinery still exists in the prototype and is
+one condition away from returning if the conversion numbers argue for it.
 
-**The 30 seconds are measured on the song's own timeline, not wall-clock.** Practising
-at 0.5× does not halve the amount of music — the preview is the same 30 seconds of the
-piece however slowly it is played. Tying it to real time would punish exactly the
-beginners who need the slow speeds most.
-
-The preview is otherwise **feature-complete**: all seven playback speeds, all three
-practice modes, section looping and grading. What Plus buys is *length*, not
-capability, which keeps the value proposition honest and easy to state.
+What the free tier keeps is substantial and unchanged: **all three categories through
+tier 3, on the 32-key keyboard, with no time limits, no lesson counts and no ads.**
+That is the honest free product. Premium is tier 4, the 61-key keyboard, Upload your
+file, and Competition Mode.
 
 **The flow is Upload → Confirm → Tutorial.** The confirmation step is not a
 formality; it is what stops the app from spending analysis effort, and the user's
@@ -393,13 +397,14 @@ patience, on the wrong song:
 1. **Upload.** **MP3 audio** is the headline format (also M4A/WAV/AAC), with
    **MIDI/MusicXML** accepted where the user has them. Available on both the app and
    the website — the upload flow is the same code on every platform (architecture
-   §2.1). **A free user meets a price reminder before the file picker**, not after:
-   one screen naming $5.95/month, what free gets (the first 30 seconds), what Plus adds
-   (the whole song, plus tier 4, the 61-key keyboard and Competition), and two ways on
-   — *Get Plus* or *Try it free*. Subscribers skip it entirely; showing a paywall to
-   someone who already paid is the fastest way to make a subscription feel worthless.
-   The reminder is a signpost, not a wall: the free path is always one tap away, and
-   worded as an offer rather than a refusal.
+   §2.1). **A free user meets the gate before the file picker**, not after: one screen
+   naming $5.95/month and everything the subscription includes — Upload your file,
+   Competition Mode, tier 4 and the 61-key keyboard. Subscribers skip it entirely;
+   showing a paywall to someone who already paid is the fastest way to make a
+   subscription feel worthless. The gate is worded as an offer rather than a refusal,
+   and it names the whole subscription rather than only the feature that was tapped,
+   so a user meets the full proposition once instead of a different fragment each
+   time they hit a locked door.
 2. **Confirm the song.** Keyvoria identifies what it thinks was uploaded — title and
    artist from audio fingerprinting/metadata, or the track name from a MIDI file —
    and **asks the user to confirm or correct it before building anything**. The user
@@ -423,12 +428,9 @@ patience, on the wrong song:
    an estimate up front. Symbolic input (MIDI/MusicXML) is far cheaper than audio,
    because there is nothing to transcribe — only to parse.
 
-   The confirm screen shows exactly how
-   much the user will get — "First 30 seconds · 69 of 83 notes" or "The whole song".
-   The tutorial itself carries a preview banner with an inline upgrade action, and its
-   progress bar marks where the preview ends. **Upgrading from inside a tutorial
-   unlocks the rest of that song in place**, returning the user to what they were
-   playing rather than dumping them back at the menu.
+   The confirm screen shows exactly what will be produced — the note count, and the
+   two output files. Everyone who reaches this screen is a subscriber, so there is no
+   preview banner and no in-tutorial upgrade path to maintain.
 
 **Playback speed is a fixed set of seven steps**, not a continuous slider. This
 supersedes an earlier draft's "0.25×–2× continuous, YouTube-style":
@@ -456,18 +458,18 @@ switch freely:
   2. **Synthesia-style falling notes** — for users who don't read music.
   3. **Auto-Play** — Keyvoria plays it back so the user can listen and follow.
 
-**Format determines confidence, not entitlement.** Every format follows the same
-free-preview/full-song rule, but an **audio-sourced** tutorial carries a persistent
+**Format determines confidence, not entitlement.** Every format is available to every
+subscriber, but an **audio-sourced** tutorial carries a persistent
 *Estimated transcription* banner because audio-to-score is best-effort; MIDI/MusicXML uploads are
 exact and carry no banner. V1 does not attempt full generalized transcription of dense
 polyphonic recordings (§1.6).
 
-### F-05a Keyvoria Plus — the complete premium inventory
+### F-05a Keyvoria Premium — the complete premium inventory
 One place that answers "what does $5.95 buy," because the answer is now spread across
 several features. Most of it is already specified; this table exists so the roadmap
 plans the *gap*, not the whole list again.
 
-| Plus feature | Status | Where |
+| Premium feature | Status | Where |
 |---|---|---|
 | 61-key virtual keyboard | Specified | §1.4, F-02 |
 | Tier 4 / Expert difficulty | Specified | §1.4, F-03 |
@@ -494,9 +496,9 @@ Two naming and scope notes, since both would otherwise create phantom work:
   upload pipeline, not two.
 - **"Tier 4 across all four categories" applies to the three tiered categories.**
   Upload your file has no tier ladder by design (F-03) — it is user content with no
-  authored difficulty to unlock. Its Plus equivalent is full-length songs plus the
-  advanced practice tools, which is what the free 30-second preview is measured
-  against.
+  authored difficulty to unlock. Its Premium equivalent is full-length songs plus the
+  advanced practice tools — the category is Premium end to end, with no free tier of
+  its own to measure against.
 
 ### F-06 Onboarding & assessment
 - Goal selection (e.g. "play songs I love," "learn theory," "classical repertoire") —
@@ -531,8 +533,8 @@ here from the retired dashboard — it reports on progress, so it belongs with s
 never buried under Settings — cancelling must not be harder to find than subscribing
 was. For a subscriber it shows plan, price, renewal date, and a **Cancel
 Subscription** action:
-- **Access runs to the end of the paid period.** Cancelling never revokes Plus
-  mid-cycle; the screen then reads "Plus until 14 March" with a **Resume** action for
+- **Access runs to the end of the paid period.** Cancelling never revokes Premium
+  mid-cycle; the screen then reads "Premium until 14 March" with a **Resume** action for
   the remainder of that window.
 - **The confirmation states both halves plainly.** What lapses at period end: tier 4
   relocks in all three categories, the on-screen keyboard returns to 32 keys, and
@@ -567,7 +569,7 @@ badge you can buy is worth nothing to the person who earned it.
 |---|---|
 | **Tier cleared** | Tier unlocked *and* 12 correct exercises played at that tier |
 | **🎧 / 📖 / 🔄 Category Master** | All four tiers cleared in that category |
-| **🎹 Keyvoria Master** | All three Category Masters. Requires Plus, since tier 4 is premium |
+| **🎹 Keyvoria Master** | All three Category Masters. Requires Premium, since tier 4 is premium |
 | **💯 100% Curriculum Completion** | Keyvoria Master *and* at least one flawless (5/5) session in each category |
 | **🏆 Perfect Score** | Any session answered 5 out of 5 |
 | **✨ Exceptional Accuracy** | 95% or better across 50+ exercises |
@@ -611,8 +613,8 @@ animations are the natural candidates post-V1 — under the rule that made theme
 in the first place: **cosmetics never affect grading, difficulty or XP**, which is what
 lets them be given away generously without touching the economy.
 
-### F-09 Advanced performance analysis — Plus
-Free tier reports *what happened*: score, accuracy, XP. Plus explains *why*, using the
+### F-09 Advanced performance analysis — Premium
+Free tier reports *what happened*: score, accuracy, XP. Premium explains *why*, using the
 per-note data already captured in `attempts.note_events` (DB §4.8).
 
 - **Timing profile** — a distribution of note onsets against the beat, which separates
@@ -628,7 +630,7 @@ per-note data already captured in `attempts.note_events` (DB §4.8).
   above their median has the technique but not yet the reliability, and should be told
   that rather than shown only their best.
 
-### F-10 Personalized practice — Plus
+### F-10 Personalized practice — Premium
 Analysis that does not change what the user practises next is just a dashboard. F-10
 turns F-09's findings into a session.
 
@@ -652,14 +654,14 @@ turns F-09's findings into a session.
   model is "the user steers" (§1.1); an algorithm that quietly takes the wheel would
   contradict it.
 
-### F-11 Create Music — Plus
+### F-11 Create Music — Premium
 A composer for keyboard players: play, record, edit, notate, save, export. The
 reference point is the *workflow* of MIDI software like Logic Pro or Pro Tools —
 record, then edit what you recorded on a grid — **not** their scope. Keyvoria is not
 becoming a DAW: no audio tracks, no plugins, no mixing, no automation.
 
 **What it does:**
-- Play notes and chords on the virtual keyboard (61 keys, Plus) and **record** the
+- Play notes and chords on the virtual keyboard (61 keys, Premium) and **record** the
   performance.
 - Build melodies and chord progressions across **multiple sections/measures**.
 - **Edit after recording** — move, retune, lengthen, shorten, delete notes on a grid.
@@ -732,11 +734,16 @@ Three rules hold this together, and each exists because the alternative fails qu
 opt-in together — leaving a stale opt-in behind after a sign-out would publish a
 stranger's numbers under the previous user's name.
 
-### F-13 Competition Mode — Plus
-Live head-to-head play. Up to **8 players** race to perform the same passage, and
-**the first wrong note eliminates you**. That single rule is what makes it a music
-game rather than a typing race: speed alone loses, because the fastest player who
-slips is out while a slower accurate one finishes.
+### F-13 Competition Mode — Premium
+Live head-to-head play, and one of the two features that require a subscription.
+**Competition has two games.** They share matchmaking, lobbies, the 8-player cap and
+the elimination rule, and differ in what they test and how they are won.
+
+#### F-13a Reading Race — first to finish
+Up to **8 players** race to perform the same passage, and **the first wrong note
+eliminates you**. That single rule is what makes it a music game rather than a typing
+race: speed alone loses, because the fastest player who slips is out while a slower
+accurate one finishes.
 
 | Level | Bars | Notes | Time | Key signature |
 |---|---|---|---|---|
@@ -755,16 +762,44 @@ that matters for a reading race: at levels 1–2 the passage is all white keys a
 challenge is pure speed, while from level 3 a player has to read the key and hit
 accidentals under time pressure — a different and much harder skill.
 
-- **The round runs until someone wins.** A match ends when a player completes the
-  passage, when everyone is eliminated, or when the clock expires — and the winner is
-  announced by name either way.
+#### F-13b Chord Race — last player standing
+A chord is played; every player names its quality. **One wrong answer is out**, and the
+**last player standing wins** — not the fastest. Where the Reading Race rewards speed
+held together by accuracy, Chord Race rewards nerve: you can take your time, and taking
+it is often the right call.
+
+| Level | Chords | Time | Qualities |
+|---|---|---|---|
+| 1 | 8 | **40s** | Major, Minor |
+| 2 | 10 | **55s** | + Major 7th, Minor 7th |
+| 3 | 12 | **70s** | + Augmented, Diminished |
+
+**Levels widen the pool rather than speeding anything up**, because what makes a chord
+hard to name is how many things it could have been. Level 1 is the fundamental
+major/minor distinction. Level 2 adds a fourth note and the third stops being the only
+thing to listen for. Level 3 adds augmented and diminished, where the *fifth* stops
+being a landmark — a different kind of listening again.
+
+No quality appears three times in a row, so a player cannot answer by pattern instead
+of by ear. Chords sound in root position with roots in C3–C4, which keeps the top of a
+major 7th inside the free 32-key range — a race decided by whose keyboard rendered the
+note would be a bad race.
+
+**Chord Race needs no keyboard on screen**, which is what makes room for six answer
+buttons and the live roster at the same time.
+
+#### Rules common to both games
+- **The round runs until a winner is named.** A match ends when a player completes it,
+  when one player is left (Chord Race), when everyone is eliminated, or when the clock
+  expires — and the outcome is announced either way. "No winner" is a result, not a
+  hang.
 - **Eliminated players stay on screen**, greyed, showing how far they got. Watching the
   rest of the race is part of the appeal, and vanishing on your first mistake is a bad
   way to spend 90 seconds.
 - **Competition awards no XP.** The result depends on who else is in the match, and
   F-03's rule is that XP is earned for *your own* correct exercises. A player who wins
   against weak opposition has not practised more than one who loses to strong
-  opposition. Wins and best-notes are tracked separately and feed the leaderboards
+  opposition. Wins and best-progress are tracked separately and feed the leaderboards
   (F-08) instead.
 
 **Eight players is a hard cap** (roadmap M7a supersedes an earlier "up to 16"): a
@@ -776,14 +811,26 @@ a same-room-only design would remove the feature's whole point. A **private lobb
 a share code** covers the classroom and the couch on the same matchmaking path — one
 architecture, both cases.
 
-**Timing is measured on each player's own device**, from the moment the passage renders
+**Timing is measured on each player's own device**, from the moment the round renders
 to the moment they finish, and validated server-side. Scoring on server-received time
 would hand every race to whoever has the shortest ping, which is not a musical skill.
+A finish is held briefly before the match closes so other in-flight completions can
+land and be ranked by their own clocks; without that hold, the local-clock rule does
+nothing and latency decides the winner after all.
 
 **Real-time multiplayer is a server feature** — matchmaking, lobbies, synchronised
 start, and server-authoritative elimination so a tampered client cannot claim a win.
 Until that lands, the mode is playable against simulated opponents, which exercises
 every rule above except the networking.
+
+**One honest limitation: Chord Race is cheatable in a way the Reading Race is not.**
+The client has to be told which pitches to sound, and anyone reading those pitches can
+compute the quality. Pre-rendered audio would not fix it, since audio can be analysed.
+What the server does instead is reveal **one chord at a time at each player's own
+position**, so a patched client cannot precompute a round, enforce a floor on plausible
+answer time, and remain the only authority on correctness. That bounds the advantage
+rather than removing it, and it is stated here rather than left for someone to
+discover.
 
 ## 1.5 Non-functional requirements
 
