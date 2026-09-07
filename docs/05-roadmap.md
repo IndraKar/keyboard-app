@@ -270,6 +270,14 @@ difficulty, skill tag, genre, duration, and completion status; a locked item cor
 routes the user toward unlocking it rather than a dead end.
 
 ## M7 — Upload your file (Premium)
+
+> **Build status.** The *entitlement half* of this milestone is built and tested in
+> `server/` — the subscription lifecycle, the three provider webhook vocabularies,
+> the missed-webhook sweep, and the paid-feature gate that Upload and Competition
+> sit behind. The *transcription half* (analysis, MIDI + sheet-music generation,
+> the tutorial pipeline) is not started. Splitting it this way was deliberate: the
+> gate is what makes the plan real, and it does not depend on the pipeline.
+
 **Size:** XL — this is Keyvoria's main conversion path (PRD F-05: free 30-second
 preview, full song on Plus) and the
 single most complex milestone content-wise; a prior draft split this into two
@@ -332,6 +340,14 @@ tempo-detected, loopable, speed-adjustable playback in all three modes with
 best-effort output unambiguously marked as an estimate throughout the UI.
 
 ## M7a — Competition Mode
+
+> **Build status.** The engine is built and tested in `server/` — level ladder,
+> server-side passage generation, server-authoritative elimination, matchmaking,
+> private code lobbies, and local-clock ranking with validation. Matches are
+> polled over HTTP; the realtime channel is a transport swap, not a redesign. The
+> client side (a Competition screen wired to this API rather than to the
+> prototype's simulated opponents) is not built.
+
 **Size:** L — the netcode is the work; the music is already built.
 **Goal:** PRD F-13 — players race one passage, first wrong note out.
 

@@ -1,0 +1,16 @@
+{
+  "name": "@keyvoria/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Keyvoria backend — subscription lifecycle (M7) and Competition Mode (M7a)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node src/http/server.js"
+  },
+  "//dependencies": "Core logic and tests are dependency-free by design: they run on plain Node 22 with no install step. `pg` is needed only to run against real Postgres in production.",
+  "optionalDependencies": {
+    "pg": "^8.13.1"
+  }
+}
