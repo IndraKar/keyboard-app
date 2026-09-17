@@ -128,8 +128,11 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .node.done{background:var(--good);color:#0d2b1c;}
 .node.cur{background:var(--accent);color:#1a0f06;}
 .node.lock{background:var(--surface-2);border:1px solid var(--border);color:var(--faint);}
-.tiertitle{font-size:13.5px;font-weight:600;}
-.tiersub{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.45;}
+/* display:block so these stack whether the caller used divs (the tier ladder)
+   or spans (the Competition setup list). Relying on the tag was why the
+   Competition levels ran title and detail together on one line. */
+.tiertitle{display:block;font-size:13.5px;font-weight:600;}
+.tiersub{display:block;font-size:11px;color:var(--dim);margin-top:2px;line-height:1.45;}
 .unlockrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;}
 .cost{font-family:var(--display);font-size:13px;font-weight:700;color:var(--accent);}
 .cost.short{font-family:var(--body);font-size:11px;font-weight:600;color:var(--faint);}
@@ -391,7 +394,22 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 
 
+/* ---------- segmented control ----------
+   Used by the Competition game switch, the tutorial's Listen/Practice toggle,
+   the leaderboard tabs and the audio-mode switch. These rules went missing in a
+   refactor and every one of those rendered as bare text until it came back. */
+.seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:12px;padding:4px;}
+.seg-opt{flex:1;min-width:0;padding:8px 6px;border-radius:9px;font-size:12px;font-weight:600;
+  color:var(--dim);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:background .14s,color .14s;}
+.seg-opt:hover:not(.active){color:var(--text);}
+.seg-opt.active{background:var(--accent);color:#1a0f06;}
+
 /* ---------- checkout ---------- */
+.diag{margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+  padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;line-height:1.6;
+  color:var(--dim);white-space:pre-wrap;word-break:break-word;overflow-x:auto;}
 .demobar{background:rgba(228,178,86,.10);border:1px solid rgba(228,178,86,.38);border-radius:12px;
   padding:11px 13px;font-size:11.5px;line-height:1.55;color:var(--gold);}
 .sumrow{display:flex;align-items:flex-start;gap:10px;font-size:13px;padding:2px 0;}
@@ -484,6 +502,7 @@ const DEFAULTS = {
   unlocked: { ear: 1, sight: 1, keys: 1, repeat: 1 },
   premium: false, cancelPending: false,
   noteNames: true,
+  audioMode: "auto",          /* auto | webaudio | simple — see the Sound card */
   exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
   /* mastery */
   tierCorrect: { ear:[0,0,0,0], sight:[0,0,0,0], keys:[0,0,0,0], repeat:[0,0,0,0] },
@@ -835,7 +854,10 @@ const initials = () => {
      sound has actually stopped working rather than disappearing forever after
      the first success.
 */
-let ctx = null, master = null, audioReady = false, silentEl = null;
+let ctx = null, master = null, analyser = null, audioReady = false, silentEl = null;
+/* "webaudio" | "simple" — chosen by measurement, overridable by the user. */
+let audioEngine = "webaudio";
+let engineProbed = false;
 const voices = new Map();       /* live notes, held until released */
 const scheduled = new Set();    /* fire-and-forget notes already on the clock */
 
@@ -846,7 +868,12 @@ function audio(){
     ctx = new AC();
     master = ctx.createGain();
     master.gain.value = 0.85;
-    master.connect(ctx.destination);
+    /* Tap the master bus. "Is the context running?" is not the same question as
+       "is sound coming out of it", and on a phone only the second one matters. */
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    master.connect(analyser);
+    analyser.connect(ctx.destination);
   }
   /* `startRendering` exists only on an OfflineAudioContext, which cannot be
      resumed and does not need to be. Guarding here keeps every note from
@@ -855,24 +882,44 @@ function audio(){
   return ctx;
 }
 
-/* A few seconds of real silence as a data URI, built rather than pasted so
-   there is no opaque base64 blob in the source. */
-function silentWavUri(seconds){
+/*
+  A near-silent looping tone, used to hold the iOS audio session in the
+  "playback" category so the ring/silent switch does not mute us.
+
+  Deliberately NOT pure digital silence: some iOS builds treat an all-zero
+  element as nothing playing and never switch the session. An amplitude of
+  1/10000 is inaudible on any speaker and still counts as audio.
+*/
+function tickleWavUri(seconds){
   const rate = 8000, n = Math.round(rate * seconds), bytes = 44 + n * 2;
   const buf = new ArrayBuffer(bytes), v = new DataView(buf);
   const w = (o, str) => { for(let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
   w(0,"RIFF"); v.setUint32(4, bytes-8, true); w(8,"WAVE"); w(12,"fmt ");
   v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
   v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
-  w(36,"data"); v.setUint32(40, n*2, true);        /* samples stay zero: silence */
+  w(36,"data"); v.setUint32(40, n*2, true);
+  for(let i=0;i<n;i++) v.setInt16(44 + i*2, Math.round(Math.sin(i/12) * 3), true);
+  return wavUriFromBuffer(buf);
+}
+
+function wavUriFromBuffer(buf){
   const b = new Uint8Array(buf);
   let str = "";
   for(let i=0;i<b.length;i++) str += String.fromCharCode(b[i]);
   return "data:audio/wav;base64," + btoa(str);
 }
 
-/* Move the page out of the silent-switch-muted "ambient" category. Must run
-   inside a user gesture, like everything else audio on iOS. */
+/*
+  Move the page out of the silent-switch-muted "ambient" category.
+
+  NOTE ON WHAT IS NOT HERE. An earlier version routed this element through the
+  AudioContext with createMediaElementSource, which several "unmute iOS" recipes
+  recommend. That call is a documented way to silence the ENTIRE graph on some
+  iOS builds — and it fails silently, so the context still reports "running"
+  while nothing comes out. It has been removed. Playing the element on its own
+  is what moves the audio session; it does not need to be wired into Web Audio
+  to do that.
+*/
 function primePlaybackCategory(){
   try{
     if(navigator.audioSession) navigator.audioSession.type = "playback";   /* iOS 16.4+ */
@@ -884,23 +931,153 @@ function primePlaybackCategory(){
     el.setAttribute("playsinline", "");   /* without this iOS may go fullscreen */
     el.loop = true;
     el.preload = "auto";
-    el.src = silentWavUri(2);
+    el.src = tickleWavUri(2);
     el.style.display = "none";
     document.body.appendChild(el);
-    /* Routing it through the context is what actually moves the session on the
-       older iOS versions; playing it alone is not always enough. */
-    const c = audio();
-    if(c && c.createMediaElementSource){
-      try{
-        const src = c.createMediaElementSource(el);
-        const g = c.createGain(); g.gain.value = 0;   /* it is already silent; belt and braces */
-        src.connect(g); g.connect(c.destination);
-      }catch(e){}
-    }
     const p = el.play(); if(p && p.catch) p.catch(()=>{});
     silentEl = el;
   }catch(e){}
 }
+
+/* ---------------------------------------------------------------------------
+   THE FALLBACK ENGINE
+
+   Web Audio can be unavailable in ways no amount of unlocking fixes: blocked
+   inside a cross-origin iframe, muted by a platform quirk, or reporting
+   "running" while producing nothing. When that happens the keyboard is silent
+   and every listening exercise is unusable, so there has to be a second way to
+   make a sound.
+
+   An <audio> element is that way. It is the most permissive audio path a
+   browser has — it is how every web page plays a sound effect — and one
+   pre-rendered piano note covers the whole keyboard, transposed by playbackRate
+   the way a sampler does. Higher latency than Web Audio, and a note that decays
+   rather than sustains. Both are worth it against hearing nothing.
+--------------------------------------------------------------------------- */
+const SAMPLE_MIDI = 60;            /* the pitch the sample was rendered at */
+let sampleUri = null, samplePool = null, samplePos = 0;
+
+function pianoSampleUri(){
+  if(sampleUri) return sampleUri;
+  const rate = 22050, dur = 1.5, n = Math.round(rate * dur);
+  const bytes = 44 + n * 2, buf = new ArrayBuffer(bytes), v = new DataView(buf);
+  const w = (o, str) => { for(let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+  w(0,"RIFF"); v.setUint32(4, bytes-8, true); w(8,"WAVE"); w(12,"fmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  w(36,"data"); v.setUint32(40, n*2, true);
+
+  const f = 440 * Math.pow(2, (SAMPLE_MIDI - 69) / 12);
+  const partials = [[1,1],[2,0.30],[3,0.13],[4,0.07],[5,0.03]];
+  for(let i=0;i<n;i++){
+    const t = i / rate;
+    const attack = t < 0.005 ? t / 0.005 : 1;
+    const env = attack * Math.exp(-3.0 * t);
+    let x = 0;
+    for(const pr of partials) x += pr[1] * Math.sin(2 * Math.PI * f * pr[0] * t);
+    v.setInt16(44 + i*2, Math.max(-1, Math.min(1, x * env * 0.24)) * 32767, true);
+  }
+  sampleUri = wavUriFromBuffer(buf);
+  return sampleUri;
+}
+
+/* A handful of elements, cycled. One per note would be hundreds of decoders. */
+function samplePlayers(){
+  if(samplePool) return samplePool;
+  const uri = pianoSampleUri();
+  samplePool = [];
+  for(let i=0;i<8;i++){
+    const el = document.createElement("audio");
+    el.setAttribute("playsinline", "");
+    el.preload = "auto";
+    el.src = uri;
+    el.style.display = "none";
+    document.body.appendChild(el);
+    samplePool.push(el);
+  }
+  return samplePool;
+}
+
+function samplePlay(midi){
+  try{
+    const pool = samplePlayers();
+    const el = pool[samplePos++ % pool.length];
+    const rate = Math.pow(2, (midi - SAMPLE_MIDI) / 12);
+    /* Without this the browser time-stretches instead of transposing, and every
+       note comes out at the sample's own pitch. */
+    el.preservesPitch = false;
+    el.webkitPreservesPitch = false;
+    el.mozPreservesPitch = false;
+    el.playbackRate = Math.max(0.0625, Math.min(16, rate));
+    el.currentTime = 0;
+    const p = el.play(); if(p && p.catch) p.catch(()=>{});
+    return el;
+  }catch(e){ return null; }
+}
+
+/* Peak level actually observed on the master bus over a short window. */
+function measurePeak(ms){
+  return new Promise(resolve => {
+    if(!analyser) return resolve(0);
+    const buf = new Float32Array(analyser.fftSize);
+    let peak = 0;
+    const t0 = Date.now();
+    const tick = () => {
+      try{
+        analyser.getFloatTimeDomainData(buf);
+        for(let i=0;i<buf.length;i++){ const a = Math.abs(buf[i]); if(a > peak) peak = a; }
+      }catch(e){}
+      if(Date.now() - t0 < ms) requestAnimationFrame(tick); else resolve(peak);
+    };
+    tick();
+  });
+}
+
+/*
+  Play a quiet tone and check whether anything came out.
+
+  This is the test that matters. A context can report "running" and still
+  produce nothing — that is exactly what a platform quirk or a blocked iframe
+  looks like from inside the page. If the meter stays flat, Web Audio is not
+  working here and the sample-based engine takes over, which needs none of it.
+*/
+async function probeWebAudio(){
+  const c = audio();
+  if(!c || c.state !== "running") return 0;
+  try{
+    const t = c.currentTime;
+    const o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(880, t);
+    g.gain.setValueAtTime(0.06, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + 0.2);
+  }catch(e){ return 0; }
+  return await measurePeak(260);
+}
+
+async function chooseEngine(){
+  if(engineProbed) return audioEngine;
+  const forced = S.audioMode || "auto";
+  if(forced === "simple"){ audioEngine = "simple"; engineProbed = true; return audioEngine; }
+  if(forced === "webaudio"){ audioEngine = "webaudio"; engineProbed = true; return audioEngine; }
+
+  const peak = await probeWebAudio();
+  lastProbe = peak;
+  /* A real tone registers in the hundredths. Anything at noise level means the
+     graph is not reaching the speaker. */
+  audioEngine = peak > 0.002 ? "webaudio" : "simple";
+  engineProbed = true;
+  if(audioEngine === "simple"){
+    /* Warm the sample up inside the same gesture that got us here, so the first
+       key press is not the one that pays for decoding. */
+    samplePlayers();
+  }
+  const el = document.getElementById("sndState");
+  if(el) el.textContent = soundStatusLine();
+  return audioEngine;
+}
+let lastProbe = null;
 
 function setSoundBadge(show, text){
   const badge = document.getElementById("sndBadge");
@@ -930,6 +1107,9 @@ function unlockAudio(fromGesture){
     if(c.state === "running"){
       if(!audioReady){
         audioReady = true;
+        /* Decide which engine can actually be heard, once, right after the
+           gesture that turned sound on. */
+        setTimeout(() => { chooseEngine(); }, 60);
         /* An empty buffer play is the traditional confirmation that the output
            path is genuinely open, not merely reported as running. */
         try{
@@ -999,6 +1179,7 @@ function buildVoice(c, m, t){
 }
 
 function startNote(m){
+  if(audioEngine === "simple"){ samplePlay(m); return; }
   const c = audio(); if(!c) return;
   if(voices.has(m)) stopNote(m, true);
   const t = c.currentTime;
@@ -1007,6 +1188,9 @@ function startNote(m){
   voices.set(m, v);
 }
 function stopNote(m, now){
+  /* Nothing to release in sample mode: the note decays on its own, like a real
+     piano string that has already been struck. */
+  if(audioEngine === "simple") return;
   const v = voices.get(m); if(!v) return;
   voices.delete(m);
   releaseVoice(v, now ? 0.02 : 0.28);
@@ -1031,6 +1215,13 @@ function releaseVoice(v, rel){
   it plays at exactly that time.
 */
 function scheduleNote(m, at, dur){
+  if(audioEngine === "simple"){
+    const c = ctx, lead = c ? Math.max(0, (at - c.currentTime) * 1000) : 0;
+    /* No audio clock here, so a timer it is — the tradeoff that comes with
+       being audible at all. */
+    setTimeout(() => samplePlay(m), lead);
+    return null;
+  }
   const c = audio(); if(!c) return null;
   const v = buildVoice(c, m, at);
   const off = at + Math.max(0.05, dur);
@@ -1056,6 +1247,10 @@ function blip(m, dur){
 function playPhrase(notes){
   const c = audio();
   const total = notes.reduce((mx,n) => Math.max(mx, n.at + n.dur), 0);
+  if(audioEngine === "simple"){
+    notes.forEach(n => setTimeout(() => samplePlay(n.midi), n.at));
+    return total;
+  }
   if(!c) return total;
   /* A short lead-in: scheduling at exactly currentTime can clip the attack of
      the first note on a busy phone. */
@@ -1068,11 +1263,16 @@ function playPhrase(notes){
    like a played note rather than a click. Scheduled playback is untouched —
    only live key presses live in `voices`. */
 function releaseHeld(){
-  Array.from(voices.keys()).forEach(m => stopNote(m));
+  if(audioEngine !== "simple") Array.from(voices.keys()).forEach(m => stopNote(m));
   held.clear();
 }
 
 function allOff(){
+  if(audioEngine === "simple"){
+    if(samplePool) samplePool.forEach(el => { try{ el.pause(); el.currentTime = 0; }catch(e){} });
+    voices.clear(); scheduled.clear();
+    return;
+  }
   Array.from(voices.keys()).forEach(m => stopNote(m, true));
   scheduled.forEach(v => { try{ releaseVoice(v, 0.03); }catch(e){} });
   scheduled.clear();
@@ -1082,11 +1282,24 @@ function allOff(){
 function soundStatusLine(){
   const st = audioState();
   if(st === "unsupported") return "This browser cannot play sound.";
-  if(st === "running")     return "Sound is on.";
-  /* "Paused" is only honest once it has actually worked; before that it has
-     simply not been switched on yet, which is a different sentence. */
+  if(st === "running")     return "Sound is on" + (audioEngine === "simple" ? " (simple mode)." : ".");
   if(!audioReady)          return "Sound turns on the first time you tap the screen.";
   return "Sound is paused — tap Test sound to turn it back on.";
+}
+
+/* Everything a silent phone could be doing, in one copyable block. "I hear
+   nothing" is impossible to act on; this turns it into a fact. */
+function soundReport(){
+  const L = [];
+  L.push("engine: " + audioEngine + (S.audioMode !== "auto" ? " (forced " + S.audioMode + ")" : " (auto)"));
+  L.push("context: " + audioState() + (ctx ? " @" + ctx.sampleRate + "Hz" : ""));
+  L.push("probe peak: " + (lastProbe === null ? "not run" : lastProbe.toFixed(4)));
+  L.push("audioSession: " + (navigator.audioSession ? (navigator.audioSession.type || "?") : "unsupported"));
+  L.push("session holder: " + (silentEl ? (silentEl.paused ? "paused" : "playing") : "none"));
+  L.push("sample pool: " + (samplePool ? samplePool.length + " ready" : "not built"));
+  L.push("in iframe: " + (window.top !== window.self));
+  L.push("ua: " + navigator.userAgent.slice(0, 90));
+  return L.join("\n");
 }
 
 /* A note the user asked for, from the Test sound button. Returns what happened
@@ -1095,9 +1308,12 @@ function testSound(){
   unlockAudio(true);
   const st = audioState();
   if(st === "unsupported") return { ok:false, message:"This browser cannot play sound." };
-  if(st !== "running") return { ok:false, message:"Sound is blocked — tap the screen once, then try again." };
+  if(st !== "running" && audioEngine !== "simple")
+    return { ok:false, message:"Sound is blocked — tap the screen once, then try again." };
   playPhrase([{midi:60,at:0,dur:320},{midi:64,at:170,dur:320},{midi:67,at:340,dur:520}]);
-  return { ok:true, message:"Played C–E–G. If you heard nothing, check the side switch and the volume." };
+  return { ok:true, message: audioEngine === "simple"
+    ? "Played C–E–G in simple mode. Nothing? Check the side switch and volume."
+    : "Played C–E–G. Nothing? Try Simple mode below." };
 }
 
 /* ============================ app state ============================ */
@@ -2012,9 +2228,19 @@ function screenProfile(){
     '<div class="card"><div class="h2" style="margin-bottom:6px">Sound</div>'+
       '<div class="sub" id="sndState">'+soundStatusLine()+'</div>'+
       '<button class="btn ghost block" style="margin-top:10px" data-act="testsound">Test sound</button>'+
-      '<div class="faint" style="margin-top:9px">On an iPhone, check the switch on the side of the '+
-        'phone as well as the volume — it silences most web audio, and Keyvoria now asks iOS to '+
-        'ignore it, but an older phone may still need the switch flipped.</div></div>'+
+      '<div class="faint" style="margin:12px 0 7px">If the piano is silent, switch modes and test '+
+        'again. <b>Simple</b> uses plain audio playback, which works in places the normal engine '+
+        'does not.</div>'+
+      '<div class="seg">'+
+        [["auto","Automatic"],["webaudio","Normal"],["simple","Simple"]].map(m =>
+          '<button class="seg-opt'+((S.audioMode||"auto")===m[0]?" active":"")+'" '+
+          'data-act="audiomode" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+
+      '</div>'+
+      '<div class="faint" style="margin-top:12px">On an iPhone, check the switch on the side of the '+
+        'phone as well as the volume — it silences most web audio. Keyvoria asks iOS to ignore it, '+
+        'but an older phone may still need the switch flipped.</div>'+
+      '<button class="link" style="margin-top:10px" data-act="copysound">Copy sound diagnostics</button>'+
+      '<pre class="diag" id="sndDiag">'+soundReport()+'</pre></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
       '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
     '<button class="link" data-act="reset">Reset all progress</button>';
@@ -3920,11 +4146,26 @@ document.addEventListener("click", e => {
       if(audioState() === "running") playPhrase([{midi:72,at:0,dur:260}]);
       break;
     }
+    case "audiomode": {
+      S.audioMode = el.dataset.m; save();
+      engineProbed = false;
+      audioEngine = S.audioMode === "simple" ? "simple" : "webaudio";
+      unlockAudio(true);
+      chooseEngine().then(() => {
+        render();
+        const r = testSound();
+        toast(r.message, !r.ok);
+      });
+      break;
+    }
+    case "copysound": copyText(soundReport(), "Diagnostics copied"); break;
     case "testsound": {
       const r = testSound();
       toast(r.message, !r.ok);
       const el = document.getElementById("sndState");
       if(el) el.textContent = soundStatusLine();
+      const dg = document.getElementById("sndDiag");
+      if(dg) dg.textContent = soundReport();
       break;
     }
     case "names":
@@ -4110,6 +4351,14 @@ function shareBadge(b){
   }
   copyShareText(b, "No share sheet here \u2014 text copied instead");
 }
+/* Copy arbitrary text. copyShareText below expects a badge, not a string. */
+function copyText(text, msg){
+  const ok = () => toast(msg || "Copied");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(ok).catch(() => fallbackCopy(text, ok));
+  } else fallbackCopy(text, ok);
+}
+
 function copyShareText(b, msg){
   if(!b || !S.badges[b.id]) return;
   const text = shareText(b);

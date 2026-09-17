@@ -955,6 +955,21 @@ discover.
   3. **Interruptions.** A call, a backgrounded tab or unplugged headphones suspend the
      context and nothing resumes it. The app must re-check on return and tell the user
      when sound is off, rather than failing quietly.
+  4. **Web Audio can simply not work.** It can be blocked inside a cross-origin
+     iframe, or report `running` while producing nothing — a platform quirk that
+     fails silently. The app must therefore **measure its own output**, not trust
+     the context's state, and fall back to plain `<audio>` playback when the meter
+     stays flat. One pre-rendered note transposed by `playbackRate` covers the
+     whole keyboard; latency is worse and notes decay rather than sustain, which
+     is a trade worth making against hearing nothing. The user can also force
+     either engine, because detection can be wrong.
+
+  **Nothing may route a media element through the audio context.** Several
+  published "unmute iOS" recipes call `createMediaElementSource` on the silent
+  element that holds the audio session. On some iOS builds that mutes the entire
+  graph, and it fails silently — the context still reports `running`. The session
+  is held by playing the element on its own.
+
   Playback is scheduled on the **audio clock, not `setTimeout`** — phone browsers
   throttle timers, and an exercise whose notes arrive on a throttled timer comes out
   ragged or not at all. There must also be a way for a user to *test* sound and be
