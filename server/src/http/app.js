@@ -29,7 +29,7 @@ import { verifyToken, issueToken } from "./tokens.js";
 import { verifySignature } from "./signature.js";
 
 const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial DoS
-const PROVIDERS = new Set(["stripe", "apple_app_store", "google_play"]);
+const PROVIDERS = new Set(["stripe", "paypal", "apple_app_store", "google_play"]);
 
 /** Ladders per game, so one lookup answers "is this a real level?" for both. */
 const LADDERS = { reading: LEVELS, chords: CHORD_LEVELS, keys: KEY_LEVELS };

@@ -217,3 +217,49 @@ test("full lifecycle: subscribe, cancel, keep access, expire, resubscribe", asyn
   await store.putSubscription(fresh);
   assert.ok(isEntitled(await store.getSubscription("u1"), fresh.current_period_start));
 });
+
+// ------------------------------------------------------------------- PayPal
+
+test("PayPal is a first-class provider, cancellable here like Stripe", () => {
+  const s = newSubscription({ userId: "pp", provider: "paypal", providerSubscriptionId: "I-ABC" });
+  assert.equal(s.price_cents, 595);
+  assert.equal(s.purchase_platform, "web", "PayPal is a web checkout, not an app-store purchase");
+
+  const r = requestCancel(s, T0 + DAY);
+  assert.ok(r.ok, "we own the PayPal agreement, so we can cancel it");
+  assert.equal(r.subscription.status, STATUS.CANCEL_PENDING);
+  assert.ok(isEntitled(r.subscription, T0 + DAY), "and access still runs to period end");
+
+  const d = describe(s, T0);
+  assert.equal(d.purchasedOn, "PayPal");
+  assert.equal(d.canCancelHere, true);
+  assert.equal(d.manageUrl, null);
+});
+
+test("the app stores remain the only providers we cannot cancel", () => {
+  const cancellable = ["stripe", "paypal"];
+  const storeOwned = ["apple_app_store", "google_play"];
+  for (const p of cancellable) {
+    assert.equal(requestCancel(newSubscription({ userId: "u", provider: p, providerSubscriptionId: "x" })).ok, true, p);
+  }
+  for (const p of storeOwned) {
+    assert.equal(requestCancel(newSubscription({ userId: "u", provider: p, providerSubscriptionId: "x" })).ok, false, p);
+  }
+});
+
+test("PayPal webhook names map onto the same internal events", async () => {
+  const store = createMemoryStore();
+  await store.putSubscription(
+    newSubscription({ userId: "pp", provider: "paypal", providerSubscriptionId: "I-ABC", now: T0 })
+  );
+  assert.equal(normalise("paypal", { id: "p1", type: "PAYMENT.SALE.COMPLETED" }).type, EVENT.RENEWED);
+  assert.equal(normalise("paypal", { id: "p2", type: "BILLING.SUBSCRIPTION.CANCELLED" }).type, EVENT.CANCELLED);
+  assert.equal(normalise("paypal", { id: "p3", type: "BILLING.SUBSCRIPTION.SUSPENDED" }).type, EVENT.PAYMENT_FAILED);
+
+  const r = await handleWebhook(store, "paypal", {
+    id: "pp_evt_1", type: "BILLING.SUBSCRIPTION.CANCELLED", providerSubscriptionId: "I-ABC",
+  }, T0 + DAY);
+  assert.equal(r.applied, true);
+  assert.equal(r.subscription.status, STATUS.CANCEL_PENDING);
+  assert.ok(isEntitled(r.subscription, T0 + DAY), "a PayPal cancel still runs to period end");
+});

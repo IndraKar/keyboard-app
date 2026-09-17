@@ -390,6 +390,47 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .crow.me .cstat{color:var(--accent);}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 
+
+/* ---------- checkout ---------- */
+.demobar{background:rgba(228,178,86,.10);border:1px solid rgba(228,178,86,.38);border-radius:12px;
+  padding:11px 13px;font-size:11.5px;line-height:1.55;color:var(--gold);}
+.sumrow{display:flex;align-items:flex-start;gap:10px;font-size:13px;padding:2px 0;}
+.sumrow + .sumrow{margin-top:2px;}
+.sumtot{display:flex;gap:10px;font-size:14px;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);}
+.wallets{display:flex;flex-direction:column;gap:9px;}
+.wallet{position:relative;height:48px;border-radius:11px;display:flex;align-items:center;
+  justify-content:center;gap:7px;font-weight:600;font-size:15px;border:1px solid transparent;
+  transition:transform .1s,filter .14s;}
+.wallet:active{transform:scale(.985);}
+.wallet.applepay{background:#000;color:#fff;}
+.wallet.gpay{background:#fff;color:#3c4043;}
+.wallet.paypal{background:#ffc439;color:#003087;}
+.wglyph{display:flex;align-items:center;line-height:0;}
+.wlabel{letter-spacing:-.01em;}
+.pplogo{font-size:16px;font-style:italic;letter-spacing:-.02em;}
+.pplogo i{color:#003087;font-style:italic;}
+.pplogo b{color:#009cde;font-style:italic;}
+.wnote{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.45;}
+.ordiv{display:flex;align-items:center;gap:10px;color:var(--faint);font-size:11px;}
+.ordiv::before,.ordiv::after{content:"";flex:1;height:1px;background:var(--border);}
+.fld{display:block;}
+.fldlab{font-size:11px;color:var(--dim);font-weight:600;}
+.fld.bad .tinput{border-color:var(--bad);}
+.flderr{display:block;margin-top:5px;font-size:11px;color:var(--bad);}
+.fldrow{display:flex;gap:10px;}
+.fldrow .fld{flex:1;min-width:0;}
+.brandchip{align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.06em;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:3px 7px;
+  color:var(--dim);margin-top:-4px;}
+.btn.busy{opacity:.72;}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px;
+  display:flex;flex-direction:column;gap:8px;}
+.sheet.apple{background:#101010;border-color:#2a2a2a;}
+.sheet.paypal{border-color:rgba(255,196,57,.4);}
+.sheettop{font-weight:700;font-size:15px;margin-bottom:2px;}
+.sheetnote{font-size:11.5px;color:var(--faint);text-align:center;margin:6px 0 4px;}
 /* ---- Premium panel on Home -------------------------------------------- */
 .prempanel{text-align:left}
 .premtitle{font-weight:650;letter-spacing:-.01em;color:var(--gold)}
@@ -1021,6 +1062,14 @@ function playPhrase(notes){
   const t0 = c.currentTime + 0.06;
   notes.forEach(n => scheduleNote(n.midi, t0 + n.at/1000, n.dur/1000));
   return total;
+}
+
+/* Let go of every key the user is holding, with a normal release so it sounds
+   like a played note rather than a click. Scheduled playback is untouched —
+   only live key presses live in `voices`. */
+function releaseHeld(){
+  Array.from(voices.keys()).forEach(m => stopNote(m));
+  held.clear();
 }
 
 function allOff(){
@@ -3321,9 +3370,309 @@ function screenPaywall(){
         '<b>Upload your file</b> and <b>Competition Mode</b> \u2014 plus <b>tier 4</b> '+
         'in every category and the <b>61-key</b> keyboard those tiers need.</div>'+
       premiumFeatureList()+
-      '<button class="btn gold block" data-act="upgrade">Subscribe \u2014 $5.95/month</button>'+
+      '<button class="btn gold block" data-act="tocheckout">Subscribe \u2014 $5.95/month</button>'+
       '<button class="btn ghost block" data-go="home">Not now</button>'+
     '</div>';
+}
+
+/* Read the form back into state before any re-render, so nothing typed is lost
+   when the screen redraws to show an error. */
+function readCheckoutFields(){
+  if(!checkout) return;
+  ["num","exp","cvc","name","zip"].forEach(k => {
+    const el = document.getElementById("co_" + k);
+    if(el) checkout[k] = el.value;
+  });
+}
+
+function wireCheckout(){
+  const num = document.getElementById("co_num");
+  const exp = document.getElementById("co_exp");
+  /* Format in place. Re-rendering on every keystroke would move the caret and
+     dismiss the phone keyboard, so the inputs are edited directly. */
+  if(num) num.addEventListener("input", () => {
+    const before = num.value;
+    num.value = formatCardNumber(before);
+    checkout.num = num.value;
+    const chip = document.querySelector(".brandchip"), b = cardBrand(num.value);
+    if(chip) chip.textContent = b ? BRAND_LABEL[b] : "";
+  });
+  if(exp) exp.addEventListener("input", () => {
+    exp.value = formatExpiry(exp.value);
+    checkout.exp = exp.value;
+  });
+  ["cvc","zip"].forEach(k => {
+    const el = document.getElementById("co_" + k);
+    if(el) el.addEventListener("input", () => { el.value = digits(el.value); checkout[k] = el.value; });
+  });
+  const name = document.getElementById("co_name");
+  if(name) name.addEventListener("input", () => { checkout.name = name.value; });
+}
+
+/* ============================ checkout ============================
+   A real checkout shape — express wallets, a card form with live validation,
+   an order summary and a receipt — because "thank you for your purchase" with
+   nothing in between taught the user nothing about the flow.
+
+   ── Why this refuses real cards ───────────────────────────────────────────
+   This page is a prototype and takes no money. A convincing payment form that
+   accepted a real card number would be worse than no form at all: someone
+   would type their actual card, see "payment successful", and believe they had
+   been charged. So the card field accepts ONLY the standard test numbers, the
+   way every payment provider's sandbox does, and says so on the screen. Nothing
+   typed here leaves the device — there is no server to send it to.
+
+   The real thing is Stripe (web) plus Apple/Google in-app purchase, against
+   merchant accounts that only the owner of the business can open. The server
+   in `server/` already models what happens after a provider reports a payment;
+   this screen is the part that would hand off to one. */
+
+const PRICE = "$5.95";
+
+/* The public test numbers every provider documents. Anything else is refused. */
+const TEST_CARDS = {
+  "4242424242424242": "visa",
+  "4000056655665556": "visa",
+  "5555555555554444": "mastercard",
+  "5200828282828210": "mastercard",
+  "378282246310005":  "amex",
+  "6011111111111117": "discover"
+};
+
+let checkout = null;
+
+function newCheckout(){
+  return { method:"card", num:"", exp:"", cvc:"", name:"", zip:"",
+           errors:{}, processing:false, wallet:null, receipt:null };
+}
+
+const digits = v => (v||"").replace(/\D/g,"");
+
+/* Brand from the issuer prefix — the same ranges a real form keys off. */
+function cardBrand(num){
+  const n = digits(num);
+  if(/^4/.test(n)) return "visa";
+  if(/^(5[1-5]|2[2-7])/.test(n)) return "mastercard";
+  if(/^3[47]/.test(n)) return "amex";
+  if(/^6(011|5)/.test(n)) return "discover";
+  return null;
+}
+const BRAND_LABEL = { visa:"VISA", mastercard:"Mastercard", amex:"AMEX", discover:"Discover" };
+
+/* Amex groups 4-6-5; everything else in fours. */
+function formatCardNumber(v){
+  const n = digits(v).slice(0, cardBrand(v) === "amex" ? 15 : 16);
+  const groups = cardBrand(v) === "amex" ? [4,6,5] : [4,4,4,4];
+  const out = []; let i = 0;
+  for(const g of groups){ if(i >= n.length) break; out.push(n.slice(i, i+g)); i += g; }
+  return out.join(" ");
+}
+function formatExpiry(v){
+  const n = digits(v).slice(0,4);
+  if(n.length <= 2) return n;
+  return n.slice(0,2) + "/" + n.slice(2);
+}
+function luhn(num){
+  const n = digits(num);
+  if(n.length < 12) return false;
+  let sum = 0, dbl = false;
+  for(let i = n.length - 1; i >= 0; i--){
+    let d = +n[i];
+    if(dbl){ d *= 2; if(d > 9) d -= 9; }
+    sum += d; dbl = !dbl;
+  }
+  return sum % 10 === 0;
+}
+function expiryValid(v){
+  const n = digits(v);
+  if(n.length !== 4) return false;
+  const mm = +n.slice(0,2), yy = +n.slice(2);
+  if(mm < 1 || mm > 12) return false;
+  const now = new Date(), curY = now.getFullYear() % 100, curM = now.getMonth() + 1;
+  return yy > curY || (yy === curY && mm >= curM);
+}
+
+function validateCard(c){
+  const e = {}, n = digits(c.num), brand = cardBrand(c.num);
+  if(!n) e.num = "Enter a card number";
+  else if(!luhn(n)) e.num = "That card number isn’t valid";
+  else if(!TEST_CARDS[n]) e.num = "Demo only — use 4242 4242 4242 4242 rather than a real card";
+  if(!c.exp) e.exp = "Required";
+  else if(!expiryValid(c.exp)) e.exp = digits(c.exp).length === 4 ? "Expired" : "MM/YY";
+  const cvcLen = brand === "amex" ? 4 : 3;
+  if(digits(c.cvc).length !== cvcLen) e.cvc = cvcLen + " digits";
+  if(!c.name.trim()) e.name = "Required";
+  if(!c.zip.trim()) e.zip = "Required";
+  return e;
+}
+
+/* What the device can actually offer. A real checkout hides a wallet it cannot
+   use; this one shows it and says so, because seeing all three is the point. */
+function walletAvailable(id){
+  try{
+    if(id === "apple")  return !!(window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments());
+    if(id === "google") return !!window.PaymentRequest;
+    if(id === "paypal") return true;      /* a redirect flow: works anywhere */
+  }catch(e){}
+  return false;
+}
+
+/* Marks are drawn, not typed. The Apple logo lives at U+F8FF, a private-use
+   codepoint that only resolves inside Apple's own fonts — everywhere else it is
+   an empty box. These are deliberately simplified stand-ins, not exact
+   reproductions of trademarked logos. */
+const APPLE_MARK =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">'+
+  '<path fill="currentColor" d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.1-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.2 1.1 0 1.5-.7 2.8-.7 1.3 0 1.6.7 2.8.7 1.2 0 1.9-1 2.6-2.1.8-1.2 1.2-2.3 1.2-2.4-.1 0-2.2-.9-2.2-3.4z"/>'+
+  '<path fill="currentColor" d="M14.3 6.1c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>';
+const GOOGLE_MARK =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">'+
+  '<path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.2c-.3 1.4-1.1 2.6-2.3 3.4v2.8h3.7C21.7 18.6 23 15.7 23 12.3z"/>'+
+  '<path fill="#34A853" d="M12 23.5c3.1 0 5.7-1 7.6-2.8l-3.7-2.8c-1 .7-2.3 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v2.9C3.7 20.9 7.6 23.5 12 23.5z"/>'+
+  '<path fill="#FBBC05" d="M5.6 14.3c-.2-.7-.4-1.4-.4-2.3s.1-1.6.4-2.3V6.8H1.8C1 8.4.5 10.1.5 12s.5 3.6 1.3 5.2l3.8-2.9z"/>'+
+  '<path fill="#EA4335" d="M12 5c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.5 15.1.5 12 .5 7.6.5 3.7 3.1 1.8 6.8l3.8 2.9C6.5 7 9 5 12 5z"/></svg>';
+
+const WALLETS = [
+  { id:"apple",  label:"Pay",    cls:"applepay", mark: APPLE_MARK },
+  { id:"google", label:"Pay",    cls:"gpay",     mark: GOOGLE_MARK },
+  { id:"paypal", label:"PayPal", cls:"paypal",   mark: "" }
+];
+
+function screenCheckout(){
+  const c = checkout, e = c.errors, brand = cardBrand(c.num);
+
+  const wallets = WALLETS.map(w => {
+    const avail = walletAvailable(w.id);
+    return '<button class="wallet '+w.cls+'" data-act="wallet" data-w="'+w.id+'">'+
+      (w.id === "paypal"
+        ? '<span class="pplogo"><i>Pay</i><b>Pal</b></span>'
+        : '<span class="wglyph">'+w.mark+'</span><span class="wlabel">'+w.label+'</span>')+
+      (avail ? '' : '<span class="wnote">demo</span>')+
+    '</button>';
+  }).join("");
+
+  const field = (id, label, value, ph, extra) =>
+    '<label class="fld'+(e[id]?" bad":"")+'">'+
+      '<span class="fldlab">'+label+'</span>'+
+      '<input class="tinput" id="co_'+id+'" value="'+String(value).replace(/"/g,"&quot;")+'" '+
+        'placeholder="'+ph+'" autocomplete="off" '+(extra||"")+'>'+
+      (e[id] ? '<span class="flderr">'+e[id]+'</span>' : '')+
+    '</label>';
+
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="paywall" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Checkout</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+
+      '<div class="demobar"><b>Prototype — no payment is taken.</b> Nothing you type here leaves '+
+        'this device. The card field accepts only the public test number '+
+        '<b>4242 4242 4242 4242</b>; a real card is refused on purpose.</div>'+
+
+      '<div class="card">'+
+        '<div class="sumrow"><span class="grow"><b>Keyvoria Premium</b>'+
+          '<span class="faint" style="display:block">Tier 4 · 61 keys · Upload your file · Competition</span></span>'+
+          '<span class="tnum">'+PRICE+'</span></div>'+
+        '<div class="sumrow faint"><span class="grow">Billed monthly · cancel any time</span></div>'+
+        '<div class="sumtot"><span class="grow"><b>Due today</b></span><span class="tnum"><b>'+PRICE+'</b></span></div>'+
+      '</div>'+
+
+      '<div class="wallets">'+wallets+'</div>'+
+      '<div class="ordiv"><span>or pay with card</span></div>'+
+
+      field("num", "Card number", formatCardNumber(c.num), "4242 4242 4242 4242",
+            'inputmode="numeric" maxlength="19"')+
+      (brand ? '<div class="brandchip">'+BRAND_LABEL[brand]+'</div>' : '')+
+      '<div class="fldrow">'+
+        field("exp", "Expiry", c.exp, "MM/YY", 'inputmode="numeric" maxlength="5"')+
+        field("cvc", "CVC", c.cvc, brand === "amex" ? "1234" : "123", 'inputmode="numeric" maxlength="4"')+
+      '</div>'+
+      field("name", "Name on card", c.name, "Your name", 'maxlength="40"')+
+      '<div class="fldrow">'+
+        field("zip", "Postal code", c.zip, "12345", 'maxlength="10"')+
+        '<label class="fld"><span class="fldlab">Country</span>'+
+          '<select class="tinput" id="co_country">'+
+            ['United States','Canada','United Kingdom','Australia','Ireland','New Zealand','Other']
+              .map(x => '<option>'+x+'</option>').join("")+
+          '</select></label>'+
+      '</div>'+
+
+      '<button class="btn gold block'+(c.processing?" busy":"")+'" data-act="paycard"'+(c.processing?" disabled":"")+'>'+
+        (c.processing ? "Processing…" : "Subscribe — "+PRICE+"/month")+'</button>'+
+      '<div class="faint center" style="font-size:11px">Renews monthly at '+PRICE+'. '+
+        'Cancel any time from Profile — you keep Premium until the period ends.</div>'+
+    '</div>';
+}
+
+/* The wallet sheets. Each mimics the shape of the real one — what is being
+   bought, from whom, and how it is confirmed — without pretending to charge. */
+function screenWallet(){
+  const w = checkout.wallet;
+  const title = w === "apple" ? "Apple Pay" : w === "google" ? "Google Pay" : "PayPal";
+  const confirm = w === "apple" ? "Double-click the side button to pay"
+                : w === "google" ? "Confirm with your screen lock"
+                : "Log in to PayPal to approve this payment";
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="checkout" aria-label="Back">'+svg(IC.close,13)+'</button>'+
+      '<div class="h2">'+title+'</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="sheet '+w+'">'+
+        '<div class="sheettop">'+title+'</div>'+
+        '<div class="sumrow"><span class="grow">Keyvoria Premium</span><span class="tnum">'+PRICE+'</span></div>'+
+        '<div class="sumrow faint"><span class="grow">Monthly subscription</span></div>'+
+        '<div class="sumtot"><span class="grow"><b>Total</b></span><span class="tnum"><b>'+PRICE+'</b></span></div>'+
+        '<div class="sheetnote">'+confirm+'</div>'+
+        '<button class="btn gold block" data-act="walletconfirm">'+
+          (checkout.processing ? "Confirming…" : "Confirm — demo only")+'</button>'+
+        '<button class="btn ghost block" data-go="checkout">Cancel</button>'+
+      '</div>'+
+      '<div class="faint center">No payment is taken. A real '+title+' sheet is presented by the '+
+        'operating system and cannot be drawn by a web page — this stands in for it.</div>'+
+    '</div>';
+}
+
+function screenReceipt(){
+  const r = checkout && checkout.receipt;
+  if(!r) return screenPaywall();
+  return '<div class="stack center" style="justify-content:center;flex:1">'+
+    '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
+    '<div class="h1">You’re on Premium</div>'+
+    '<div class="sub">Tier 4, the 61-key keyboard, Upload your file and Competition are unlocked.</div>'+
+    '<div class="card" style="text-align:left">'+
+      '<div class="kv"><span class="kvk">Plan</span><span class="kvv">Keyvoria Premium</span></div>'+
+      '<div class="kv"><span class="kvk">Paid</span><span class="kvv tnum">'+PRICE+'</span></div>'+
+      '<div class="kv"><span class="kvk">Method</span><span class="kvv">'+r.method+'</span></div>'+
+      '<div class="kv"><span class="kvk">Order</span><span class="kvv tnum">'+r.id+'</span></div>'+
+      '<div class="kv"><span class="kvk">Next charge</span><span class="kvv">'+r.next+'</span></div>'+
+    '</div>'+
+    '<div class="demobar">No money moved. This is a prototype receipt for a payment that did not '+
+      'happen — real billing needs a merchant account (roadmap M7).</div>'+
+    (r.fromTutorial
+      ? '<button class="btn block" data-act="backtosong">Back to your song — now full length</button>'
+      : '<button class="btn block" data-go="home">Start using Premium</button>')+
+    '<button class="btn ghost block" data-go="profile">See my subscription</button>'+
+  '</div>';
+}
+
+/* Grant Premium and build the receipt. One path, whichever method was used. */
+function completePurchase(methodLabel){
+  const now = new Date();
+  const next = new Date(now.getTime() + 30*864e5);
+  const fmt = d => d.toLocaleDateString(undefined, {day:"numeric", month:"long", year:"numeric"});
+  checkout.receipt = {
+    method: methodLabel,
+    id: "KV-" + now.getFullYear() + "-" + String(Math.floor(Math.random()*90000)+10000),
+    next: fmt(next),
+    /* Someone who upgraded from inside a tutorial wants their song back, not
+       the home screen. */
+    fromTutorial: !!(upload && tut)
+  };
+  checkout.processing = false;
+  const hadUpload = !!upload;
+  S.premium = true; S.cancelPending = false; save();
+  rebuildUpload();
+  if(upload && upload.midi) buildOutputs();
+  go("receipt");
+  return hadUpload;
 }
 
 function screenCancel(){
@@ -3345,6 +3694,7 @@ const SCREENS = {
   signin:screenSignIn, namesetup:screenNameSetup, account:screenAccount, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
+  checkout:screenCheckout, walletsheet:screenWallet, receipt:screenReceipt,
   achievements:screenAchievements, card:screenCard,
   uploadgate:screenUploadGate, compgate:screenCompGate,
   compsetup:screenCompSetup, compmatch:screenCompMatch, compresult:screenCompResult,
@@ -3390,9 +3740,14 @@ function render(){
 }
 
 function renderScreen(){
-  /* Rebuilding the view destroys key elements, so a pointerup can be lost and
-     leave a note stuck in `held` — which would silently make that key dead. */
-  held.clear();
+  /* Rebuilding the view destroys the key elements, so release anything still
+     sounding before they go.
+     This was the drone. `held` was cleared here but the VOICES were not, so the
+     later pointerup had nothing left to release and the oscillator sustained
+     indefinitely — and since every note in a passage triggers a re-render, they
+     stacked up until the next screen change called allOff(). Forgetting a note
+     is not the same as stopping it. */
+  releaseHeld();
   document.getElementById("xpLabel").textContent = S.xp.toLocaleString();
   document.getElementById("view").innerHTML = SCREENS[curScreen]();
   const tb = document.getElementById("tabbar");
@@ -3448,6 +3803,7 @@ function renderScreen(){
       }
     }
   }
+  if(curScreen === "checkout") wireCheckout();
   if(curScreen === "upload"){
     const inp = document.getElementById("songFile");
     if(inp) inp.addEventListener("change", e => handleUpload(e.target.files && e.target.files[0]));
@@ -3524,6 +3880,39 @@ document.addEventListener("click", e => {
     return;
   }
   switch(act){
+    case "tocheckout": checkout = newCheckout(); go("checkout"); break;
+
+    /* Every keystroke re-validates only what the user has already had a chance
+       to get wrong: errors appear on submit and then clear as they are fixed,
+       rather than scolding someone halfway through typing a card number. */
+    case "paycard": {
+      readCheckoutFields();
+      checkout.errors = validateCard(checkout);
+      if(Object.keys(checkout.errors).length){ render(); return; }
+      checkout.processing = true; render();
+      setTimeout(() => {
+        if(!checkout) return;
+        const n = digits(checkout.num);
+        completePurchase(BRAND_LABEL[TEST_CARDS[n]] + " ending " + n.slice(-4));
+      }, 900);
+      break;
+    }
+    case "wallet": {
+      readCheckoutFields();
+      checkout.wallet = el.dataset.w; checkout.processing = false;
+      go("walletsheet"); break;
+    }
+    case "walletconfirm": {
+      if(checkout.processing) return;
+      checkout.processing = true; render();
+      setTimeout(() => {
+        if(!checkout) return;
+        const w = checkout.wallet;
+        completePurchase(w === "apple" ? "Apple Pay" : w === "google" ? "Google Pay" : "PayPal");
+      }, 900);
+      break;
+    }
+
     case "soundon": {
       unlockAudio(true);
       /* Confirm with an actual note: "sound is on" is only believable if you
@@ -3558,16 +3947,9 @@ document.addEventListener("click", e => {
     case "quit": endTiming(); ladderCat = session.cat; go("ladder"); break;
     case "again": startSession(session.cat, session.tier, session.mode); break;
     case "toladder": ladderCat = session.cat; go("ladder"); break;
-    case "upgrade": {
-      const hadUpload = !!upload;
-      S.premium = true; S.cancelPending = false; save();
-      rebuildUpload();
-      if(upload && upload.midi) buildOutputs();
-      toast("Keyvoria Premium active · 61 keys and full songs unlocked");
-      if(hadUpload && tut){ tutStop(); tut.pos = 0; go("tutorial"); }
-      else go("home");
+    case "backtosong":
+      if(tut){ tutStop(); tut.pos = 0; go("tutorial"); } else go("home");
       break;
-    }
     case "resume":
       S.cancelPending = false; save(); toast("Subscription resumed"); render(); break;
     case "confirmcancel":

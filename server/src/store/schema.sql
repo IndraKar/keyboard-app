@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider                 text NOT NULL CHECK (provider IN ('stripe','apple_app_store','google_play')),
+  provider                 text NOT NULL CHECK (provider IN ('stripe','paypal','apple_app_store','google_play')),
   provider_subscription_id text NOT NULL,
   purchase_platform        text NOT NULL CHECK (purchase_platform IN ('web','ios','android')),
   status                   text NOT NULL CHECK (status IN

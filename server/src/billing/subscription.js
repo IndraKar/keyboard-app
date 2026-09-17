@@ -45,6 +45,10 @@ const ENTITLING = new Set([
  */
 export const PROVIDERS = {
   stripe: { id: "stripe", label: "Web", canCancelServerSide: true, manageUrl: null },
+  /* PayPal bills through a subscription agreement we own, so it can be
+     cancelled from here like Stripe — unlike the two app stores, which own
+     theirs. */
+  paypal: { id: "paypal", label: "PayPal", canCancelServerSide: true, manageUrl: null },
   apple_app_store: {
     id: "apple_app_store",
     label: "App Store",
@@ -83,7 +87,10 @@ export function newSubscription({ userId, provider, providerSubscriptionId, now 
     user_id: userId,
     provider,
     provider_subscription_id: providerSubscriptionId,
-    purchase_platform: provider === "stripe" ? "web" : provider === "apple_app_store" ? "ios" : "android",
+    /* Where the money came from, not which device asked. PayPal and Stripe are
+       both web checkouts; only the app stores are platform purchases. */
+    purchase_platform:
+      provider === "apple_app_store" ? "ios" : provider === "google_play" ? "android" : "web",
     status: STATUS.ACTIVE,
     price_cents: PRICE_CENTS,
     currency: CURRENCY,

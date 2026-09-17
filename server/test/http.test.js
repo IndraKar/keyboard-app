@@ -182,7 +182,8 @@ test("a stale signature is rejected even though the digest is right", async () =
 
 test("an unknown provider path is a 404, and unmapped events are acknowledged", async () => {
   await withServer({ webhookSecrets: { stripe: HOOK_SECRET } }, async ({ call, store }) => {
-    assert.equal((await call("POST", "/v1/webhooks/paypal", { body: {} })).status, 404);
+    // paypal is a real provider now, so pick something that genuinely is not.
+    assert.equal((await call("POST", "/v1/webhooks/venmo", { body: {} })).status, 404);
 
     const { newSubscription } = await import("../src/billing/subscription.js");
     await store.putSubscription(newSubscription({ userId: "u4", provider: "stripe", providerSubscriptionId: "s4" }));

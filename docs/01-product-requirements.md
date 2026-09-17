@@ -543,6 +543,39 @@ Two naming and scope notes, since both would otherwise create phantom work:
   starting every category at tier 1.
 - MIDI keyboard setup/pairing walkthrough, with a no-MIDI fallback path.
 
+### F-06a Checkout & payment methods
+Subscribing must look and behave like paying for anything else, because a plan that
+is only ever *granted* hides the step most likely to fail in production.
+
+**Four methods, in the order people use them:** Apple Pay, Google Pay and PayPal as
+express buttons, then card (Visa, Mastercard, Amex, Discover) as the fallback. The
+wallets go above the card form, not below it — most subscribers will use one, and
+burying them behind a form costs conversions.
+
+**The card form validates like a real one.** Brand detected from the issuer prefix,
+digits grouped as typed (4-6-5 for Amex), Luhn checked, expiry refused when past, CVC
+length by brand, name and postal code required. Errors surface on submit and clear as
+they are corrected, rather than scolding someone mid-keystroke.
+
+**The prototype refuses real cards, on purpose.** It accepts only the public test
+numbers and says so on screen. A convincing payment form that accepted a real card
+would let someone believe they had been charged when nothing happened — a worse
+outcome than having no form at all. Nothing typed is transmitted, because there is no
+endpoint to transmit to.
+
+**What production needs, which no amount of front-end work supplies:** a Stripe
+account for web card and wallet payments, a PayPal business account, and Apple/Google
+merchant accounts for in-app purchase — all under a real legal entity, with the app
+stores taking 15–30% of anything sold inside their apps. The server (`server/`)
+already models the subscription lifecycle that a provider reports into; this screen is
+the part that hands off to one. **PayPal and Stripe subscriptions can be cancelled by
+us** because we own those agreements; App Store and Play subscriptions cannot, and the
+app must send the user to the store instead (F-07).
+
+**A receipt is part of the flow**, not an afterthought: plan, amount, method with card
+last four, order id and next charge date. Someone who subscribed from inside a tutorial
+returns to their song, not to the home screen.
+
 ### F-07 Profile: overview, stats & subscription management
 Keyvoria's third and last tab (screen map §3.8), and the only surface that reports on
 the user rather than giving them something to do. It merges what an earlier draft

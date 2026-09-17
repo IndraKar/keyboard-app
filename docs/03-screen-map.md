@@ -413,6 +413,41 @@ The roster repaints on its own timer rather than through a full screen render, s
 keyboard never rebuilds mid-match — a re-render would drop a held key and cost someone
 the race.
 
+## 3.6c Checkout (PRD F-07)
+
+Reached from the paywall's **Subscribe** button. Replaces an earlier build where
+that button granted Premium instantly and showed a thank-you — which told the user
+nothing about what subscribing involves, and hid the one flow most likely to go
+wrong in production.
+
+1. **Checkout** — a prototype notice, the order summary (Keyvoria Premium, $5.95,
+   billed monthly, cancel any time, due today), then **express wallets** — Apple Pay,
+   Google Pay, PayPal — above a divider and a card form. Wallets go first because
+   most people use one; the card form is the fallback, not the default.
+   The card form validates the way a real one does: brand detected from the issuer
+   prefix, number grouped as you type (4-6-5 for Amex), Luhn check, expiry rejected
+   when it is in the past, CVC length by brand, name and postal code required. Errors
+   appear on submit and clear as they are fixed.
+2. **Wallet sheet** — a stand-in for the Apple Pay / Google Pay / PayPal sheet, which
+   a web page cannot draw: the real one is presented by the operating system. It shows
+   what is being bought and how it would be confirmed, and says plainly that it is a
+   stand-in.
+3. **Receipt** — plan, amount, method (with card last four), order id and next charge
+   date. Someone who subscribed from inside a tutorial gets *Back to your song* rather
+   than *Home*, because that is where they were.
+
+**The card field accepts only the public test numbers**, and refuses anything else
+with "use 4242 4242 4242 4242 rather than a real card". This is deliberate and is the
+most important thing on the screen: a convincing payment form that accepted a real
+card would let someone believe they had been charged when nothing happened. Payment
+providers' own sandboxes work exactly this way. Nothing typed is transmitted — there
+is no endpoint to transmit it to.
+
+**Availability is reported honestly.** Apple Pay is offered only where
+`ApplePaySession` exists and Google Pay where `PaymentRequest` does; where a wallet is
+unavailable the button is still shown, marked *demo*, because seeing the full set is
+the point of the prototype.
+
 ## 3.7 Achievements & Progress (reached from Profile, §3.8)
 
 - **Achievements screen** — grid of badges, earned/locked, per-badge criteria on tap.

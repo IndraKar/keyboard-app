@@ -18,7 +18,7 @@ Everything here is plain Node 22 ESM with **no runtime dependencies**, so it
 runs and tests with no install step:
 
 ```
-npm test     # 122 tests, no network, no database
+npm test     # 125 tests, no network, no database
 npm start    # http://localhost:8787
 ```
 
@@ -45,7 +45,7 @@ until `current_period_end`. Revoking at the moment of the request takes back
 time they already paid for. `isEntitled()` is the only place that decides
 access, and it derives it — access is never a second stored flag that can drift.
 
-**Apple and Google cannot be cancelled from here.** They own their
+**Apple and Google cannot be cancelled from here.** (Stripe and PayPal can — we own those agreements.) They own their
 subscriptions. `requestCancel()` returns a directive with a management URL and
 leaves the record untouched, rather than pretending locally that a cancellation
 happened. A cancel the user believes happened and didn't is the worst outcome
@@ -116,7 +116,7 @@ seam to replace.
 | `GET /v1/subscription` | what the Profile screen renders |
 | `POST /v1/subscription/cancel` | 409 + `manageUrl` for App Store / Play |
 | `POST /v1/subscription/resume` | undoes a pending cancel |
-| `POST /v1/webhooks/:provider` | `stripe` \| `apple_app_store` \| `google_play` |
+| `POST /v1/webhooks/:provider` | `stripe` \| `paypal` \| `apple_app_store` \| `google_play` |
 | `POST /v1/competition/queue` | `{game, level, players}` — `game` is `reading` (default) or `chords` |
 | `GET /v1/competition/queue/:level?game=` | poll; also drives the wait-timeout start |
 | `DELETE /v1/competition/queue` | leave |
