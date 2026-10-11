@@ -1,9 +1,17 @@
 -- Keyvoria — M7 (billing) and M7a (competition) tables.
 -- Matches docs/04-database-schema.md §4.10b and §4.11a.
+--
+-- Runs standalone against an empty database: `psql "$DATABASE_URL" -f schema.sql`.
+--
+-- `user_id` is text, not a uuid foreign key, because accounts (roadmap M1) are
+-- not built yet — today a user id is whatever the session token carries. When
+-- M1 lands this becomes `uuid REFERENCES users(id)`; the migration is a cast and
+-- a constraint, and doing it now would mean inventing a users table that the
+-- rest of the system does not yet use.
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id                  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id                  text NOT NULL,
   provider                 text NOT NULL CHECK (provider IN ('stripe','paypal','apple_app_store','google_play')),
   provider_subscription_id text NOT NULL,
   purchase_platform        text NOT NULL CHECK (purchase_platform IN ('web','ios','android')),
@@ -18,7 +26,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   grace_ends_at            timestamptz,
   created_at               timestamptz NOT NULL DEFAULT now(),
   updated_at               timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (provider, provider_subscription_id)
+  UNIQUE (provider, provider_subscription_id),
+  -- getSubscription(userId) returns one row, so the database enforces one.
+  -- A resubscribe updates the existing row rather than adding a second.
+  UNIQUE (user_id)
 );
 
 -- The sweep (webhooks.js) reads exactly this predicate; without the index it
@@ -60,7 +71,7 @@ CREATE TABLE IF NOT EXISTS competition_matches (
   started_at      timestamptz,
   ends_at         timestamptz,
   ended_at        timestamptz,
-  winner_user_id  uuid REFERENCES users(id),
+  winner_user_id  text,
   end_reason      text CHECK (end_reason IN
                     ('completed','all_eliminated','timeout','last_standing','sudden_death','draw')),
   -- How many tiebreak rounds ran (Key Signature Race only). 0 for a match that
@@ -88,7 +99,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS competition_open_join_code_idx
 
 CREATE TABLE IF NOT EXISTS competition_entrants (
   match_id            uuid NOT NULL REFERENCES competition_matches(id) ON DELETE CASCADE,
-  user_id             uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id             text NOT NULL,
   -- Notes in the reading race, chords named in Chord Race: one counter, since
   -- the engine treats both as "answers correct so far".
   notes_correct       smallint NOT NULL DEFAULT 0,

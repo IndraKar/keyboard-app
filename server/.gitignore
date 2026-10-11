@@ -1,2 +1,7 @@
 node_modules/
-package-lock.json
+.env
+.env.local
+
+# package-lock.json is deliberately NOT ignored. This is a deployed service now:
+# without the lockfile the Docker build resolves whatever `pg` happens to be
+# newest at build time, so two deploys of the same commit can differ.

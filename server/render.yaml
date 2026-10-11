@@ -1,0 +1,40 @@
+# Render blueprint: one web service and one Postgres database.
+# Point Render at this repo with `rootDir: server` and it builds from the
+# Dockerfile beside this file.
+services:
+  - type: web
+    name: keyvoria-api
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: keyvoria-db
+          property: connectionString
+      # Generated once by Render and then left alone — rotating it signs every
+      # existing session out.
+      - key: KEYVORIA_SESSION_SECRET
+        generateValue: true
+      # Set these by hand in the dashboard. They are secrets and do not belong
+      # in a file that lives in git.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: KEYVORIA_ALLOWED_ORIGIN
+        sync: false
+      - key: KEYVORIA_SUCCESS_URL
+        sync: false
+      - key: KEYVORIA_CANCEL_URL
+        sync: false
+
+databases:
+  - name: keyvoria-db
+    plan: basic-256mb

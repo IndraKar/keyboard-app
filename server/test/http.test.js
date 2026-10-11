@@ -14,10 +14,10 @@ const SECRET = "test-session-secret";
 const HOOK_SECRET = "whsec_test";
 
 /** Spin up a real server on an ephemeral port so the tests exercise the socket. */
-async function withServer(config, fn) {
+async function withServer(config, fn, stripe = null) {
   const store = createMemoryStore();
   const matchmaker = createMatchmaker();
-  const app = createApp({ store, matchmaker, config: { sessionSecret: SECRET, ...config } });
+  const app = createApp({ store, matchmaker, stripe, config: { sessionSecret: SECRET, ...config } });
   const server = http.createServer(app);
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -37,7 +37,7 @@ async function withServer(config, fn) {
   };
 
   try {
-    await fn({ call, store, matchmaker, base });
+    await fn({ call, store, matchmaker, base, stripe });
   } finally {
     await new Promise((r) => server.close(r));
   }
@@ -513,5 +513,125 @@ test("an answer that is not one of the fifteen signatures is refused", async () 
     const id = q.body.match.id;
     assert.equal((await call("POST", `/v1/competition/match/${id}/answer`, { token: a, body: { answer: "H" } })).status, 400);
     assert.equal((await call("POST", "/v1/competition/queue", { token: a, body: { game: "keys", level: 4 } })).status, 400);
+  });
+});
+
+// -------------------------------------------------------------- Stripe wiring
+
+/** A Stripe stand-in that records what the server asked it to do. */
+function stubStripe(overrides = {}) {
+  const calls = [];
+  return {
+    calls,
+    async createCheckoutSession(args) {
+      calls.push(["checkout", args]);
+      if (overrides.checkoutThrows) throw new Error(overrides.checkoutThrows);
+      return { id: "cs_1", url: "https://checkout.stripe.com/c/pay/cs_1" };
+    },
+    async getSubscription(id) { calls.push(["get", id]); return { current_period_end: 0 }; },
+    async cancelAtPeriodEnd(id) {
+      calls.push(["cancel", id]);
+      if (overrides.cancelThrows) throw new Error(overrides.cancelThrows);
+      return {};
+    },
+    async resume(id) { calls.push(["resume", id]); return {}; },
+  };
+}
+
+test("checkout returns a Stripe URL for the client to open", async () => {
+  const stripe = stubStripe();
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const r = await call("POST", "/v1/billing/checkout", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 200);
+    assert.match(r.body.url, /^https:\/\/checkout\.stripe\.com\//);
+    const [kind, args] = stripe.calls[0];
+    assert.equal(kind, "checkout");
+    assert.equal(args.userId, "kay", "the session must carry the user id through to the webhook");
+    assert.match(args.successUrl, /^https?:\/\//);
+  }, stripe);
+});
+
+test("checkout is refused rather than faked when Stripe is not configured", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const r = await call("POST", "/v1/billing/checkout", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error, "billing_not_configured");
+  });
+});
+
+test("an existing subscriber cannot be charged a second time", async () => {
+  const stripe = stubStripe();
+  await withServer({ devAuth: true }, async ({ call }) => {
+    await call("POST", "/v1/dev/subscribe", { token: dev("kay"), body: {} });
+    const r = await call("POST", "/v1/billing/checkout", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 409);
+    assert.equal(r.body.error, "already_subscribed");
+    assert.equal(stripe.calls.length, 0, "and Stripe is never even asked");
+  }, stripe);
+});
+
+test("checkout requires a signed-in user", async () => {
+  await withServer({}, async ({ call }) => {
+    assert.equal((await call("POST", "/v1/billing/checkout", { body: {} })).status, 401);
+  }, stubStripe());
+});
+
+test("CANCELLING TELLS STRIPE — not just our own database", async () => {
+  const stripe = stubStripe();
+  await withServer({ devAuth: true }, async ({ call }) => {
+    await call("POST", "/v1/dev/subscribe", { token: dev("kay"), body: {} });
+    const r = await call("POST", "/v1/subscription/cancel", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 200);
+    assert.deepEqual(stripe.calls.at(-1), ["cancel", "dev_kay"],
+      "without this call the card keeps being charged every month");
+  }, stripe);
+});
+
+test("if Stripe refuses the cancel, nothing local changes", async () => {
+  const stripe = stubStripe({ cancelThrows: "card network down" });
+  await withServer({ devAuth: true }, async ({ call, store }) => {
+    await call("POST", "/v1/dev/subscribe", { token: dev("kay"), body: {} });
+    const r = await call("POST", "/v1/subscription/cancel", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 502);
+    const sub = await store.getSubscription("kay");
+    assert.equal(sub.status, STATUS.ACTIVE,
+      "showing 'cancelled' while Stripe keeps billing is the worst outcome available");
+    assert.equal(sub.cancel_at_period_end, false);
+  }, stripe);
+});
+
+test("resuming tells Stripe too", async () => {
+  const stripe = stubStripe();
+  await withServer({ devAuth: true }, async ({ call }) => {
+    await call("POST", "/v1/dev/subscribe", { token: dev("kay"), body: {} });
+    await call("POST", "/v1/subscription/cancel", { token: dev("kay"), body: {} });
+    const r = await call("POST", "/v1/subscription/resume", { token: dev("kay"), body: {} });
+    assert.equal(r.status, 200);
+    assert.deepEqual(stripe.calls.at(-1), ["resume", "dev_kay"]);
+  }, stripe);
+});
+
+test("a real Stripe webhook is verified against the Stripe-Signature header", async () => {
+  await withServer({ webhookSecrets: { stripe: HOOK_SECRET } }, async ({ call, store }) => {
+    const payload = JSON.stringify({
+      id: "evt_live", type: "checkout.session.completed",
+      data: { object: { object: "checkout.session", mode: "subscription",
+                        subscription: "sub_live", client_reference_id: "kay" } },
+    });
+    const r = await call("POST", "/v1/webhooks/stripe", {
+      body: payload,
+      headers: { "stripe-signature": buildSignature(payload, HOOK_SECRET) },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.applied, true);
+    assert.ok(await store.getSubscription("kay"), "the payment produced a subscription");
+  });
+});
+
+test("providers whose signature scheme is not implemented are closed, not trusted", async () => {
+  await withServer({ webhookSecrets: { paypal: "whatever" } }, async ({ call }) => {
+    const r = await call("POST", "/v1/webhooks/paypal", { body: { id: "x", type: "y" } });
+    assert.equal(r.status, 501);
+    assert.equal(r.body.error, "signature_scheme_not_implemented");
   });
 });

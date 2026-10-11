@@ -26,6 +26,7 @@ import { KEY_LEVELS } from "../competition/keys.js";
 import { KEYS as KEY_SIGNATURES, KEY_TIERS, keyLabel } from "../theory/keysignatures.js";
 import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
 import { verifyToken, issueToken } from "./tokens.js";
+import { STATUS } from "../billing/subscription.js";
 import { verifySignature } from "./signature.js";
 
 const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial DoS
@@ -33,6 +34,31 @@ const PROVIDERS = new Set(["stripe", "paypal", "apple_app_store", "google_play"]
 
 /** Ladders per game, so one lookup answers "is this a real level?" for both. */
 const LADDERS = { reading: LEVELS, chords: CHORD_LEVELS, keys: KEY_LEVELS };
+
+/**
+ * Which header each provider signs with. Stripe sends `Stripe-Signature`; an
+ * earlier version read a header of our own invention, so a real Stripe delivery
+ * would have arrived unsigned and been rejected 100% of the time.
+ *
+ * PayPal does NOT use this scheme — it signs with a cert-chain scheme over
+ * several transmission headers. Its endpoint therefore stays closed until that
+ * is implemented rather than pretending a shared secret verifies it.
+ */
+const SIGNATURE_HEADER = {
+  stripe: "stripe-signature",
+  paypal: "paypal-transmission-sig",
+  apple_app_store: "x-apple-signature",
+  google_play: "x-goog-signature",
+};
+const VERIFIABLE = new Set(["stripe"]);
+const STATUS_CANCEL_PENDING = STATUS.CANCEL_PENDING;
+
+/** Public origin of this request, for Stripe's return URLs behind a proxy. */
+function publicBase(req) {
+  const proto = (req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
+  const host = (req.headers["x-forwarded-host"] || req.headers.host || "localhost").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
 const validGame = (g) => (Object.hasOwn(LADDERS, g) ? g : null);
 const validLevel = (game, level) => Number.isInteger(level) && !!LADDERS[game][level - 1];
 
@@ -87,6 +113,7 @@ function parseJson(raw) {
 export function createApp({
   store,
   matchmaker,
+  stripe = null,          // createStripe(...) in production; null disables checkout
   config = {},
   now = () => Date.now(),
 } = {}) {
@@ -193,7 +220,13 @@ export function createApp({
         const provider = seg[2];
         if (!PROVIDERS.has(provider)) return send(res, 404, { error: "unknown_provider" });
 
-        const sig = verifySignature(raw, req.headers["x-keyvoria-signature"], webhookSecrets[provider], {
+        // Only Stripe's scheme is implemented. Accepting another provider's
+        // delivery on a shared secret would be verification theatre.
+        if (!VERIFIABLE.has(provider) && !allowUnsignedWebhooks) {
+          return send(res, 501, { error: "signature_scheme_not_implemented", provider });
+        }
+        const header = req.headers[SIGNATURE_HEADER[provider]] ?? req.headers["x-keyvoria-signature"];
+        const sig = verifySignature(raw, header, webhookSecrets[provider], {
           now: now(),
           allowUnsigned: allowUnsignedWebhooks,
         });
@@ -204,7 +237,7 @@ export function createApp({
 
         let result;
         try {
-          result = await handleWebhook(store, provider, body, now());
+          result = await handleWebhook(store, provider, body, now(), { stripe });
         } catch (err) {
           // A payload we cannot even identify must still be acknowledged as
           // received-and-rejected, or the provider retries it forever.
@@ -224,6 +257,33 @@ export function createApp({
       const userId = auth.userId;
 
       // ------------------------------------------------------ subscriptions
+      /**
+       * Start a subscription. Returns a Stripe Checkout URL for the client to
+       * open; the card is collected by Stripe, never by us, so no card data
+       * ever reaches this server.
+       */
+      if (url.pathname === "/v1/billing/checkout" && method === "POST") {
+        if (!stripe) return send(res, 503, { error: "billing_not_configured" });
+        const existing = await store.getSubscription(userId);
+        if (isEntitled(existing, now())) {
+          return send(res, 409, { error: "already_subscribed", subscription: describeSub(existing, now()) });
+        }
+        const body = parseJson(raw);
+        if (body === null) return send(res, 400, { error: "invalid_json" });
+        try {
+          const session = await stripe.createCheckoutSession({
+            userId,
+            customerEmail: typeof body.email === "string" ? body.email : undefined,
+            successUrl: config.successUrl || `${publicBase(req)}/subscribed`,
+            cancelUrl: config.cancelUrl || `${publicBase(req)}/`,
+          });
+          return send(res, 200, { url: session.url, sessionId: session.id });
+        } catch (err) {
+          console.error("[keyvoria] checkout failed", err.message);
+          return send(res, 502, { error: "checkout_failed", message: err.message });
+        }
+      }
+
       if (url.pathname === "/v1/subscription" && method === "GET") {
         const sub = await store.getSubscription(userId);
         return send(res, 200, describeSub(sub, now()));
@@ -232,6 +292,21 @@ export function createApp({
       if (url.pathname === "/v1/subscription/cancel" && method === "POST") {
         const sub = await store.getSubscription(userId);
         if (!sub) return send(res, 404, { error: "no_subscription" });
+        /**
+         * Tell Stripe BEFORE recording it locally. In the other order, a failed
+         * API call leaves the app showing "cancelled" while the card keeps
+         * being charged every month — the worst outcome this system can
+         * produce. If Stripe refuses, nothing local changes and the user sees
+         * an error they can act on.
+         */
+        if (sub.provider === "stripe" && stripe && sub.status !== STATUS_CANCEL_PENDING) {
+          try {
+            await stripe.cancelAtPeriodEnd(sub.provider_subscription_id);
+          } catch (err) {
+            console.error("[keyvoria] stripe cancel failed", err.message);
+            return send(res, 502, { error: "cancel_failed", message: err.message });
+          }
+        }
         const r = requestCancel(sub, now());
         if (!r.ok) {
           // Not an error the user caused: Apple and Google own the cancel, and
@@ -249,6 +324,14 @@ export function createApp({
       if (url.pathname === "/v1/subscription/resume" && method === "POST") {
         const sub = await store.getSubscription(userId);
         if (!sub) return send(res, 404, { error: "no_subscription" });
+        if (sub.provider === "stripe" && stripe) {
+          try {
+            await stripe.resume(sub.provider_subscription_id);
+          } catch (err) {
+            console.error("[keyvoria] stripe resume failed", err.message);
+            return send(res, 502, { error: "resume_failed", message: err.message });
+          }
+        }
         const r = resume(sub, now());
         if (!r.ok) return send(res, 409, { error: r.reason });
         await store.putSubscription(r.subscription);

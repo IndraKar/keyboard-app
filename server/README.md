@@ -18,7 +18,7 @@ Everything here is plain Node 22 ESM with **no runtime dependencies**, so it
 runs and tests with no install step:
 
 ```
-npm test     # 125 tests, no network, no database
+npm test     # 152 tests, no network, no database
 npm start    # http://localhost:8787
 ```
 
@@ -34,7 +34,9 @@ npm start    # http://localhost:8787
 | `src/theory/keysignatures.js` | The fifteen signatures. Everything except the tonics is derived. |
 | `src/competition/match.js` | The match engine: elimination, the settle window, local-clock ranking. |
 | `src/competition/matchmaking.js` | Queue by level; private lobbies by share code. |
-| `src/store/memory.js` | Reference store — six methods. |
+| `src/store/memory.js` | Reference store — six methods. Development only: it forgets everything on restart. |
+| `src/store/postgres.js` | The production store. Without it a restart loses every paid subscription. |
+| `src/billing/stripe.js` | Stripe REST client over `fetch` — checkout, cancel, resume. No SDK. |
 | `src/store/schema.sql` | The Postgres shape those six methods run against. |
 | `src/http/` | Routes, session tokens, webhook signature verification. |
 
@@ -128,6 +130,17 @@ seam to replace.
 | `POST /v1/competition/match/:id/answer` | Chord Race: `{answer}`, a quality. Key Race: `{answer}`, a key id such as `Bb` |
 
 Every `/v1/competition/*` route returns **402** without a live subscription.
+
+## Deploying
+
+**[DEPLOY.md](DEPLOY.md)** is the step-by-step: Stripe product and price,
+database, hosting, the webhook endpoint, testing with `4242 4242 4242 4242`, and
+what changes when you go live. `Dockerfile` and `render.yaml` are here too.
+
+Two failures are worth knowing before you start, because both are silent:
+running in production **without `DATABASE_URL`** loses every subscription on the
+next restart, and running **without `STRIPE_WEBHOOK_SECRET`** means no payment is
+ever recorded. The server logs both as errors on every production boot.
 
 ## Configuration
 
