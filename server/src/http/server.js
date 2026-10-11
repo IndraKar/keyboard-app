@@ -16,6 +16,7 @@ import http from "node:http";
 import { createApp, sweep } from "./app.js";
 import { createMemoryStore } from "../store/memory.js";
 import { createPostgresStore } from "../store/postgres.js";
+import { runMigrations } from "../store/migrate.js";
 import { createMatchmaker } from "../competition/matchmaking.js";
 import { createStripe } from "../billing/stripe.js";
 
@@ -30,6 +31,18 @@ const banner = [];
 // ---------------------------------------------------------------------- store
 let store;
 if (process.env.DATABASE_URL) {
+  /* Create the tables before serving anything. Off by default; the Render
+     blueprint turns it on so a fresh deploy works without a separate migration
+     step. schema.sql is idempotent, so this costs one query per boot. */
+  if (process.env.KEYVORIA_AUTO_MIGRATE === "1") {
+    try {
+      await runMigrations({ connectionString: process.env.DATABASE_URL });
+    } catch (err) {
+      console.error("[keyvoria] could not apply the schema:", err.message);
+      console.error("[keyvoria] refusing to start — serving without tables would fail every request.");
+      process.exit(1);
+    }
+  }
   store = await createPostgresStore({ connectionString: process.env.DATABASE_URL });
   banner.push("store: postgres");
 } else {

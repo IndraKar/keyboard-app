@@ -38,6 +38,7 @@ npm start    # http://localhost:8787
 | `src/store/postgres.js` | The production store. Without it a restart loses every paid subscription. |
 | `src/billing/stripe.js` | Stripe REST client over `fetch` — checkout, cancel, resume. No SDK. |
 | `src/store/schema.sql` | The Postgres shape those six methods run against. |
+| `src/store/migrate.js` | Applies it. JavaScript, not psql, so no extra tool is needed to deploy. |
 | `src/http/` | Routes, session tokens, webhook signature verification. |
 
 ## The rules worth knowing before changing anything
@@ -135,7 +136,7 @@ Every `/v1/competition/*` route returns **402** without a live subscription.
 
 **[DEPLOY.md](DEPLOY.md)** is the step-by-step: Stripe product and price,
 database, hosting, the webhook endpoint, testing with `4242 4242 4242 4242`, and
-what changes when you go live. `Dockerfile` and `render.yaml` are here too.
+what changes when you go live. `Dockerfile` is here; `render.yaml` is at the repository root, where Render requires it.
 
 Two failures are worth knowing before you start, because both are silent:
 running in production **without `DATABASE_URL`** loses every subscription on the

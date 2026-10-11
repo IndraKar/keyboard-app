@@ -1,0 +1,52 @@
+# Render blueprint — one web service, one Postgres database.
+#
+# This file must live at the REPOSITORY ROOT: Render looks for render.yaml here
+# and nowhere else. The paths below are therefore root-relative, and there is no
+# `rootDir` — combining rootDir with dockerfilePath is ambiguous in Render and
+# is a common cause of "Dockerfile not found" on the first deploy.
+#
+# Plans are deliberately not pinned. Render's plan names change, and a name this
+# file guesses wrong makes the blueprint fail to parse; pick them in the
+# dashboard where the current prices are shown.
+
+services:
+  - type: web
+    name: keyvoria-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render fills this in from the database below.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: keyvoria-db
+          property: connectionString
+
+      # Creates the tables on first boot. Every statement in schema.sql is
+      # IF NOT EXISTS, so it is safe to leave on; turn it off if you would
+      # rather run migrations yourself.
+      - key: KEYVORIA_AUTO_MIGRATE
+        value: "1"
+
+      # Generated once by Render. Rotating it signs every existing session out.
+      - key: KEYVORIA_SESSION_SECRET
+        generateValue: true
+
+      # Secrets: set these by hand in the dashboard. `sync: false` keeps them
+      # out of this file, which is in git.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: KEYVORIA_ALLOWED_ORIGIN
+        sync: false
+
+databases:
+  - name: keyvoria-db
+    databaseName: keyvoria
