@@ -43,7 +43,9 @@ if (process.env.STRIPE_SECRET_KEY) {
   stripe = createStripe({
     secretKey: process.env.STRIPE_SECRET_KEY,
     priceId: process.env.STRIPE_PRICE_ID,
+    apiBase: process.env.STRIPE_API_BASE || undefined,   // tests only
   });
+  if (process.env.STRIPE_API_BASE) banner.push(`stripe api: ${process.env.STRIPE_API_BASE} (OVERRIDDEN)`);
   const live = process.env.STRIPE_SECRET_KEY.startsWith("sk_live");
   banner.push(`stripe: ${live ? "LIVE KEYS — real charges" : "test mode"}`);
 } else {

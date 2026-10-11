@@ -116,21 +116,33 @@ curl -H "Authorization: Bearer <session token>" https://your-api-host/v1/subscri
 
 ## 7. Point the app at it
 
-The prototype's checkout is a local simulation with no server behind it.
-Replace its **Subscribe** action with:
+The app already speaks to this server — there is no code to write. In the app:
 
-```js
-const r = await fetch(`${API}/v1/billing/checkout`, {
-  method: "POST",
-  headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-  body: JSON.stringify({}),
-});
-const { url } = await r.json();
-window.location = url;          // Stripe's hosted page takes it from here
+**Profile → Server**, fill in:
+
+- **API address** — your deployed URL, e.g. `https://keyvoria-api.onrender.com`
+- **Session token** — generate one on the server:
+
+```bash
+KEYVORIA_SESSION_SECRET=<the same secret the server runs with> \
+  npm run token -- kay 30
 ```
 
-The card is collected by Stripe, never by us. That is deliberate: card data
-never touching this server is what keeps you out of PCI scope.
+Tap **Connect**. The card then reads "Connected · free plan".
+
+From that point the server, not the app, decides who has paid. **Subscribe** calls
+`/v1/billing/checkout`, opens Stripe's hosted page in a new tab, and the app polls
+until your webhook confirms the payment — then it unlocks on its own, with no
+reload. Cancel and resume go through the server too, which tells Stripe before
+recording anything locally.
+
+Leave those fields empty and the app runs entirely on the device with the
+simulated checkout, which refuses real cards. That is the right mode for showing
+the app to someone without a server in front of it.
+
+> **The token is a password.** It identifies a user outright, because real
+> sign-in is roadmap M1 and does not exist yet. Do not paste it anywhere public,
+> and delete `bin/token.js` once M1 lands.
 
 ## 8. Going live
 
@@ -176,8 +188,10 @@ Developers → Webhooks. Check there first when a test purchase does not appear.
   renewal, but their receipt verification is not written. You only need them if
   you ship in the app stores, where they are mandatory and take 15–30%.
 - **Accounts (roadmap M1).** `user_id` is whatever the session token carries, and
-  tokens are issued by this server rather than by a real sign-in. When M1 lands,
-  `verifyToken` is the single seam to replace.
+  tokens are minted by hand with `npm run token` rather than by a sign-in. Until
+  M1 lands, every person who subscribes needs a token generated for them, which
+  is fine for you and a few testers and is not a product. `verifyToken` is the
+  single seam to replace.
 - **Tax.** Digital subscriptions are taxable in many US states and carry VAT in
   the EU/UK. Stripe Tax handles calculation; a merchant of record such as Paddle
   handles calculation *and* filing. Neither is wired up here.

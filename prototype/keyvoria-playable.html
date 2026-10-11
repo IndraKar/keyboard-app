@@ -503,6 +503,9 @@ const DEFAULTS = {
   premium: false, cancelPending: false,
   noteNames: true,
   audioMode: "auto",          /* auto | webaudio | simple — see the Sound card */
+  /* Live server. Empty means this build runs entirely on the device and the
+     checkout is the local simulation. Set both in Profile → Server. */
+  apiBase: "", apiToken: "",
   exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
   /* mastery */
   tierCorrect: { ear:[0,0,0,0], sight:[0,0,0,0], keys:[0,0,0,0], repeat:[0,0,0,0] },
@@ -2225,6 +2228,23 @@ function screenProfile(){
     '<button class="tile" data-go="leaderboard"><span class="ticon">\u{1F4CA}</span>'+
       '<span class="grow"><span class="ttitle" style="display:block">Leaderboards</span>'+
       '<span class="tsub" style="display:block">'+(S.leaderboardOptIn?"On":"Off \u00b7 opt in to compare")+'</span></span>'+svg(IC.chev,18)+'</button>'+
+    '<div class="card"><div class="h2" style="margin-bottom:6px">Server</div>'+
+      '<div class="sub" id="apiState">'+apiStatusLine()+'</div>'+
+      '<label class="fld" style="margin-top:10px"><span class="fldlab">API address</span>'+
+        '<input class="tinput" id="apiBase" value="'+String(S.apiBase||"").replace(/"/g,"&quot;")+'" '+
+        'placeholder="https://keyvoria-api.onrender.com" autocomplete="off" spellcheck="false"></label>'+
+      '<label class="fld" style="margin-top:10px"><span class="fldlab">Session token</span>'+
+        '<input class="tinput" id="apiToken" value="'+String(S.apiToken||"").replace(/"/g,"&quot;")+'" '+
+        'placeholder="paste the token from npm run token" autocomplete="off" spellcheck="false"></label>'+
+      '<button class="btn block" style="margin-top:10px" data-act="apiconnect">'+
+        (apiConfigured() ? "Reconnect" : "Connect")+'</button>'+
+      (apiConfigured() ? '<button class="link" style="margin-top:8px" data-act="apidisconnect">'+
+        'Disconnect and go back to local mode</button>' : '')+
+      '<div class="faint" style="margin-top:10px">Leave these empty and Keyvoria runs entirely on '+
+        'this device, with the simulated checkout. Fill them in and the subscription becomes real: '+
+        'Stripe takes the payment and the server decides what you have access to. '+
+        'Generate a token on the server with <b>npm run token &lt;your-id&gt;</b> \u2014 it is a '+
+        'password, so do not share it.</div></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">Sound</div>'+
       '<div class="sub" id="sndState">'+soundStatusLine()+'</div>'+
       '<button class="btn ghost block" style="margin-top:10px" data-act="testsound">Test sound</button>'+
@@ -3635,6 +3655,157 @@ function wireCheckout(){
   if(name) name.addEventListener("input", () => { checkout.name = name.value; });
 }
 
+function apiStatusLine(){
+  if(!S.apiBase) return "Not connected — running on this device, with the simulated checkout.";
+  if(!S.apiToken) return "Address set, but no session token yet.";
+  if(apiStatus.state === "ok")    return "Connected · " + apiStatus.detail;
+  if(apiStatus.state === "error") return "Cannot reach the server — " + apiStatus.detail;
+  return "Configured. Tap Connect to check it.";
+}
+
+/* ============================ live API ============================
+   Talking to a deployed Keyvoria server (server/, roadmap M7).
+
+   The app works with no server at all — that is the whole prototype — so every
+   call here is optional and failure is never fatal. When a server IS configured
+   the server becomes the authority on one thing only: whether this account has
+   paid. Everything else (progress, XP, unlocks) stays on the device until
+   accounts land in M1.
+*/
+const apiConfigured = () => !!(S.apiBase && S.apiToken);
+const apiUrl = (path) => String(S.apiBase).replace(/\/+$/, "") + path;
+
+let apiStatus = { state: "idle", detail: "" };   /* idle | ok | error */
+
+async function api(path, { method = "GET", body, timeoutMs = 12000 } = {}){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
+  try{
+    const res = await fetch(apiUrl(path), {
+      method,
+      headers: Object.assign(
+        { "authorization": "Bearer " + S.apiToken },
+        body !== undefined ? { "content-type": "application/json" } : {}
+      ),
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: ctl.signal
+    });
+    const text = await res.text();
+    let json = null;
+    try{ json = text ? JSON.parse(text) : null; }catch(e){}
+    return { ok: res.ok, status: res.status, body: json };
+  }catch(err){
+    /* A dead host, a CORS refusal and a timeout are all this branch. The caller
+       decides whether that matters; nothing here throws into a render. */
+    return { ok: false, status: 0, body: null, error: String(err && err.message || err) };
+  }finally{ clearTimeout(t); }
+}
+
+/*
+  Pull entitlement from the server and make the app agree with it.
+
+  This is the only place S.premium is allowed to change while a server is
+  connected. Letting the client decide whether it has paid is how a paywall
+  becomes a suggestion.
+*/
+async function syncSubscription({ quiet = true } = {}){
+  if(!apiConfigured()) return null;
+  const r = await api("/v1/subscription");
+  if(!r.ok){
+    apiStatus = { state: "error", detail: r.status ? ("HTTP " + r.status) : (r.error || "unreachable") };
+    if(!quiet) toast("Could not reach the server — " + apiStatus.detail, true);
+    return null;
+  }
+  apiStatus = { state: "ok", detail: r.body.plan === "paid" ? "subscribed" : "free plan" };
+  const was = S.premium;
+  S.premium = !!r.body.entitled;
+  S.cancelPending = r.body.status === "cancel_pending";
+  S.serverPlan = r.body;
+  save();
+  if(was !== S.premium && !quiet){
+    toast(S.premium ? "Keyvoria Premium is active" : "Subscription ended");
+  }
+  return r.body;
+}
+
+/*
+  Start a real Stripe checkout.
+
+  Opened in a NEW TAB rather than redirecting. Stripe refuses to be framed, and
+  this app is usually running inside one, so a same-tab redirect would simply
+  fail. The tab that stays behind then polls for entitlement, which is also
+  what makes the flow survive the user wandering off and coming back.
+*/
+async function startRealCheckout(){
+  checkout = checkout || newCheckout();
+  checkout.processing = true; render();
+
+  const r = await api("/v1/billing/checkout", { method: "POST", body: {} });
+  checkout.processing = false;
+
+  if(r.status === 409){ await syncSubscription({ quiet:false }); go("profile"); return; }
+  if(!r.ok || !r.body || !r.body.url){
+    const why = (r.body && (r.body.message || r.body.error)) || r.error || ("HTTP " + r.status);
+    checkout.serverError = why;
+    render();
+    return;
+  }
+  /* `noopener` is worth keeping — it stops the payment page holding a handle on
+     this one — but it makes window.open return null even when the tab opened
+     fine, so the return value cannot be used to detect a blocked popup. Always
+     move to the waiting screen and always poll; the link is shown there as a
+     fallback for the case where the tab really was blocked. */
+  window.open(r.body.url, "_blank", "noopener");
+  checkout.checkoutUrl = r.body.url;
+  go("awaitpay");
+  pollForEntitlement();
+}
+
+/* Poll until the webhook has landed. Stripe confirms the payment to the server,
+   not to this page, so the page has to ask. */
+let payPoll = null;
+function pollForEntitlement(){
+  stopPolling();
+  const started = Date.now();
+  const tick = async () => {
+    const plan = await syncSubscription();
+    if(plan && plan.entitled){
+      stopPolling();
+      checkout = checkout || newCheckout();
+      checkout.receipt = {
+        method: "Stripe", id: "live", next: plan.renewsAt
+          ? new Date(plan.renewsAt).toLocaleDateString(undefined, {day:"numeric", month:"long", year:"numeric"})
+          : "—",
+        fromTutorial: !!(upload && tut), live: true
+      };
+      rebuildUpload();
+      if(upload && upload.midi) buildOutputs();
+      go("receipt");
+      return;
+    }
+    if(Date.now() - started > 10*60*1000){ stopPolling(); return; }
+    payPoll = setTimeout(tick, 2500);
+  };
+  payPoll = setTimeout(tick, 2500);
+}
+function stopPolling(){ if(payPoll){ clearTimeout(payPoll); payPoll = null; } }
+
+/* The screen shown while the Stripe tab is open. */
+function screenAwaitPay(){
+  return '<div class="stack center" style="justify-content:center;flex:1">'+
+    '<div class="ticon gold" style="width:62px;height:62px;border-radius:18px;margin:0 auto">'+svg(IC.gold,30)+'</div>'+
+    '<div class="h1">Finish in the other tab</div>'+
+    '<div class="sub">Stripe opened in a new tab. Complete the payment there and this page '+
+      'will unlock on its own — it checks every couple of seconds.</div>'+
+    (checkout && checkout.checkoutUrl
+      ? '<a class="btn ghost block" href="'+checkout.checkoutUrl+'" target="_blank" rel="noopener">'+
+        'Open the payment page again</a>'
+      : '')+
+    '<button class="btn block" data-act="checkpay">I have paid — check now</button>'+
+    '<button class="btn ghost block" data-act="cancelpay">Cancel</button>'+
+  '</div>';
+}
+
 /* ============================ checkout ============================
    A real checkout shape — express wallets, a card form with live validation,
    an order summary and a receipt — because "thank you for your purchase" with
@@ -3767,6 +3938,31 @@ const WALLETS = [
 function screenCheckout(){
   const c = checkout, e = c.errors, brand = cardBrand(c.num);
 
+  /* Connected to a real server: Stripe collects the card on its own page, so
+     there is no form here to fill in. */
+  if(apiConfigured()){
+    return '<div class="exhead">'+
+        '<button class="iconbtn" data-go="paywall" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+        '<div class="h2">Checkout</div><div style="width:34px"></div></div>'+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="card">'+
+          '<div class="sumrow"><span class="grow"><b>Keyvoria Premium</b>'+
+            '<span class="faint" style="display:block">Tier 4 · 61 keys · Upload your file · Competition</span></span>'+
+            '<span class="tnum">'+PRICE+'</span></div>'+
+          '<div class="sumtot"><span class="grow"><b>Due today</b></span>'+
+            '<span class="tnum"><b>'+PRICE+'</b></span></div>'+
+        '</div>'+
+        (c.serverError
+          ? '<div class="notice"><b>Checkout could not start.</b><br>'+c.serverError+'</div>'+
+            '<button class="btn block" data-act="retrycheckout">Try again</button>'
+          : '<div class="center"><div class="sub">'+
+              (c.processing ? "Opening Stripe…" : "Stripe will open in a new tab to take payment.")+
+            '</div></div>')+
+        '<div class="faint center" style="font-size:11px">Your card is entered on Stripe\u2019s own '+
+          'page and never reaches Keyvoria. Renews monthly at '+PRICE+'; cancel any time from Profile.</div>'+
+      '</div>';
+  }
+
   const wallets = WALLETS.map(w => {
     const avail = walletAvailable(w.id);
     return '<button class="wallet '+w.cls+'" data-act="wallet" data-w="'+w.id+'">'+
@@ -3866,12 +4062,20 @@ function screenReceipt(){
     '<div class="card" style="text-align:left">'+
       '<div class="kv"><span class="kvk">Plan</span><span class="kvv">Keyvoria Premium</span></div>'+
       '<div class="kv"><span class="kvk">Paid</span><span class="kvv tnum">'+PRICE+'</span></div>'+
-      '<div class="kv"><span class="kvk">Method</span><span class="kvv">'+r.method+'</span></div>'+
-      '<div class="kv"><span class="kvk">Order</span><span class="kvv tnum">'+r.id+'</span></div>'+
+      (r.live ? '' : '<div class="kv"><span class="kvk">Method</span><span class="kvv">'+r.method+'</span></div>')+
+      (r.live
+        ? '<div class="kv"><span class="kvk">Billing</span><span class="kvv">Managed by Stripe</span></div>'
+        : '<div class="kv"><span class="kvk">Order</span><span class="kvv tnum">'+r.id+'</span></div>')+
       '<div class="kv"><span class="kvk">Next charge</span><span class="kvv">'+r.next+'</span></div>'+
     '</div>'+
-    '<div class="demobar">No money moved. This is a prototype receipt for a payment that did not '+
-      'happen — real billing needs a merchant account (roadmap M7).</div>'+
+    /* Only the simulated purchase gets the "no money moved" notice. Printing it
+       on a real Stripe receipt would tell a paying customer their payment was
+       not real. */
+    (r.live
+      ? '<div class="faint center">Your card was charged by Stripe. Manage or cancel the '+
+        'subscription any time from Profile.</div>'
+      : '<div class="demobar">No money moved. This is a prototype receipt for a payment that did '+
+        'not happen — real billing needs a merchant account (roadmap M7).</div>')+
     (r.fromTutorial
       ? '<button class="btn block" data-act="backtosong">Back to your song — now full length</button>'
       : '<button class="btn block" data-go="home">Start using Premium</button>')+
@@ -3921,6 +4125,7 @@ const SCREENS = {
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   checkout:screenCheckout, walletsheet:screenWallet, receipt:screenReceipt,
+  awaitpay:screenAwaitPay,
   achievements:screenAchievements, card:screenCard,
   uploadgate:screenUploadGate, compgate:screenCompGate,
   compsetup:screenCompSetup, compmatch:screenCompMatch, compresult:screenCompResult,
@@ -4106,7 +4311,32 @@ document.addEventListener("click", e => {
     return;
   }
   switch(act){
-    case "tocheckout": checkout = newCheckout(); go("checkout"); break;
+    case "tocheckout":
+      checkout = newCheckout();
+      /* With a server configured this is a real payment; without one it is the
+         local simulation that refuses real cards. */
+      if(apiConfigured()){ go("checkout"); startRealCheckout(); }
+      else go("checkout");
+      break;
+    case "apiconnect": {
+      const b = document.getElementById("apiBase"), t = document.getElementById("apiToken");
+      S.apiBase = (b ? b.value : "").trim().replace(/\/+$/, "");
+      S.apiToken = (t ? t.value : "").trim();
+      save();
+      if(!apiConfigured()){ toast("Both the address and a token are needed", true); render(); break; }
+      syncSubscription({ quiet:false }).then(plan => {
+        render();
+        if(plan) toast(plan.entitled ? "Connected · Premium is active" : "Connected · free plan");
+      });
+      break;
+    }
+    case "apidisconnect":
+      S.apiBase = ""; S.apiToken = ""; S.serverPlan = null;
+      apiStatus = { state:"idle", detail:"" };
+      save(); toast("Back to local mode"); render(); break;
+    case "checkpay": syncSubscription({quiet:false}).then(p => { if(p && p.entitled) pollForEntitlement(); }); break;
+    case "cancelpay": stopPolling(); go("paywall"); break;
+    case "retrycheckout": checkout.serverError = null; startRealCheckout(); break;
 
     /* Every keystroke re-validates only what the user has already had a chance
        to get wrong: errors appear on submit and then clear as they are fixed,
@@ -4192,11 +4422,33 @@ document.addEventListener("click", e => {
       if(tut){ tutStop(); tut.pos = 0; go("tutorial"); } else go("home");
       break;
     case "resume":
-      S.cancelPending = false; save(); toast("Subscription resumed"); render(); break;
+      if(apiConfigured()){
+        api("/v1/subscription/resume", { method:"POST", body:{} }).then(async r => {
+          if(!r.ok){ toast("Could not resume — " + ((r.body && r.body.error) || r.error || r.status), true); return; }
+          await syncSubscription();
+          toast("Subscription resumed"); render();
+        });
+      } else { S.cancelPending = false; save(); toast("Subscription resumed"); render(); }
+      break;
     case "confirmcancel":
-      S.cancelPending = true; save();
-      toast("Cancelled — Premium active until 14 March", true);
-      go("profile"); break;
+      if(apiConfigured()){
+        /* The server tells Stripe first and only records it if Stripe agrees,
+           so a failure here means nothing was cancelled anywhere. */
+        api("/v1/subscription/cancel", { method:"POST", body:{} }).then(async r => {
+          if(!r.ok){ toast("Could not cancel — " + ((r.body && r.body.error) || r.error || r.status), true); return; }
+          const plan = await syncSubscription();
+          const until = plan && plan.accessUntil
+            ? new Date(plan.accessUntil).toLocaleDateString(undefined,{day:"numeric",month:"long"})
+            : "the end of the period";
+          toast("Cancelled — Premium active until " + until, true);
+          go("profile");
+        });
+      } else {
+        S.cancelPending = true; save();
+        toast("Cancelled — Premium active until 14 March", true);
+        go("profile");
+      }
+      break;
     case "learnmusic": go(S.premium ? "upload" : "uploadgate"); break;
     case "unlockfull": go("paywall"); break;
     case "confirmsong": {
@@ -4380,4 +4632,14 @@ function fallbackCopy(text, ok){
 /* ============================ boot ============================ */
 load();
 render();
+
+/* If a server is configured, it is the authority on entitlement — check on
+   load, and again whenever the page is brought back, which is how the app
+   notices a payment completed in the other tab. */
+if(apiConfigured()){
+  syncSubscription().then(() => render());
+  document.addEventListener("visibilitychange", () => {
+    if(!document.hidden) syncSubscription().then(p => { if(p) render(); });
+  });
+}
 </script>

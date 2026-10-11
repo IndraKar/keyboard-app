@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "node src/http/server.js",
-    "migrate": "psql \"$DATABASE_URL\" -f src/store/schema.sql"
+    "migrate": "psql \"$DATABASE_URL\" -f src/store/schema.sql",
+    "token": "node bin/token.js"
   },
   "//dependencies": "Core logic and tests are dependency-free: `npm test` runs on plain Node 22 with no install and no database. `pg` is imported lazily and only when DATABASE_URL is set, so it is needed to RUN in production but never to test.",
   "dependencies": {

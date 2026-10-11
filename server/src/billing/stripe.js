@@ -7,7 +7,7 @@
  * the four calls below rather than a dependency's entire surface.
  */
 
-const API = "https://api.stripe.com/v1";
+const DEFAULT_API = "https://api.stripe.com/v1";
 
 /**
  * Stripe takes nested params as `a[b][c]=v`, not JSON.
@@ -35,7 +35,12 @@ export class StripeError extends Error {
   }
 }
 
-export function createStripe({ secretKey, priceId, fetchImpl = fetch } = {}) {
+/**
+ * `apiBase` exists so the whole chain — app, server, webhook — can be exercised
+ * against a stand-in Stripe locally. It defaults to the real API and should
+ * never be set in production.
+ */
+export function createStripe({ secretKey, priceId, fetchImpl = fetch, apiBase = DEFAULT_API } = {}) {
   if (!secretKey) throw new Error("Stripe secret key is required");
 
   async function call(method, path, body, { idempotencyKey } = {}) {
@@ -48,7 +53,7 @@ export function createStripe({ secretKey, priceId, fetchImpl = fetch } = {}) {
     // double subscription.
     if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
 
-    const res = await fetchImpl(`${API}${path}`, {
+    const res = await fetchImpl(`${apiBase}${path}`, {
       method,
       headers,
       body: body ? formEncode(body) : undefined,

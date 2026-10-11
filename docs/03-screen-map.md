@@ -448,6 +448,25 @@ is no endpoint to transmit it to.
 unavailable the button is still shown, marked *demo*, because seeing the full set is
 the point of the prototype.
 
+## 3.6d Connecting to a live server (Profile → Server)
+
+Two fields — API address and session token — and a Connect button. Empty means
+the app runs entirely on the device with the simulated checkout; filled in means
+**the server becomes the authority on whether this account has paid**, and the
+app stops deciding that for itself. A paywall the client can grant itself is a
+suggestion.
+
+When connected, **Subscribe** calls `/v1/billing/checkout` and opens Stripe's
+hosted page **in a new tab** rather than redirecting. Stripe refuses to be
+framed and this app usually is, so a same-tab redirect would simply fail. The
+waiting screen then polls until the webhook lands, which is also what makes the
+flow survive the user wandering off and coming back — entitlement is re-checked
+whenever the page becomes visible again.
+
+The live receipt must not carry the prototype's "no money moved" notice; a real
+customer being told their payment was not real is worse than no receipt. The two
+paths render different copy from the same screen.
+
 ## 3.7 Achievements & Progress (reached from Profile, §3.8)
 
 - **Achievements screen** — grid of badges, earned/locked, per-badge criteria on tap.
