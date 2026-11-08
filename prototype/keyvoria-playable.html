@@ -237,6 +237,24 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   font-size:11.5px;font-weight:700;padding:8px 16px;border-radius:999px;
   cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);}
 .sndbadge:active{transform:translateX(-50%) scale(.96);}
+/* ---------- confirmation sheet ----------
+   Replaces window.confirm(). Keyvoria is served inside a sandboxed iframe
+   without allow-modals, where confirm() is ignored outright: it returns false
+   without ever showing a dialog, so every `if(confirm(...))` silently did
+   nothing. Sign out and Delete all progress were both dead buttons for that
+   reason. An in-app sheet cannot be suppressed by the frame, and it looks
+   like the rest of the app rather than like the browser. */
+.scrim{position:fixed;inset:0;z-index:70;background:rgba(8,6,5,.72);
+  display:flex;align-items:center;justify-content:center;padding:22px;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+.askbox{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:19px;display:flex;flex-direction:column;gap:7px;
+  box-shadow:0 20px 50px rgba(0,0,0,.6);}
+.asktitle{font-family:var(--display);font-size:16px;font-weight:600;}
+.askbody{font-size:12.5px;line-height:1.55;color:var(--dim);}
+.askrow{display:flex;gap:9px;margin-top:11px;}
+.askrow .btn{flex:1;padding:12px 14px;font-size:13px;}
+.btn.danger{background:var(--bad);color:#2b0b0b;}
 .notice{background:var(--accent-soft);border:1px solid rgba(255,138,61,.3);border-radius:12px;padding:11px 13px;font-size:11.5px;color:var(--dim);line-height:1.55;}
 .notice.keep{background:var(--good-soft);border-color:rgba(94,230,165,.3);}
 .notice b{color:var(--text);}
@@ -1418,6 +1436,47 @@ function toast(msg, warn){
   el.textContent = msg;
   document.body.appendChild(el);
   toastTimer = setTimeout(() => el.remove(), 2200);
+}
+
+/* Ask before doing something destructive, and actually get an answer.
+   `onYes` runs only on a real confirmation; Escape, the scrim and Cancel all
+   dismiss. Focus moves to Cancel so a stray Return key does not delete
+   anything. */
+function askConfirm(opts){
+  document.querySelectorAll(".scrim").forEach(n => n.remove());
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML =
+    '<div class="askbox" role="alertdialog" aria-modal="true" aria-labelledby="askT">'+
+      '<div class="asktitle" id="askT"></div>'+
+      '<div class="askbody"></div>'+
+      '<div class="askrow">'+
+        '<button class="btn ghost" data-ask="no">'+(opts.cancelLabel || "Cancel")+'</button>'+
+        '<button class="btn'+(opts.danger ? " danger" : "")+'" data-ask="yes"></button>'+
+      '</div>'+
+    '</div>';
+  /* textContent, not innerHTML: the wording is copy, not markup. */
+  scrim.querySelector(".asktitle").textContent = opts.title || "Are you sure?";
+  scrim.querySelector(".askbody").textContent  = opts.body || "";
+  scrim.querySelector('[data-ask="yes"]').textContent = opts.confirmLabel || "Confirm";
+  if(!opts.body) scrim.querySelector(".askbody").remove();
+
+  const close = () => { scrim.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => {
+    if(e.key === "Escape"){ e.preventDefault(); close(); }
+  };
+  scrim.addEventListener("click", e => {
+    const b = e.target.closest("[data-ask]");
+    if(!b){ if(e.target === scrim) close(); return; }
+    e.preventDefault(); e.stopPropagation();
+    const yes = b.dataset.ask === "yes";
+    close();
+    if(yes && opts.onYes) opts.onYes();
+  });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(scrim);
+  const c = scrim.querySelector('[data-ask="no"]');
+  if(c) c.focus();
 }
 
 /* ============================ XP ============================ */
@@ -4873,10 +4932,15 @@ document.addEventListener("click", e => {
     case "setvis":
       S.visibility = el.dataset.v; save(); render(); break;
     case "signout":
-      if(confirm("Sign out? Your progress stays on this device.")){
-        S.account = null; S.visibility = "private"; S.leaderboardOptIn = false;
-        save(); toast("Signed out", true); go("home");
-      }
+      askConfirm({
+        title: "Sign out?",
+        body: "Your progress stays on this device.",
+        confirmLabel: "Sign out",
+        onYes: () => {
+          S.account = null; S.visibility = "private"; S.leaderboardOptIn = false;
+          save(); toast("Signed out", true); go("home");
+        }
+      });
       break;
     case "competition": go(S.premium ? "compsetup" : "compgate"); break;
     case "compgame":
@@ -4948,34 +5012,40 @@ document.addEventListener("click", e => {
     case "fpstaff": S.fpStaff = !S.fpStaff; save(); render(); break;
     case "fpclear": fpPlayed = []; fpPaint(); break;
     case "reset":
-      if(confirm("Are you sure you want to delete your progress? All saved XP will "+
-                 "disappear and you will restart from Tier 1. This action cannot be undone.")){
-        /* Deleting progress is not signing out and not a factory reset. The
-           server connection stays, or the app would look like it had forgotten
-           the account entirely; so do the device preferences — above all the
-           audio mode, because someone who had to choose Simple to hear
-           anything would otherwise be left with a silent piano. */
-        const keep = {};
-        ["apiBase","apiToken","noteNames","audioMode","fpStaff","fpKey"]
-          .forEach(k => { keep[k] = S[k]; });
-        const wipe = () => {
-          S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
-          Object.assign(S, keep);
-          progressDirty = false;
-          if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
-          try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
-          fpPlayed = [];
-          toast("All progress deleted", true); go("home");
-        };
-        if(apiConfigured()){
-          /* The account copy has to go first. Merging never decreases, so a
-             local-only wipe would be undone by the next sync. */
-          api("/v1/progress", { method:"DELETE" }).then(r => {
-            if(!r.ok) toast("Could not reset on the server — " + (r.error || r.status), true);
-            wipe();
-          });
-        } else wipe();
-      }
+      /* Deleting progress is not signing out and not a factory reset. The
+         server connection stays, or the app would look like it had forgotten
+         the account entirely; so do the device preferences — above all the
+         audio mode, because someone who had to choose Simple to hear
+         anything would otherwise be left with a silent piano. */
+      const keep = {};
+      ["apiBase","apiToken","noteNames","audioMode","fpStaff","fpKey"]
+        .forEach(k => { keep[k] = S[k]; });
+      const wipe = () => {
+        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
+        Object.assign(S, keep);
+        progressDirty = false;
+        if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
+        try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+        fpPlayed = [];
+        toast("All progress deleted", true); go("home");
+      };
+      askConfirm({
+        title: "Delete all progress",
+        body: "Are you sure you want to delete your progress? All saved XP will "+
+              "disappear and you will restart from Tier 1.",
+        confirmLabel: "Delete",
+        danger: true,
+        onYes: () => {
+          if(apiConfigured()){
+            /* The account copy has to go first. Merging never decreases, so a
+               local-only wipe would be undone by the next sync. */
+            api("/v1/progress", { method:"DELETE" }).then(r => {
+              if(!r.ok) toast("Could not delete on the server — " + (r.error || r.status), true);
+              wipe();
+            });
+          } else wipe();
+        }
+      });
       break;
   }
 });
