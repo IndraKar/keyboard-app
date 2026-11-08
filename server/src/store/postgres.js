@@ -136,6 +136,42 @@ export async function createPostgresStore({ connectionString, pool } = {}) {
       return r.rows.map(rowToSub);
     },
 
+    async getProgress(userId) {
+      const r = await q(`SELECT payload FROM user_progress WHERE user_id = $1`, [userId]);
+      return r.rows[0] ? r.rows[0].payload : null;
+    },
+
+    /**
+     * The merge happens in the service, but the write still has to be safe
+     * against two of the player's own devices saving at once. `lifetime_xp`
+     * only ever increases, so the row is updated only when the incoming copy
+     * is at least as advanced — a slow request carrying stale progress cannot
+     * roll a newer one back.
+     */
+    async putProgress(userId, payload, lifetimeXp) {
+      const r = await q(
+        `INSERT INTO user_progress (user_id, payload, lifetime_xp, updated_at)
+         VALUES ($1, $2, $3, now())
+         ON CONFLICT (user_id) DO UPDATE
+           SET payload = EXCLUDED.payload,
+               lifetime_xp = EXCLUDED.lifetime_xp,
+               updated_at = now()
+         WHERE user_progress.lifetime_xp <= EXCLUDED.lifetime_xp
+         RETURNING payload`,
+        [userId, JSON.stringify(payload), Math.max(0, Math.floor(lifetimeXp || 0))]
+      );
+      /* No row back means a concurrent write was further ahead; return what is
+         actually stored rather than pretending ours won. */
+      if (r.rows[0]) return r.rows[0].payload;
+      const cur = await q(`SELECT payload FROM user_progress WHERE user_id = $1`, [userId]);
+      return cur.rows[0] ? cur.rows[0].payload : payload;
+    },
+
+    async deleteProgress(userId) {
+      const r = await q(`DELETE FROM user_progress WHERE user_id = $1`, [userId]);
+      return r.rowCount > 0;
+    },
+
     async close() { if (db.end) await db.end(); },
   };
 }

@@ -27,6 +27,7 @@ import { KEYS as KEY_SIGNATURES, KEY_TIERS, keyLabel } from "../theory/keysignat
 import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
 import { verifyToken, issueToken } from "./tokens.js";
 import { STATUS } from "../billing/subscription.js";
+import { mergeProgress, normaliseProgress, MAX_PROGRESS_BYTES } from "../progress/merge.js";
 import { verifySignature } from "./signature.js";
 
 const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial DoS
@@ -171,11 +172,14 @@ export function createApp({
     // the bearer token is explicit — so this cannot be used for a CSRF ride.
     res.setHeader("access-control-allow-origin", allowedOrigin);
     res.setHeader("access-control-allow-headers", "authorization,content-type,x-keyvoria-signature");
-    res.setHeader("access-control-allow-methods", "GET,POST,DELETE,OPTIONS");
+    res.setHeader("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     if (method === "OPTIONS") { res.writeHead(204); return res.end(); }
 
     let raw = "";
-    if (method === "POST" || method === "DELETE") {
+    /* PUT was missing here, so /v1/progress read an empty body and stored a
+       player's progress as all zeroes. Any method that can carry a body must
+       be listed. */
+    if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") {
       try {
         raw = await readBody(req);
       } catch (err) {
@@ -282,6 +286,50 @@ export function createApp({
           console.error("[keyvoria] checkout failed", err.message);
           return send(res, 502, { error: "checkout_failed", message: err.message });
         }
+      }
+
+      /**
+       * Progress, per account.
+       *
+       * The device is not a safe place to keep this: the app runs in a
+       * cross-origin iframe, and mobile Safari blocks third-party storage, so
+       * every localStorage write throws and every finished lesson is lost when
+       * the tab closes. Signed in, the account holds it instead.
+       */
+      if (url.pathname === "/v1/progress" && method === "GET") {
+        const stored = await store.getProgress(userId);
+        return send(res, 200, { progress: stored ? normaliseProgress(stored) : null });
+      }
+
+      /**
+       * Save progress. The body is MERGED with what is stored rather than
+       * replacing it — see progress/merge.js. Two devices, or a retry of a
+       * request that already landed, must not delete lessons somebody played.
+       */
+      if (url.pathname === "/v1/progress" && method === "PUT") {
+        if (raw.length > MAX_PROGRESS_BYTES) return send(res, 413, { error: "progress_too_large" });
+        const body = parseJson(raw);
+        if (body === null) return send(res, 400, { error: "invalid_json" });
+
+        const incoming = normaliseProgress(body.progress ?? body);
+        const stored = await store.getProgress(userId);
+        const merged = mergeProgress(stored, incoming);
+        const saved = await store.putProgress(userId, merged, merged.lifetimeXp);
+        return send(res, 200, { progress: normaliseProgress(saved) });
+      }
+
+      /**
+       * Wipe progress for this account.
+       *
+       * Needed because merging never decreases anything: without an explicit
+       * delete, "Reset all progress" in the app would clear the device and
+       * then have every counter merged straight back from the server on the
+       * next sync. The one operation that must not merge is the one whose
+       * entire purpose is to go backwards.
+       */
+      if (url.pathname === "/v1/progress" && method === "DELETE") {
+        await store.deleteProgress(userId);
+        return send(res, 200, { progress: null, reset: true });
       }
 
       if (url.pathname === "/v1/subscription" && method === "GET") {

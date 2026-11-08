@@ -9,6 +9,7 @@ export function createMemoryStore() {
   const subsByUser = new Map();
   const subsByProviderId = new Map();
   const processedEvents = new Set();
+  const progressByUser = new Map();
 
   const key = (provider, id) => `${provider}:${id}`;
 
@@ -40,6 +41,16 @@ export function createMemoryStore() {
            (s.grace_ends_at && now >= s.grace_ends_at))
       );
     },
-    _reset() { subsByUser.clear(); subsByProviderId.clear(); processedEvents.clear(); },
+    async getProgress(userId) {
+      return progressByUser.get(userId) ?? null;
+    },
+    async putProgress(userId, payload, lifetimeXp) {
+      progressByUser.set(userId, payload);
+      return payload;
+    },
+    async deleteProgress(userId) {
+      return progressByUser.delete(userId);
+    },
+    _reset() { subsByUser.clear(); subsByProviderId.clear(); processedEvents.clear(); progressByUser.clear(); },
   };
 }

@@ -515,6 +515,10 @@ const DEFAULTS = {
   masterBest: { ear:0, sight:0, keys:0, repeat:0, mixed:0 },
   masterRuns: 0,
   compWins: 0, compPlayed: 0, compBestNotes: 0,
+  /* Master Mode has no tier row, so its correct answers are counted here —
+     the server derives lifetime XP from recorded work, and this is the only
+     record that this work happened. */
+  masterCorrect: 0,
   /* account & identity */
   account: null,              /* {provider, name, nickname, email} — null = signed out */
   visibility: "private",      /* private | public — governs everything others can see */
@@ -522,7 +526,27 @@ const DEFAULTS = {
 };
 let S = Object.assign({}, DEFAULTS);
 
+/*
+  Can this browser actually keep anything?
+
+  Probed on load rather than inferred from the first save, because the warning
+  has to be on screen BEFORE the player earns XP they are about to lose — which
+  is the whole failure being fixed. A read alone is not enough: Safari throws on
+  the write, so the probe writes.
+*/
+function probeStorage(){
+  try{
+    localStorage.setItem(SAVE_KEY + ".probe", "1");
+    localStorage.removeItem(SAVE_KEY + ".probe");
+    localSaveOk = true;
+  }catch(e){
+    localSaveOk = false;
+  }
+  return localSaveOk;
+}
+
 function load(){
+  probeStorage();
   try{
     const raw = localStorage.getItem(SAVE_KEY);
     if(raw){
@@ -550,8 +574,27 @@ function load(){
     }
   }catch(e){ /* private mode / blocked storage — run with defaults */ }
 }
+/*
+  Writing to the device.
+
+  This throws, rather than failing quietly, in exactly the situation this app
+  ships in: a cross-origin iframe on mobile Safari, where third-party storage
+  is blocked outright. The old version swallowed that, so the app looked
+  perfectly healthy while every finished lesson evaporated when the tab closed.
+  It is recorded now, surfaced on Home, and — once an account is connected —
+  made irrelevant, because the account holds the progress instead.
+*/
+let localSaveOk = true;
 function save(){
-  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+    localSaveOk = true;
+  }catch(e){
+    localSaveOk = false;
+  }
+  /* The account is the durable copy. Pushed on a short delay so finishing five
+     exercises is one request, not five. */
+  queueProgressPush();
 }
 
 /* ============================ music theory ============================ */
@@ -1627,6 +1670,7 @@ function judge(ok){
   if(session.master){
     if(ok){
       const amt = awardCorrectExercise(4);
+      S.masterCorrect = (S.masterCorrect || 0) + 1;
       session.streak++; session.xp += amt;
       const key = session.cat;
       if(session.streak > (S.masterBest[key]||0)) S.masterBest[key] = session.streak;
@@ -1879,6 +1923,19 @@ function tierProgressLabel(catKey){
    costs before they learn what it is; this is the other order. Subscribers get
    the same block collapsed to a status row — they have already bought it, so
    selling to them again is just noise. */
+/*
+  Shown when this device cannot keep anything and no account is holding it
+  either — the exact situation that lost the reporter's XP. Silence here is the
+  bug: the app worked, the number went up, and it was gone by morning.
+*/
+function storageWarning(){
+  if(localSaveOk || apiConfigured()) return "";
+  return '<div class="notice"><b>Your progress is not being saved.</b> This browser is blocking '+
+    'storage for the page, which happens on iPhone when the app runs inside another site. '+
+    'XP earned now will be gone when you close the tab. '+
+    'Connect an account in <b>Profile \u2192 Server</b> to keep it, or open the app in its own tab.</div>';
+}
+
 function premiumPanel(){
   if(S.premium){
     return '<button class="idrow premium" data-go="profile">'+
@@ -1948,6 +2005,7 @@ function screenMenu(){
         (S.premium ? 'Three games \u00b7 '+(S.compWins||0)+' won'
                 : 'Three games \u00b7 up to '+COMP_MAX_PLAYERS+' players')+'</span></span>'+
       (S.premium ? '' : '<span class="pill">Premium</span>')+'</button>'+
+    storageWarning()+
     premiumPanel()+
     (masteredCats().length
       ? '<button class="tile master" data-go="master">'+
@@ -3658,7 +3716,12 @@ function wireCheckout(){
 function apiStatusLine(){
   if(!S.apiBase) return "Not connected — running on this device, with the simulated checkout.";
   if(!S.apiToken) return "Address set, but no session token yet.";
-  if(apiStatus.state === "ok")    return "Connected · " + apiStatus.detail;
+  if(apiStatus.state === "ok"){
+    const p = progressState === "error" ? " · progress not saving"
+            : progressState === "saved" ? " · progress saved to your account"
+            : "";
+    return "Connected · " + apiStatus.detail + p;
+  }
   if(apiStatus.state === "error") return "Cannot reach the server — " + apiStatus.detail;
   return "Configured. Tap Connect to check it.";
 }
@@ -3699,6 +3762,76 @@ async function api(path, { method = "GET", body, timeoutMs = 12000 } = {}){
        decides whether that matters; nothing here throws into a render. */
     return { ok: false, status: 0, body: null, error: String(err && err.message || err) };
   }finally{ clearTimeout(t); }
+}
+
+/* ------------------------------ progress ------------------------------
+   The fields that belong to the account rather than the device.
+
+   Deliberately a whitelist. `apiToken` is the credential itself and must never
+   leave for the server; nor should device preferences like the audio engine,
+   which is about this phone and not this player. */
+const PROGRESS_FIELDS = [
+  "lifetimeXp", "exercisesDone", "exercisesCorrect", "practiceSeconds",
+  "perfectSessions", "masterRuns", "compWins", "compPlayed", "compBestNotes",
+  "masterCorrect",
+  "unlocked", "tierCorrect", "perfectByCat", "masterBest", "badges"
+];
+
+function progressPayload(){
+  const out = {};
+  PROGRESS_FIELDS.forEach(k => { if(S[k] !== undefined) out[k] = S[k]; });
+  return out;
+}
+
+/* Take what the server returned. Spendable XP is recomputed there from
+   lifetime minus what unlocked tiers cost, so it is never sent up. */
+function applyProgress(p){
+  if(!p) return;
+  PROGRESS_FIELDS.forEach(k => { if(p[k] !== undefined) S[k] = p[k]; });
+  if(Number.isFinite(p.xp)) S.xp = p.xp;
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); localSaveOk = true; }catch(e){ localSaveOk = false; }
+}
+
+let progressTimer = null, progressInFlight = false, progressDirty = false;
+let progressState = "idle";   /* idle | saving | saved | error */
+
+function queueProgressPush(){
+  if(!apiConfigured()) return;
+  progressDirty = true;
+  if(progressTimer) clearTimeout(progressTimer);
+  progressTimer = setTimeout(pushProgress, 900);
+}
+
+async function pushProgress(){
+  if(!apiConfigured() || progressInFlight) return;
+  progressInFlight = true; progressDirty = false; progressState = "saving";
+  const r = await api("/v1/progress", { method:"PUT", body:{ progress: progressPayload() } });
+  progressInFlight = false;
+  if(r.ok && r.body && r.body.progress){
+    applyProgress(r.body.progress);
+    progressState = "saved";
+  } else {
+    /* Keep the dirty flag so the next save retries; nothing is lost locally. */
+    progressDirty = true;
+    progressState = "error";
+  }
+  if(progressDirty) queueProgressPush();
+  const el = document.getElementById("apiState");
+  if(el) el.textContent = apiStatusLine();
+}
+
+/* Pull on connect and merge. The server merges by taking the higher of every
+   counter, so a device that has been offline contributes its work instead of
+   erasing someone else's. */
+async function syncProgress(){
+  if(!apiConfigured()) return null;
+  const r = await api("/v1/progress");
+  if(!r.ok) return null;
+  if(r.body.progress) applyProgress(r.body.progress);
+  /* Push straight back: whatever this device did offline is merged in, and a
+     brand-new account gets its first row. */
+  await pushProgress();
+  return r.body.progress;
 }
 
 /*
@@ -4324,7 +4457,9 @@ document.addEventListener("click", e => {
       S.apiToken = (t ? t.value : "").trim();
       save();
       if(!apiConfigured()){ toast("Both the address and a token are needed", true); render(); break; }
-      syncSubscription({ quiet:false }).then(plan => {
+      syncSubscription({ quiet:false }).then(async plan => {
+        /* Progress first, so the screen that paints already shows it. */
+        await syncProgress();
         render();
         if(plan) toast(plan.entitled ? "Connected · Premium is active" : "Connected · free plan");
       });
@@ -4578,8 +4713,26 @@ document.addEventListener("click", e => {
     case "lbmetric": lbMetric = el.dataset.metric; render(); break;
     case "reset":
       if(confirm("Reset all XP, unlocks and practice history?")){
-        S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
-        save(); toast("Progress reset", true); go("home");
+        /* Keep the server connection: resetting progress is not signing out,
+           and losing the address and token here would look like the app had
+           forgotten the account entirely. */
+        const keepBase = S.apiBase, keepToken = S.apiToken;
+        const wipe = () => {
+          S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
+          S.apiBase = keepBase; S.apiToken = keepToken;
+          progressDirty = false;
+          if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
+          try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+          toast("Progress reset", true); go("home");
+        };
+        if(apiConfigured()){
+          /* The account copy has to go first. Merging never decreases, so a
+             local-only wipe would be undone by the next sync. */
+          api("/v1/progress", { method:"DELETE" }).then(r => {
+            if(!r.ok) toast("Could not reset on the server — " + (r.error || r.status), true);
+            wipe();
+          });
+        } else wipe();
       }
       break;
   }
@@ -4637,9 +4790,25 @@ render();
    load, and again whenever the page is brought back, which is how the app
    notices a payment completed in the other tab. */
 if(apiConfigured()){
-  syncSubscription().then(() => render());
+  Promise.all([syncSubscription(), syncProgress()]).then(() => render());
   document.addEventListener("visibilitychange", () => {
-    if(!document.hidden) syncSubscription().then(p => { if(p) render(); });
+    if(document.hidden){
+      /* Leaving the page: flush anything still pending rather than losing it. */
+      if(progressDirty) pushProgress();
+    } else {
+      Promise.all([syncSubscription(), syncProgress()]).then(() => render());
+    }
+  });
+  /* Last chance on a real close. keepalive lets it outlive the page. */
+  window.addEventListener("pagehide", () => {
+    if(!progressDirty || !apiConfigured()) return;
+    try{
+      fetch(apiUrl("/v1/progress"), {
+        method:"PUT", keepalive:true,
+        headers:{ "content-type":"application/json", "authorization":"Bearer " + S.apiToken },
+        body: JSON.stringify({ progress: progressPayload() })
+      });
+    }catch(e){}
   });
 }
 </script>

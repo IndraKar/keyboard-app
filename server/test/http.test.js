@@ -635,3 +635,93 @@ test("providers whose signature scheme is not implemented are closed, not truste
     assert.equal(r.body.error, "signature_scheme_not_implemented");
   });
 });
+
+// ------------------------------------------------------------------ progress
+
+test("progress is saved against the account and read back", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    assert.equal((await call("GET", "/v1/progress", { token: dev("kay") })).body.progress, null);
+
+    const r = await call("PUT", "/v1/progress", {
+      token: dev("kay"),
+      body: { progress: { lifetimeXp: 375, exercisesDone: 5, tierCorrect: { keys: [5,0,0,0] } } },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.progress.lifetimeXp, 375);
+    assert.equal(r.body.progress.xp, 375, "nothing unlocked yet, so all of it is spendable");
+
+    const back = await call("GET", "/v1/progress", { token: dev("kay") });
+    assert.equal(back.body.progress.lifetimeXp, 375);
+    assert.deepEqual(back.body.progress.tierCorrect.keys, [5,0,0,0]);
+  });
+});
+
+test("one account's progress is invisible to another", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    await call("PUT", "/v1/progress", { token: dev("kay"), body: { progress: { lifetimeXp: 900 } } });
+    assert.equal((await call("GET", "/v1/progress", { token: dev("someone_else") })).body.progress, null);
+  });
+});
+
+test("progress needs a signed-in account", async () => {
+  await withServer({}, async ({ call }) => {
+    assert.equal((await call("GET", "/v1/progress")).status, 401);
+    assert.equal((await call("PUT", "/v1/progress", { body: { progress: {} } })).status, 401);
+  });
+});
+
+test("a second device's save merges rather than overwriting", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const t = dev("kay");
+    await call("PUT", "/v1/progress", { token: t, body: { progress: {
+      lifetimeXp: 900, exercisesDone: 12, tierCorrect: { keys: [12,0,0,0] } } } });
+    // A laptop that has been offline and knows nothing about the phone's work.
+    const r = await call("PUT", "/v1/progress", { token: t, body: { progress: {
+      lifetimeXp: 300, exercisesDone: 4, tierCorrect: { ear: [4,0,0,0] } } } });
+
+    /* keys 12 (900) + ear 4 (300): both devices' work counts, and neither is
+       deleted by the other arriving second. */
+    assert.equal(r.body.progress.lifetimeXp, 1200, "the stale device must add to the total, not replace it");
+    assert.equal(r.body.progress.exercisesDone, 12);
+    assert.deepEqual(r.body.progress.tierCorrect.keys, [12,0,0,0]);
+    assert.deepEqual(r.body.progress.tierCorrect.ear, [4,0,0,0], "and its own work is kept too");
+  });
+});
+
+test("an oversized progress payload is refused", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const r = await call("PUT", "/v1/progress", {
+      token: dev("kay"),
+      body: JSON.stringify({ progress: { lifetimeXp: 1, junk: "x".repeat(20 * 1024) } }),
+    });
+    assert.ok(r.status === 413 || r.status === 400, `expected a refusal, got ${r.status}`);
+  });
+});
+
+test("resetting clears the account copy, which merging alone could never do", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    const t = dev("kay");
+    await call("PUT", "/v1/progress", { token: t, body: { progress: { lifetimeXp: 900 } } });
+    assert.equal((await call("GET", "/v1/progress", { token: t })).body.progress.lifetimeXp, 900);
+
+    // An empty PUT must NOT reset — merging never decreases, by design.
+    await call("PUT", "/v1/progress", { token: t, body: { progress: {} } });
+    assert.equal((await call("GET", "/v1/progress", { token: t })).body.progress.lifetimeXp, 900,
+      "a stale or empty save must never wipe someone's history");
+
+    const d = await call("DELETE", "/v1/progress", { token: t, body: {} });
+    assert.equal(d.status, 200);
+    assert.equal(d.body.reset, true);
+    assert.equal((await call("GET", "/v1/progress", { token: t })).body.progress, null);
+  });
+});
+
+test("one account's reset leaves another account alone", async () => {
+  await withServer({ devAuth: true }, async ({ call }) => {
+    await call("PUT", "/v1/progress", { token: dev("kay"), body: { progress: { lifetimeXp: 500 } } });
+    await call("PUT", "/v1/progress", { token: dev("sam"), body: { progress: { lifetimeXp: 700 } } });
+    await call("DELETE", "/v1/progress", { token: dev("kay"), body: {} });
+    assert.equal((await call("GET", "/v1/progress", { token: dev("kay") })).body.progress, null);
+    assert.equal((await call("GET", "/v1/progress", { token: dev("sam") })).body.progress.lifetimeXp, 700);
+  });
+});

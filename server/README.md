@@ -18,7 +18,7 @@ Everything here is plain Node 22 ESM with **no runtime dependencies**, so it
 runs and tests with no install step:
 
 ```
-npm test     # 152 tests, no network, no database
+npm test     # 176 tests, no network, no database
 npm start    # http://localhost:8787
 ```
 
@@ -34,6 +34,7 @@ npm start    # http://localhost:8787
 | `src/theory/keysignatures.js` | The fifteen signatures. Everything except the tonics is derived. |
 | `src/competition/match.js` | The match engine: elimination, the settle window, local-clock ranking. |
 | `src/competition/matchmaking.js` | Queue by level; private lobbies by share code. |
+| `src/progress/merge.js` | Progress merging. Counters take the higher; XP is derived from the work. |
 | `src/store/memory.js` | Reference store — six methods. Development only: it forgets everything on restart. |
 | `src/store/postgres.js` | The production store. Without it a restart loses every paid subscription. |
 | `src/billing/stripe.js` | Stripe REST client over `fetch` — checkout, cancel, resume. No SDK. |
@@ -116,6 +117,9 @@ seam to replace.
 | --- | --- |
 | `GET /health` | public |
 | `GET /v1/competition/levels` | public — the level ladder |
+| `GET /v1/progress` | the account's saved progress |
+| `PUT /v1/progress` | save progress — **merged**, never replaced |
+| `DELETE /v1/progress` | wipe it; the one operation that must not merge |
 | `GET /v1/subscription` | what the Profile screen renders |
 | `POST /v1/subscription/cancel` | 409 + `manageUrl` for App Store / Play |
 | `POST /v1/subscription/resume` | undoes a pending cancel |

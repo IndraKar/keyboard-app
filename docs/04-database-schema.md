@@ -590,6 +590,46 @@ Practice Screen consumes both through the same loop-selector UI.
 (bool) — supports the "manually correct obviously-wrong chord labels" interaction from
 the screen map's Upload your file flow.
 
+## 4.10d Progress, per account (`user_progress`)
+
+`user_id` (PK), `payload` (jsonb), `lifetime_xp` (int, denormalised out of the
+payload so a leaderboard never parses blobs), `updated_at`, `created_at`.
+
+**Why the device is not enough.** The app runs inside a cross-origin iframe, and
+mobile Safari blocks third-party storage: `localStorage.setItem` throws, the
+client's `catch` swallowed it, and every finished lesson was lost the moment the
+tab closed — with nothing on screen to say so. The account holds progress now;
+the device is a cache.
+
+**Writes merge, they do not replace** (`server/src/progress/merge.js`). Two
+devices, or a retried request, must never delete lessons somebody played. So:
+
+- Counters that only go up — per-tier correct answers, exercises done, best
+  streaks, badges — take the **higher** of the two. Merging is commutative and
+  idempotent, so sync order cannot change the result.
+- **Lifetime XP is derived, not merged.** Taking the higher of two totals is the
+  one place max-merging fails: two devices that each earn 375 offline have
+  earned 750 between them, and max reports 375. It is computed from the per-tier
+  counters (which merge correctly, being separate cells) at `TIER_XP` rates,
+  plus Master Mode answers at tier-4 rates — then floored at whatever the client
+  reported, so XP earned under an older scheme is never taken away.
+- **Spendable XP is derived too**: lifetime minus what the unlocked tiers cost.
+  It is the only figure that goes *down*, so deriving it removes the conflict
+  rather than resolving it, and a client cannot grant itself XP by claiming it.
+- The upsert only writes when the incoming `lifetime_xp` is at least what is
+  stored, so a slow request carrying stale progress cannot roll a newer one
+  back; the response then returns what is actually stored.
+
+**`DELETE /v1/progress` exists because merging never decreases.** Without it,
+"Reset all progress" would clear the device and have every counter merged
+straight back on the next sync.
+
+**What this does not do.** The server does not witness solo practice, so it
+cannot tell honest progress from invented progress — a client that lies about
+the work it did gets the XP. Competition is different: the server holds the
+passage and rules on every answer. Making solo practice cheat-resistant needs
+the same treatment, and is not built.
+
 ## 4.11a Competition Mode (PRD F-13)
 
 **`competition_matches`**

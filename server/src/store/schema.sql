@@ -48,6 +48,30 @@ CREATE TABLE IF NOT EXISTS processed_webhook_events (
   processed_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- -------------------------------------------------------------------- progress
+-- Learning progress, per account.
+--
+-- This exists because the device is not a safe place to keep it. The app runs
+-- inside a cross-origin iframe, and mobile Safari blocks third-party storage
+-- outright: localStorage.setItem throws, the catch swallows it, and every
+-- lesson a player finishes is lost the moment they close the tab, with nothing
+-- on screen to say so.
+--
+-- The payload is a blob rather than columns because the shape belongs to the
+-- client and changes with it; the columns below are the parts the server needs
+-- to reason about (merging, and leaderboards later).
+CREATE TABLE IF NOT EXISTS user_progress (
+  user_id      text PRIMARY KEY,
+  payload      jsonb NOT NULL,
+  -- Denormalised out of the payload so a leaderboard never parses blobs.
+  -- Monotonic by definition: lifetime XP is never spent down.
+  lifetime_xp  integer NOT NULL DEFAULT 0 CHECK (lifetime_xp >= 0),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS user_progress_xp_idx ON user_progress (lifetime_xp DESC);
+
 -- ---------------------------------------------------------------- competition
 
 CREATE TABLE IF NOT EXISTS competition_matches (
