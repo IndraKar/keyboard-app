@@ -476,6 +476,15 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 .teachscale{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
   font-size:14px;letter-spacing:.06em;color:var(--gold)}
 .faint.good{color:var(--good);font-weight:600}
+.fpstaff{background:#171310;border:1px solid var(--line);border-radius:12px;padding:4px 6px;}
+.fpstaff svg{display:block}
+.fpread{display:flex;align-items:baseline;gap:9px;min-height:40px;padding:2px}
+.fpnote{font-size:30px;font-weight:700;letter-spacing:-0.5px;color:var(--accent);line-height:1}
+.fpoct{font-size:14px;font-weight:600;color:var(--faint)}
+.fpclef{font-size:11.5px;color:var(--faint);margin-left:auto;text-align:right}
+.dangerbtn{background:var(--bad-soft);border:1px solid rgba(255,107,107,0.4);color:var(--bad);
+  border-radius:999px;padding:7px 12px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+.dangerbtn:active{opacity:.7}
 .faint.bad{color:var(--bad);font-weight:600}
 </style>
 
@@ -502,6 +511,9 @@ const DEFAULTS = {
   unlocked: { ear: 1, sight: 1, keys: 1, repeat: 1 },
   premium: false, cancelPending: false,
   noteNames: true,
+  /* Free play. These are device preferences, not progress, so they are left
+     out of PROGRESS_FIELDS — a staff toggle has no business syncing. */
+  fpStaff: true, fpKey: "C",
   audioMode: "auto",          /* auto | webaudio | simple — see the Sound card */
   /* Live server. Empty means this build runs entirely on the device and the
      checkout is the local simulation. Set both in Profile → Server. */
@@ -1491,6 +1503,206 @@ function genEar(tier, mode){
   return ex;
 }
 
+/* ---- Spelling a played pitch inside a key -------------------------------
+   A MIDI number is a pitch, not a note name: 66 is F# in D major and G♭ in
+   D♭ major, and the two sit on different lines of the staff. Free play has to
+   choose, so it chooses the way a reader would.
+
+   In the key -> no accidental is printed, because the key signature already
+   said it. Outside the key -> print the accidental, preferring sharps in sharp
+   keys and flats in flat keys, which is what makes B♭ major read as E♭ rather
+   than D#. */
+function spellNote(midi, key){
+  const alter = keyAlter(key);
+  const pc = ((midi % 12) + 12) % 12;
+
+  /* Where this letter sits on the staff for this pitch. */
+  const diaFor = (step, printed) => {
+    const oct = Math.round((midi - printed - LETTER_PC[step]) / 12) - 1;
+    return oct * 7 + step;
+  };
+
+  for(let step=0; step<7; step++){
+    const L = LETTERS[step], a = alter[L] || 0;
+    if(((LETTER_PC[step] + a) % 12 + 12) % 12 === pc){
+      return { dia: diaFor(step, a), acc: 0, show: false, letter: L, alt: a };
+    }
+  }
+
+  /* Chromatic: it needs a printed accidental, and which one is a real choice.
+     C# and Db are the same key on the piano and different notes on the page. */
+  const pick = (step, d) => ({ dia: diaFor(step, d), acc: d, show: true,
+                               letter: LETTERS[step], alt: d });
+
+  /* 1. Cancelling the key signature. If the key sharpens C and the player hits
+        a C natural, that is C-natural — never B#. This is the common case and
+        it has to come first. */
+  for(let step=0; step<7; step++){
+    const a = alter[LETTERS[step]] || 0;
+    if(a !== 0 && (LETTER_PC[step] % 12 + 12) % 12 === pc) return pick(step, 0);
+  }
+
+  /* 2. Otherwise follow the key: flat keys spell flats, sharp keys sharps, so
+        Bb major reads Eb rather than D#. */
+  const dir = KEYS[key].flats > 0 ? -1 : KEYS[key].sharps > 0 ? 1 : 0;
+  if(dir !== 0){
+    for(let step=0; step<7; step++){
+      const L = LETTERS[step], a = alter[L] || 0;
+      if(a === dir) continue;                     /* that is the key, not an accidental */
+      if(((LETTER_PC[step] + dir) % 12 + 12) % 12 === pc) return pick(step, dir);
+    }
+  }
+
+  /* 3. C major leans neither way, so use what is conventionally written:
+        C# and F# on the sharp side, Eb, Ab and Bb on the flat. */
+  const C_MAJOR_CHROMATICS = { 1:[0,1], 3:[2,-1], 6:[3,1], 8:[5,-1], 10:[6,-1] };
+  const conv = C_MAJOR_CHROMATICS[pc];
+  if(conv) return pick(conv[0], conv[1]);
+
+  /* 4. Anything left: nearest spelling in either direction. */
+  for(const d of [1, -1, 0]){
+    for(let step=0; step<7; step++){
+      const L = LETTERS[step], a = alter[L] || 0;
+      if(a === d) continue;
+      if(((LETTER_PC[step] + d) % 12 + 12) % 12 === pc) return pick(step, d);
+    }
+  }
+  return null;
+}
+
+/* A natural that cancels the key signature is named with the sign — in A major
+   this key is "C♮", not a bare "C", because the key would otherwise read C♯. */
+const spelledName = sp => !sp ? ""
+  : sp.alt === 0 && sp.show ? sp.letter + "♮"
+  : noteText(sp.letter, sp.alt);
+
+/* ---- Grand staff, for Free play ----------------------------------------
+   Two staves rather than one, because a piano is played with both hands and a
+   note picks its own clef: middle C and above on the treble, below it on the
+   bass. A single staff would push half the keyboard onto ledger lines. */
+function grandStaffSVG(played, key){
+  const LS = 11, YT = 64, YB = 150;            /* staff spacing, treble/bass baselines */
+  const botT = diatonicIndex(64), botB = diatonicIndex(43);
+  const yT = d => YT - (d - botT) * (LS/2);
+  const yB = d => YB - (d - botB) * (LS/2);
+
+  const glyphs = keyGlyphs(key);
+  const ksW = glyphs.length * (LS*0.78);
+  const x0 = 78 + ksW;
+  /* Fixed canvas, scaled to whatever width it is given. An SVG that grew with
+     the notes had to be scrolled, and scrolling to follow the newest note
+     pushed the clefs and the key signature off the left edge — which is the
+     one thing on this screen that must never leave: the whole point is seeing
+     that the signature is what decides the spelling. Everything fits instead.
+     Seven flats need the most room, so the width is sized for them and the
+     note spacing opens up in the smaller keys rather than the staff resizing
+     under the player's hands. */
+  const W = 470, H = 196;
+  const gapX = (W - x0 - 24) / FP_MAX;
+
+  let s = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" '+
+          'preserveAspectRatio="xMidYMid meet" role="img" '+
+          'aria-label="Grand staff in '+keyPair(key)+'">';
+  for(const Y of [YT, YB]){
+    for(let i=0;i<5;i++){
+      const ly = Y - i*LS;
+      s += '<line x1="12" y1="'+ly+'" x2="'+(W-12)+'" y2="'+ly+'" stroke="#4a4038" stroke-width="1.1"/>';
+    }
+  }
+  /* The brace-side barline that makes it one system rather than two staves. */
+  s += '<line x1="12" y1="'+(YT-4*LS)+'" x2="12" y2="'+YB+'" stroke="#4a4038" stroke-width="1.6"/>';
+  s += trebleClef(32, YT, LS) + bassClef(28, YB, LS);
+
+  glyphs.forEach((g,i) => {
+    const gx = 60 + i*(LS*0.78);
+    s += g.sign === "sharp"
+      ? sharpGlyph(gx, yT(KS_DIA.treble.sharp[g.letter]), LS) + sharpGlyph(gx, yB(KS_DIA.bass.sharp[g.letter]), LS)
+      : flatGlyph(gx, yT(KS_DIA.treble.flat[g.letter]), LS)   + flatGlyph(gx, yB(KS_DIA.bass.flat[g.letter]), LS);
+  });
+
+  played.forEach((n, i) => {
+    const sp = spellNote(n.midi, key);
+    if(!sp) return;
+    const treble = n.midi >= 60;
+    const Y = treble ? YT : YB, bot = treble ? botT : botB, yOf = treble ? yT : yB;
+    const cx = x0 + (i + 0.5)*gapX, cy = yOf(sp.dia);
+    const fresh = i === played.length - 1;
+    const ink = fresh ? "#ff8a3d" : "#efe9e0";
+
+    /* Ledger lines, outward from whichever staff the note landed on. */
+    for(let d = bot-2; d >= sp.dia; d -= 2)
+      s += '<line x1="'+(cx-9)+'" y1="'+yOf(d)+'" x2="'+(cx+9)+'" y2="'+yOf(d)+'" stroke="#4a4038" stroke-width="1.1"/>';
+    for(let d = bot+10; d <= sp.dia; d += 2)
+      s += '<line x1="'+(cx-9)+'" y1="'+yOf(d)+'" x2="'+(cx+9)+'" y2="'+yOf(d)+'" stroke="#4a4038" stroke-width="1.1"/>';
+
+    if(sp.show){
+      const gx = cx - 14;
+      s += sp.acc > 0 ? sharpGlyph(gx, cy, LS)
+         : sp.acc < 0 ? flatGlyph(gx, cy, LS)
+         : '<text x="'+(gx-2)+'" y="'+(cy+4)+'" font-size="'+(LS*1.25)+'" fill="'+ink+'">♮</text>';
+    }
+    s += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="5.8" ry="4.5" transform="rotate(-18 '+cx+' '+cy+')" fill="'+ink+'"/>';
+    const up = cy > Y - 2*LS;
+    s += up
+      ? '<line x1="'+(cx+5.5)+'" y1="'+(cy-2)+'" x2="'+(cx+5.5)+'" y2="'+(cy-26)+'" stroke="'+ink+'" stroke-width="1.5"/>'
+      : '<line x1="'+(cx-5.5)+'" y1="'+(cy+2)+'" x2="'+(cx-5.5)+'" y2="'+(cy+26)+'" stroke="'+ink+'" stroke-width="1.5"/>';
+  });
+  return s + '</svg>';
+}
+
+/* ---- Free play ----------------------------------------------------------
+   No grading, no timer, no XP. The staff is a MIRROR: it shows what the player
+   just did, spelled through whichever key signature they chose, which is the
+   only way a key signature teaches anything here — the same black key reads
+   E\u266d in B\u266d major and D\u266f in B major, and seeing that happen beats being
+   told it. */
+const FP_MAX = 10;         /* notes the staff holds; older ones drop off the left */
+let fpPlayed = [];
+
+const fpOctave = sp => Math.floor(sp.dia / 7);
+
+function fpReadHTML(){
+  const last = fpPlayed[fpPlayed.length - 1];
+  if(!last) return '<span class="faint">Play a key and it is named here.</span>';
+  const sp = spellNote(last.midi, S.fpKey);
+  if(!sp) return '<span class="faint">\u2014</span>';
+  return '<span class="fpnote">'+spelledName(sp)+'</span>'+
+         '<span class="fpoct">'+fpOctave(sp)+'</span>'+
+         '<span class="fpclef">'+(last.midi >= 60 ? "treble" : "bass")+' clef<br>'+
+           '<span class="faint">in '+keyPair(S.fpKey)+'</span></span>';
+}
+
+/* Patch the two live bits in place. A full render() would tear down the key
+   elements mid-press, so the note that triggered this would never get its
+   pointerup and would sound forever. */
+function fpPaint(){
+  const st = document.getElementById("fpStaff");
+  if(st) st.innerHTML = grandStaffSVG(fpPlayed, S.fpKey);
+  const ro = document.getElementById("fpRead");
+  if(ro) ro.innerHTML = fpReadHTML();
+}
+
+function fpPush(midi){
+  fpPlayed.push({ midi });
+  if(fpPlayed.length > FP_MAX) fpPlayed.shift();
+  fpPaint();
+}
+
+function wireFreeplay(){
+  fpPaint();
+  noteHook = fpPush;
+  const sel = document.getElementById("fpKey");
+  if(sel) sel.addEventListener("change", () => {
+    if(!KEYS[sel.value]) return;
+    S.fpKey = sel.value; save();
+    /* Respell what is already on the staff rather than clearing it: the whole
+       point is watching the same notes change their names. */
+    fpPaint();
+    const lab = document.getElementById("fpKeyMeta");
+    if(lab) lab.textContent = signatureWords(S.fpKey);
+  });
+}
+
 /* ---- Key Signatures -----------------------------------------------------
    Read the signature, name the key. The answer is always a PAIR — a signature
    with two sharps is D major and B minor at the same time, and asking for only
@@ -2005,6 +2217,11 @@ function screenMenu(){
         (S.premium ? 'Three games \u00b7 '+(S.compWins||0)+' won'
                 : 'Three games \u00b7 up to '+COMP_MAX_PLAYERS+' players')+'</span></span>'+
       (S.premium ? '' : '<span class="pill">Premium</span>')+'</button>'+
+    '<button class="tile" data-go="freeplay">'+
+      '<span class="ticon">'+svg(IC.gold.replace(/#e8c15a/g,"#ff8a3d"),23)+'</span>'+
+      '<span class="grow"><span class="ttitle" style="display:block">Free play</span>'+
+      '<span class="tsub" style="display:block">Just the piano \u00b7 staff, note names and any key signature</span></span>'+
+      svg(IC.chev,18)+'</button>'+
     storageWarning()+
     premiumPanel()+
     (masteredCats().length
@@ -2222,14 +2439,28 @@ function screenLibrary(){
 }
 
 function screenFreeplay(){
+  const opts = KEY_IDS.map(k =>
+    '<option value="'+k+'"'+(k===S.fpKey?' selected':'')+'>'+keyPair(k)+'</option>').join("");
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="library" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Free play</div><div style="width:34px"></div></div>'+
     '<div class="stack">'+
-      '<div class="notice">Play anything you like. Nothing is graded here, so no XP is earned — XP comes only from correct exercises.</div>'+
-      '<div class="togglerow"><span class="tglabel">Show note names</span>'+
+      '<div class="notice">Play anything you like. Nothing is graded here, so no XP is earned \u2014 XP comes only from correct exercises.</div>'+
+      '<div class="togglerow"><span class="tglabel">Treble &amp; bass clef</span>'+
+      '<button class="tg'+(S.fpStaff?" on":"")+'" data-act="fpstaff" role="switch" aria-checked="'+
+        !!S.fpStaff+'" aria-label="Show the staff"><span class="knob"></span></button></div>'+
+      (S.fpStaff
+        ? '<div class="fpread" id="fpRead">'+fpReadHTML()+'</div>'+
+          '<div class="fpstaff" id="fpStaff"></div>'+
+          '<div class="row"><span class="grow faint">Notes are spelled through the key signature.</span>'+
+          '<button class="link" data-act="fpclear">Clear the staff</button></div>'
+        : '<div class="fpread" id="fpRead">'+fpReadHTML()+'</div>')+
+      '<label class="fld"><span class="fldlab">Key signature</span>'+
+        '<select class="tinput" id="fpKey">'+opts+'</select></label>'+
+      '<div class="faint" id="fpKeyMeta">'+signatureWords(S.fpKey)+'</div>'+
+      '<div class="togglerow"><span class="tglabel">Show note names on the keys</span>'+
       '<button class="tg'+(S.noteNames?" on":"")+'" data-act="names" role="switch" aria-checked="'+S.noteNames+'"><span class="knob"></span></button></div>'+
-      '<div class="faint">On a computer, the letter keys <b>A–J</b> and <b>W, E, T, Y, U</b> play too.</div>'+
+      '<div class="faint">On a computer, the letter keys <b>A\u2013J</b> and <b>W, E, T, Y, U</b> play too.</div>'+
     '</div>'+ keyboardHTML({});
 }
 
@@ -2255,7 +2486,9 @@ function screenProfile(){
           '<div class="kv"><span class="kvk">Purchased on</span><span class="kvv">Web · cancel here</span></div>'+
           '<button class="link" data-go="cancel">Cancel subscription</button>';
   }
-  return '<div class="h1">Profile</div>'+
+  return '<div class="row" style="align-items:center;gap:10px">'+
+      '<span class="h1 grow" style="margin:0">Profile</span>'+
+      '<button class="dangerbtn" data-act="reset">Delete all progress</button></div>'+
     (signedIn()
       ? '<button class="tile" data-go="account"><span class="avatar lg">'+initials()+'</span>'+
         '<span class="grow"><span class="ttitle" style="display:block">'+(S.account.nickname||S.account.name)+'</span>'+
@@ -2321,7 +2554,7 @@ function screenProfile(){
       '<pre class="diag" id="sndDiag">'+soundReport()+'</pre></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">MIDI device</div>'+
       '<div class="sub">No keyboard connected — the on-screen keyboard is your instrument, and every exercise is playable on it.</div></div>'+
-    '<button class="link" data-act="reset">Reset all progress</button>';
+'';
 }
 
 
@@ -4325,6 +4558,7 @@ function renderScreen(){
   } else tb.style.display = "none";
 
   if(curScreen === "play") wirePlay();
+  if(curScreen === "freeplay") wireFreeplay();
   if(curScreen === "compmatch" && comp && comp.game === "reading"){
     /* Reading race only: it is the one Competition game played on the keyboard.
        Chord Race and the Key Signature Race answer with buttons and have no
@@ -4711,19 +4945,27 @@ document.addEventListener("click", e => {
     case "lbon":  S.leaderboardOptIn = true;  save(); render(); break;
     case "lboff": S.leaderboardOptIn = false; save(); toast("Leaderboards off", true); render(); break;
     case "lbmetric": lbMetric = el.dataset.metric; render(); break;
+    case "fpstaff": S.fpStaff = !S.fpStaff; save(); render(); break;
+    case "fpclear": fpPlayed = []; fpPaint(); break;
     case "reset":
-      if(confirm("Reset all XP, unlocks and practice history?")){
-        /* Keep the server connection: resetting progress is not signing out,
-           and losing the address and token here would look like the app had
-           forgotten the account entirely. */
-        const keepBase = S.apiBase, keepToken = S.apiToken;
+      if(confirm("Are you sure you want to delete your progress? All saved XP will "+
+                 "disappear and you will restart from Tier 1. This action cannot be undone.")){
+        /* Deleting progress is not signing out and not a factory reset. The
+           server connection stays, or the app would look like it had forgotten
+           the account entirely; so do the device preferences — above all the
+           audio mode, because someone who had to choose Simple to hear
+           anything would otherwise be left with a silent piano. */
+        const keep = {};
+        ["apiBase","apiToken","noteNames","audioMode","fpStaff","fpKey"]
+          .forEach(k => { keep[k] = S[k]; });
         const wipe = () => {
           S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}, account:null, visibility:"private"});
-          S.apiBase = keepBase; S.apiToken = keepToken;
+          Object.assign(S, keep);
           progressDirty = false;
           if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
           try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
-          toast("Progress reset", true); go("home");
+          fpPlayed = [];
+          toast("All progress deleted", true); go("home");
         };
         if(apiConfigured()){
           /* The account copy has to go first. Merging never decreases, so a
