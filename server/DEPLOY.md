@@ -93,6 +93,8 @@ That URL is what Stripe posts to in step 5 and what goes into the app in step 7.
 | `STRIPE_SECRET_KEY` | `sk_test_…` from step 1 |
 | `STRIPE_PRICE_ID` | `price_…` from step 1 |
 | `STRIPE_WEBHOOK_SECRET` | step 5 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | step 4a — without both, Google sign-in is off |
+| `YAHOO_CLIENT_ID` / `YAHOO_CLIENT_SECRET` | step 4a — without both, Yahoo sign-in is off |
 | `KEYVORIA_ALLOWED_ORIGIN` | your site's origin, e.g. `https://keyvoria.com` |
 | `KEYVORIA_SUCCESS_URL` | where Stripe returns after payment |
 | `KEYVORIA_CANCEL_URL` | where Stripe returns if they back out |
@@ -101,6 +103,81 @@ That URL is what Stripe posts to in step 5 and what goes into the app in step 7.
 production.** The first lets anyone be any user; the second lets anyone who
 finds the URL give themselves a subscription. The server prints an error on
 every boot if it catches either one in production.
+
+## 4a. Sign in with Google and Yahoo
+
+**Nobody can create an account until this is done.** The app works without it —
+people can play everything — but their progress is not saved anywhere they can
+get it back from. The server prints a warning on every boot while sign-in is
+unconfigured.
+
+A provider needs **both** halves. With only one, the server leaves that provider
+switched off and says so at boot, rather than showing a button that fails at the
+consent screen.
+
+### The redirect URI
+
+Both consoles ask for it, and it must match **character for character**,
+including `https` and no trailing slash:
+
+```
+https://<your-render-url>/v1/auth/google/callback
+https://<your-render-url>/v1/auth/yahoo/callback
+```
+
+e.g. `https://keyvoria-api.onrender.com/v1/auth/google/callback`.
+
+A mismatch here is the single most common failure, and the provider's error
+(`redirect_uri_mismatch`) names it plainly. If you later put the API on your own
+domain, the registered URI has to change with it.
+
+### Google
+
+1. <https://console.cloud.google.com/> → create a project (or pick one).
+2. **APIs & Services → OAuth consent screen**. External. Fill in the app name,
+   your support email, and a developer contact. Scopes: just `openid`, `email`
+   and `profile` — all three are default, so you do not need to add any.
+3. While the consent screen is in **Testing**, only accounts you list as test
+   users can sign in. Add yourself. To let the public in, **Publish app**;
+   because you are requesting only these three basic scopes, that does not
+   require Google's security review.
+4. **Credentials → Create credentials → OAuth client ID → Web application**.
+5. Under **Authorised redirect URIs**, add the Google URI above.
+6. Copy the client ID and client secret into `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`.
+
+### Yahoo
+
+1. <https://developer.yahoo.com/apps/> → **Create an App**.
+2. Application type **Web Application**.
+3. **Redirect URI(s)**: the Yahoo URI above. Yahoo rejects plain `http` and
+   rejects `localhost`, so you cannot test Yahoo against a local server — it has
+   to be the deployed HTTPS URL.
+4. Under **API Permissions**, tick **Profiles (Social Directory) → Read Public**,
+   which is what grants `openid`, `email` and `profile`.
+5. Copy the Client ID (Consumer Key) and Client Secret (Consumer Secret) into
+   `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`.
+
+### Check it
+
+```bash
+curl https://<your-render-url>/v1/auth/providers
+# {"providers":[{"id":"google","label":"Google"},{"id":"yahoo","label":"Yahoo"}],"configured":true}
+```
+
+Whatever is listed there is what the app offers. If a provider is missing, its
+two variables are not both set.
+
+### What the server does with a sign-in
+
+The browser only ever opens a window at **your** server. The server redirects to
+Google or Yahoo, receives the authorization code, exchanges it for an ID token
+**server-side with the client secret**, and verifies that token's signature
+against the provider's published keys before believing a word of it. The client
+secret never reaches the browser, and no password ever reaches Keyvoria.
+
+What comes back to the app is a Keyvoria session token, collected through a
+single-use ticket. The token is never put in a URL or in the page.
 
 ## 5. The webhook
 
@@ -146,19 +223,18 @@ curl -H "Authorization: Bearer <session token>" https://your-api-host/v1/subscri
 
 ## 7. Point the app at it
 
-The app already speaks to this server — there is no code to write. In the app:
+The app already speaks to this server — there is no code to write.
 
-**Profile → Server**, fill in:
+**Profile → Server → API address**: your deployed URL, e.g.
+`https://keyvoria-api.onrender.com`. Tap **Connect**. The card then reads
+"Connected. Sign in with Google or Yahoo to save your progress."
 
-- **API address** — your deployed URL, e.g. `https://keyvoria-api.onrender.com`
-- **Session token** — generate one on the server:
+Then **Sign in** offers whichever providers step 4a configured. Signing in gets
+a session token automatically — there is no token to paste any more.
 
-```bash
-KEYVORIA_SESSION_SECRET=<the same secret the server runs with> \
-  npm run token -- kay 30
-```
-
-Tap **Connect**. The card then reads "Connected · free plan".
+To skip the address entirely for everyone, set `DEFAULT_API_BASE` near the top of
+`prototype/keyvoria-playable.html` to your URL. Then the app points at your
+server out of the box and people only ever see **Sign in**.
 
 From that point the server, not the app, decides who has paid. **Subscribe** calls
 `/v1/billing/checkout`, opens Stripe's hosted page in a new tab, and the app polls
@@ -170,9 +246,10 @@ Leave those fields empty and the app runs entirely on the device with the
 simulated checkout, which refuses real cards. That is the right mode for showing
 the app to someone without a server in front of it.
 
-> **The token is a password.** It identifies a user outright, because real
-> sign-in is roadmap M1 and does not exist yet. Do not paste it anywhere public,
-> and delete `bin/token.js` once M1 lands.
+`npm run token` still exists for poking at the API from a shell without a
+browser. It mints a token for an arbitrary user id with no account behind it,
+so **it is a password** — do not paste one anywhere public. Normal users never
+see one.
 
 ## 8. Going live
 
@@ -217,11 +294,15 @@ Developers → Webhooks. Check there first when a test purchase does not appear.
 - **Apple and Google in-app purchase** are modelled for cancellation and
   renewal, but their receipt verification is not written. You only need them if
   you ship in the app stores, where they are mandatory and take 15–30%.
-- **Accounts (roadmap M1).** `user_id` is whatever the session token carries, and
-  tokens are minted by hand with `npm run token` rather than by a sign-in. Until
-  M1 lands, every person who subscribes needs a token generated for them, which
-  is fine for you and a few testers and is not a product. `verifyToken` is the
-  single seam to replace.
+- **Signing out does not revoke a token.** Session tokens are stateless HMACs
+  with no server-side record, so signing out ends the session on that device by
+  discarding the token — it does not invalidate one already copied elsewhere.
+  The token expires on its own after 90 days. Real revocation needs a denylist
+  keyed on the token's `jti`, which is a change to `verifyToken`.
+- **Deleting an account** is not built. Deleting *progress* is, from the app.
+  Removing the `users` row and everything hanging off it needs a route, and is
+  a requirement under GDPR and several US state laws if you take money from
+  people in those places.
 - **Tax.** Digital subscriptions are taxable in many US states and carry VAT in
   the EU/UK. Stripe Tax handles calculation; a merchant of record such as Paddle
   handles calculation *and* filing. Neither is wired up here.

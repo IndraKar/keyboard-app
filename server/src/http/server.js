@@ -19,6 +19,8 @@ import { createPostgresStore } from "../store/postgres.js";
 import { runMigrations } from "../store/migrate.js";
 import { createMatchmaker } from "../competition/matchmaking.js";
 import { createStripe } from "../billing/stripe.js";
+import { createOidc, PROVIDER_IDS, overrideProviderEndpoints } from "../auth/oidc.js";
+import { createAuthFlow } from "../auth/pending.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const DEV_AUTH = process.env.KEYVORIA_DEV_AUTH === "1";
@@ -65,11 +67,53 @@ if (process.env.STRIPE_SECRET_KEY) {
   banner.push("stripe: not configured (checkout returns 503)");
 }
 
+// -------------------------------------------------------------------- sign-in
+// A provider is offered only when BOTH halves of its client are present. Half a
+// client is worse than none: the button appears, the consent screen loads, and
+// the failure lands at the exchange, where the user can do nothing about it.
+const oauthClients = {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || null,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
+  },
+  yahoo: {
+    clientId: process.env.YAHOO_CLIENT_ID || null,
+    clientSecret: process.env.YAHOO_CLIENT_SECRET || null,
+  },
+};
+/* Test-only: redirect a provider at a stand-in. Loudly announced, because a
+   server running with this set is not talking to Google. */
+for (const id of PROVIDER_IDS) {
+  const base = process.env[`KEYVORIA_OIDC_${id.toUpperCase()}_BASE`];
+  if (!base) continue;
+  overrideProviderEndpoints(id, base);
+  banner.push(`${id} oidc endpoints: ${base} (OVERRIDDEN — NOT ${id})`);
+}
+
+const oidc = createOidc({ clients: oauthClients });
+const authFlow = createAuthFlow();
+const signInProviders = oidc.available();
+banner.push(
+  signInProviders.length
+    ? `sign-in: ${signInProviders.join(", ")}`
+    : "sign-in: not configured (nobody can create an account)"
+);
+for (const id of PROVIDER_IDS) {
+  const c = oauthClients[id];
+  if ((c.clientId || c.clientSecret) && !(c.clientId && c.clientSecret)) {
+    console.warn(`[keyvoria] ${id} sign-in is half-configured: ` +
+      `${c.clientId ? "client id set, SECRET MISSING" : "secret set, CLIENT ID MISSING"}. It stays off.`);
+  }
+}
+
 const app = createApp({
   store,
   stripe,
+  oidc,
+  authFlow,
   matchmaker: createMatchmaker(),
   config: {
+    oauthClients,
     devAuth: DEV_AUTH,
     sessionSecret: process.env.KEYVORIA_SESSION_SECRET || null,
     allowUnsignedWebhooks: ALLOW_UNSIGNED,
@@ -95,6 +139,13 @@ server.listen(PORT, () => {
   if (ALLOW_UNSIGNED) console.warn("[keyvoria] UNSIGNED WEBHOOKS ARE ACCEPTED — anyone who finds the URL can grant a subscription. Never in production.");
   if (!process.env.KEYVORIA_SESSION_SECRET && !DEV_AUTH) {
     console.warn("[keyvoria] no KEYVORIA_SESSION_SECRET set: every authenticated request will 401.");
+  }
+  if (signInProviders.length && !process.env.KEYVORIA_SESSION_SECRET) {
+    console.error("[keyvoria] SIGN-IN IS CONFIGURED BUT THERE IS NO SESSION SECRET: every sign-in will fail at the last step.");
+  }
+  if (!signInProviders.length) {
+    console.warn("[keyvoria] no Google or Yahoo client configured: the app will show sign-in as unavailable. " +
+      "See DEPLOY.md \u00a7 Sign-in.");
   }
   if (IS_PROD) {
     if (!process.env.DATABASE_URL) console.error("[keyvoria] PRODUCTION WITHOUT A DATABASE: paid subscriptions will be lost on the next restart.");

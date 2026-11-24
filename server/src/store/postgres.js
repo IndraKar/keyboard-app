@@ -1,5 +1,5 @@
 /**
- * Postgres store — the production implementation of the six-method interface.
+ * Postgres store — the production implementation of the storage interface.
  *
  * WHY THIS HAD TO EXIST BEFORE DEPLOYING. The in-memory store keeps every
  * subscription in a JavaScript Map. That is fine for tests and fatal in
@@ -33,6 +33,20 @@ function rowToSub(r) {
     grace_ends_at: toMs(r.grace_ends_at),
     created_at: toMs(r.created_at),
     updated_at: toMs(r.updated_at),
+  };
+}
+
+function rowToUser(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    provider: r.provider,
+    provider_user_id: r.provider_user_id,
+    email: r.email,
+    email_verified: r.email_verified,
+    name: r.name,
+    created_at: toMs(r.created_at),
+    last_seen_at: toMs(r.last_seen_at),
   };
 }
 
@@ -170,6 +184,36 @@ export async function createPostgresStore({ connectionString, pool } = {}) {
     async deleteProgress(userId) {
       const r = await q(`DELETE FROM user_progress WHERE user_id = $1`, [userId]);
       return r.rowCount > 0;
+    },
+
+    /**
+     * Find or create the account behind a provider identity.
+     *
+     * One statement, so two devices signing in at the same instant cannot both
+     * insert. `xmax = 0` is the standard way to ask Postgres whether the row
+     * came from the INSERT or the UPDATE, which is how a first sign-in is told
+     * apart from a returning one without a second round trip.
+     */
+    async upsertUserByIdentity({ id, provider, providerUserId, email, emailVerified, name, now }) {
+      const r = await q(
+        `INSERT INTO users (id, provider, provider_user_id, email, email_verified, name,
+                            created_at, last_seen_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+         ON CONFLICT (provider, provider_user_id) DO UPDATE
+           SET email = COALESCE(EXCLUDED.email, users.email),
+               email_verified = EXCLUDED.email_verified,
+               name = COALESCE(EXCLUDED.name, users.name),
+               last_seen_at = EXCLUDED.last_seen_at
+         RETURNING *, (xmax = 0) AS inserted`,
+        [id, provider, providerUserId, email ?? null, !!emailVerified, name ?? null, toDate(now)]
+      );
+      const row = r.rows[0];
+      return { user: rowToUser(row), created: row.inserted === true };
+    },
+
+    async getUser(userId) {
+      const r = await q(`SELECT * FROM users WHERE id = $1`, [userId]);
+      return rowToUser(r.rows[0]);
     },
 
     async close() { if (db.end) await db.end(); },

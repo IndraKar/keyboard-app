@@ -524,6 +524,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 
 /* ============================ persistence ============================ */
 const SAVE_KEY = "keyvoria.v1";
+
+/* The deployed Keyvoria server.
+   Fill this in once and every copy of the app points at it, so nobody has to
+   paste an address to sign in. Leave it empty and the app runs entirely on the
+   device: no accounts, no saved progress, simulated checkout. The field in
+   Profile → Server overrides it. */
+const DEFAULT_API_BASE = "";
 const DEFAULTS = {
   xp: 0, lifetimeXp: 0,
   unlocked: { ear: 1, sight: 1, keys: 1, repeat: 1 },
@@ -533,8 +540,9 @@ const DEFAULTS = {
      out of PROGRESS_FIELDS — a staff toggle has no business syncing. */
   fpStaff: true, fpKey: "C",
   audioMode: "auto",          /* auto | webaudio | simple — see the Sound card */
-  /* Live server. Empty means this build runs entirely on the device and the
-     checkout is the local simulation. Set both in Profile → Server. */
+  /* Live server. apiBase defaults to DEFAULT_API_BASE below; apiToken is
+     obtained by signing in, never typed. Empty apiBase means this build runs
+     entirely on the device, with the simulated checkout and no sign-in. */
   apiBase: "", apiToken: "",
   exercisesDone: 0, exercisesCorrect: 0, practiceSeconds: 0,
   /* mastery */
@@ -888,12 +896,16 @@ function evaluateBadges(){
    One rule, one function: a private profile shows nobody anything. Everywhere that
    could expose a name — achievement cards, leaderboards — reads publicName(), never
    the account directly, so privacy cannot be forgotten at a call site. */
+/* Google and Yahoo only. There is no email-and-password option and there will
+   not be one: Keyvoria never sees a password, which is the one certain way not
+   to lose anybody's. */
 const PROVIDERS = [
   { id:"google", label:"Continue with Google", hue:"#e8e6e3" },
-  { id:"yahoo",  label:"Continue with Yahoo",  hue:"#c8a2f0" },
-  { id:"email",  label:"Sign up with email",   hue:"#ff8a3d" }
+  { id:"yahoo",  label:"Continue with Yahoo",  hue:"#c8a2f0" }
 ];
-const signedIn   = () => !!S.account;
+/* Signed in means holding a session token AND knowing whose it is. A token
+   with no account behind it is a half-state that would show an empty name. */
+const signedIn   = () => !!(S.account && S.apiToken);
 const isPublic   = () => S.visibility === "public";
 const accountName = () => (S.account && (S.account.nickname || S.account.name)) || "";
 /* The only name any other user can ever see. */
@@ -2199,12 +2211,27 @@ function tierProgressLabel(catKey){
   either — the exact situation that lost the reporter's XP. Silence here is the
   bug: the app worked, the number went up, and it was gone by morning.
 */
+/*
+  Is this player's work actually being kept anywhere?
+
+  Signed in: yes, on the server, and the device no longer matters.
+  Signed out: only in this browser's storage, which on an iPhone inside another
+  site is blocked outright — localStorage.setItem throws and every finished
+  lesson is gone when the tab closes. That case gets the loud warning, because
+  it is the one where XP is being earned and silently thrown away.
+*/
 function storageWarning(){
-  if(localSaveOk || apiConfigured()) return "";
-  return '<div class="notice"><b>Your progress is not being saved.</b> This browser is blocking '+
-    'storage for the page, which happens on iPhone when the app runs inside another site. '+
-    'XP earned now will be gone when you close the tab. '+
-    'Connect an account in <b>Profile \u2192 Server</b> to keep it, or open the app in its own tab.</div>';
+  if(apiConfigured()) return "";
+  if(!localSaveOk){
+    return '<button class="notice" style="width:100%;text-align:left" data-go="signin">'+
+      '<b>Your progress is not being saved.</b> This browser is blocking storage for the page, '+
+      'which is what happens on iPhone when the app runs inside another site. XP earned now will '+
+      'be gone when you close the tab. <b>Sign in with Google or Yahoo to keep it.</b></button>';
+  }
+  if(!serverSet()) return "";
+  return '<button class="notice" style="width:100%;text-align:left" data-go="signin">'+
+    '<b>Sign in to save your progress.</b> Right now your XP is only in this browser \u2014 clearing '+
+    'its data, or opening Keyvoria on another device, starts you back at Tier 1.</button>';
 }
 
 function premiumPanel(){
@@ -2581,20 +2608,19 @@ function screenProfile(){
     '<div class="card"><div class="h2" style="margin-bottom:6px">Server</div>'+
       '<div class="sub" id="apiState">'+apiStatusLine()+'</div>'+
       '<label class="fld" style="margin-top:10px"><span class="fldlab">API address</span>'+
-        '<input class="tinput" id="apiBase" value="'+String(S.apiBase||"").replace(/"/g,"&quot;")+'" '+
+        '<input class="tinput" id="apiBase" value="'+esc(S.apiBase||"")+'" '+
         'placeholder="https://keyvoria-api.onrender.com" autocomplete="off" spellcheck="false"></label>'+
-      '<label class="fld" style="margin-top:10px"><span class="fldlab">Session token</span>'+
-        '<input class="tinput" id="apiToken" value="'+String(S.apiToken||"").replace(/"/g,"&quot;")+'" '+
-        'placeholder="paste the token from npm run token" autocomplete="off" spellcheck="false"></label>'+
       '<button class="btn block" style="margin-top:10px" data-act="apiconnect">'+
-        (apiConfigured() ? "Reconnect" : "Connect")+'</button>'+
-      (apiConfigured() ? '<button class="link" style="margin-top:8px" data-act="apidisconnect">'+
-        'Disconnect and go back to local mode</button>' : '')+
-      '<div class="faint" style="margin-top:10px">Leave these empty and Keyvoria runs entirely on '+
-        'this device, with the simulated checkout. Fill them in and the subscription becomes real: '+
-        'Stripe takes the payment and the server decides what you have access to. '+
-        'Generate a token on the server with <b>npm run token &lt;your-id&gt;</b> \u2014 it is a '+
-        'password, so do not share it.</div></div>'+
+        (serverSet() ? "Reconnect" : "Connect")+'</button>'+
+      (S.apiBase ? '<button class="link" style="margin-top:8px" data-act="apidisconnect">'+
+        'Forget this server and go back to local mode</button>' : '')+
+      '<div class="faint" style="margin-top:10px">The address of the Keyvoria server. With it set, '+
+        '<b>Sign in</b> offers Google and Yahoo, your progress is kept with the account, and the '+
+        'subscription becomes real \u2014 Stripe takes the payment and the server decides what you '+
+        'have access to. Leave it empty and Keyvoria runs entirely on this device, with the '+
+        'simulated checkout and no accounts.</div>'+
+      '<div class="faint" style="margin-top:8px">You never type a token here. Signing in gets one, '+
+        'and it is kept on this device like a password.</div></div>'+
     '<div class="card"><div class="h2" style="margin-bottom:6px">Sound</div>'+
       '<div class="sub" id="sndState">'+soundStatusLine()+'</div>'+
       '<button class="btn ghost block" style="margin-top:10px" data-act="testsound">Test sound</button>'+
@@ -2803,23 +2829,101 @@ function screenLeaderboard(){
 
 
 /* ============================ account ============================ */
+/* Attribute- and text-safe. The sign-in URL goes into an href, and it comes
+   from the server, so it is escaped rather than trusted. */
+function esc(v){
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
 function screenSignIn(){
-  const btns = PROVIDERS.map(pr =>
-    '<button class="provider '+pr.id+'" data-act="signin" data-p="'+pr.id+'">'+
-      '<span class="pglyph">'+(pr.id==="google"?"G":pr.id==="yahoo"?"Y!":"✉")+'</span>'+
-      '<span class="grow">'+pr.label+'</span></button>').join("");
-  return '<div class="exhead">'+
+  const back = '<div class="exhead">'+
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
-      '<div class="h2">Sign in</div><div style="width:34px"></div></div>'+
+      '<div class="h2">Sign in</div><div style="width:34px"></div></div>';
+
+  /* No server address: sign-in is not a thing this build can do, and saying so
+     plainly beats a button that fails. */
+  if(!serverSet()){
+    return back+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="h1">Accounts need the server</div>'+
+          '<div class="sub" style="margin-top:6px">This copy of Keyvoria is not pointed at a '+
+          'Keyvoria server, so there is nowhere to keep an account. Everything in the app still '+
+          'works \u2014 progress just lives on this device, for as long as the browser keeps it.</div></div>'+
+        '<div class="notice"><b>Set the address in Profile \u2192 Server</b> and Google and Yahoo '+
+          'sign-in appear here.</div>'+
+        '<button class="btn block" data-go="profile">Open Server settings</button>'+
+        '<button class="link" data-go="home">Keep playing without an account</button>'+
+      '</div>';
+  }
+
+  /* Asked once per load; until it answers, show the buttons optimistically
+     rather than an empty screen. */
+  const list = authProviders === null ? PROVIDERS.map(p2 => ({ id:p2.id, label:providerLabel(p2.id) }))
+                                      : authProviders;
+
+  if(authProviders !== null && list.length === 0){
+    return back+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="h1">Sign-in is not set up yet</div>'+
+          '<div class="sub" style="margin-top:6px">The Keyvoria server is reachable, but it has no '+
+          'Google or Yahoo credentials configured, so it cannot create accounts.</div></div>'+
+        '<div class="notice">Whoever runs the server needs to add <b>GOOGLE_CLIENT_ID</b> / '+
+          '<b>GOOGLE_CLIENT_SECRET</b> or the Yahoo pair. See <b>server/DEPLOY.md</b>.</div>'+
+        '<button class="link" data-go="home">Keep playing without an account</button>'+
+      '</div>';
+  }
+
+  const btns = list.map(pr =>
+    '<button class="provider '+pr.id+'" data-act="signin" data-p="'+pr.id+'">'+
+      '<span class="pglyph">'+(pr.id==="google"?"G":"Y!")+'</span>'+
+      '<span class="grow">Continue with '+providerLabel(pr.id)+'</span></button>').join("");
+
+  return back+
     '<div class="stack" style="justify-content:center;flex:1">'+
       '<div class="center"><div class="h1">Save your progress</div>'+
-        '<div class="sub" style="margin-top:6px">An account keeps your XP, unlocks and compositions '+
-        'in sync across your phone, tablet and the website.</div></div>'+
+        '<div class="sub" style="margin-top:6px">Your XP, unlocks and badges are kept with your '+
+        'account, so they follow you to any phone, tablet or computer you sign in on.</div></div>'+
       '<div class="stack" style="gap:9px;margin-top:6px">'+btns+'</div>'+
-      '<div class="notice"><b>Prototype note.</b> Real Google and Yahoo sign-in needs the backend '+
-        '(roadmap M1). In this build these create a local account on this device only — so it asks '+
-        'for a name, and <b>never for a password</b>. Don’t type a real one anywhere in a prototype.</div>'+
+      '<div class="notice"><b>Keyvoria never sees your password.</b> Google or Yahoo checks who you '+
+        'are and tells Keyvoria only that it did. There is no Keyvoria password to forget, lose or '+
+        'have stolen.</div>'+
       '<button class="link" data-go="home">Keep playing without an account</button>'+
+      '<div class="faint" style="text-align:center">Without an account your progress is not saved.</div>'+
+    '</div>';
+}
+
+/* The screen shown while the provider's window is open. It is not a spinner:
+   a popup blocker is common enough that the link has to be here to tap. */
+function screenAwaitAuth(){
+  const w = authWait || { provider:"google", state:"error", error:"Sign-in was interrupted." };
+  const who = providerLabel(w.provider);
+
+  if(w.state === "error"){
+    return '<div class="exhead">'+
+        '<button class="iconbtn" data-act="authcancel" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+        '<div class="h2">Sign in</div><div style="width:34px"></div></div>'+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="h1">Sign-in didn\u2019t finish</div>'+
+          '<div class="sub" style="margin-top:6px">'+esc(w.error || "Something went wrong.")+'</div></div>'+
+        '<button class="btn block" data-act="signin" data-p="'+w.provider+'">Try again</button>'+
+        '<button class="link" data-act="authcancel">Back to Keyvoria</button>'+
+      '</div>';
+  }
+
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="authcancel" aria-label="Cancel">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Sign in</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="center"><div class="h1">Waiting for '+who+'</div>'+
+        '<div class="sub" style="margin-top:6px">Finish signing in to '+who+' in the window that '+
+        'opened. Keyvoria picks it up on its own \u2014 you can come straight back here.</div></div>'+
+      (w.url
+        ? '<a class="btn block" href="'+esc(w.url)+'" target="_blank" rel="noopener noreferrer">'+
+            'Open '+who+' sign-in</a>'+
+          '<div class="faint" style="text-align:center">If no window opened, tap the button above.</div>'
+        : '<div class="faint" style="text-align:center">Getting a sign-in link\u2026</div>')+
+      '<button class="link" data-act="authcancel">Cancel</button>'+
     '</div>';
 }
 
@@ -2861,7 +2965,7 @@ function visibilityCard(){
 function screenAccount(){
   if(!signedIn()) return screenSignIn();
   const a = S.account;
-  const prov = a.provider === "google" ? "Google" : a.provider === "yahoo" ? "Yahoo" : "Email";
+  const prov = providerLabel(a.provider);
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Account</div><div style="width:34px"></div></div>'+
@@ -4006,8 +4110,8 @@ function wireCheckout(){
 }
 
 function apiStatusLine(){
-  if(!S.apiBase) return "Not connected — running on this device, with the simulated checkout.";
-  if(!S.apiToken) return "Address set, but no session token yet.";
+  if(!serverSet()) return "Not connected — running on this device, with the simulated checkout.";
+  if(!S.apiToken) return "Connected. Sign in with Google or Yahoo to save your progress.";
   if(apiStatus.state === "ok"){
     const p = progressState === "error" ? " · progress not saving"
             : progressState === "saved" ? " · progress saved to your account"
@@ -4027,8 +4131,12 @@ function apiStatusLine(){
    paid. Everything else (progress, XP, unlocks) stays on the device until
    accounts land in M1.
 */
-const apiConfigured = () => !!(S.apiBase && S.apiToken);
-const apiUrl = (path) => String(S.apiBase).replace(/\/+$/, "") + path;
+/* A server address is all that is needed to TALK to the server (listing
+   providers, starting a sign-in). A token is needed to act as somebody. */
+const serverSet    = () => !!(S.apiBase || DEFAULT_API_BASE);
+const apiConfigured = () => !!(serverSet() && S.apiToken);
+const apiBase = () => String(S.apiBase || DEFAULT_API_BASE).replace(/\/+$/, "");
+const apiUrl = (path) => apiBase() + path;
 
 let apiStatus = { state: "idle", detail: "" };   /* idle | ok | error */
 
@@ -4039,7 +4147,7 @@ async function api(path, { method = "GET", body, timeoutMs = 12000 } = {}){
     const res = await fetch(apiUrl(path), {
       method,
       headers: Object.assign(
-        { "authorization": "Bearer " + S.apiToken },
+        S.apiToken ? { "authorization": "Bearer " + S.apiToken } : {},
         body !== undefined ? { "content-type": "application/json" } : {}
       ),
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -4111,6 +4219,173 @@ async function pushProgress(){
   const el = document.getElementById("apiState");
   if(el) el.textContent = apiStatusLine();
 }
+
+/* ============================ sign in ============================
+   Real Google and Yahoo accounts, through the Keyvoria server.
+
+   The browser never sees a client secret and never handles the authorization
+   code: it opens a window at our server, and our server does the exchange.
+   What comes back here is a Keyvoria session token and nothing else.
+
+   The token is collected by POLLING A TICKET rather than by listening for a
+   postMessage from the opened window. This app runs inside a sandboxed,
+   cross-origin iframe, where it cannot navigate the top frame and cannot rely
+   on the opened window being able to reach back to it. Polling works in every
+   case, and it is the same shape as the Stripe checkout flow already here.
+*/
+let authPoll = null;          /* the running poll, so Cancel can stop it */
+let authWait = null;          /* {provider, url, state} for the waiting screen */
+
+/* Which providers the server actually has keys for. Asked once; a provider
+   with no keys is not shown as a button that cannot work. */
+let authProviders = null;     /* null = not asked yet, [] = none configured */
+
+async function loadAuthProviders(){
+  if(!serverSet()){ authProviders = []; return authProviders; }
+  const r = await api("/v1/auth/providers");
+  authProviders = (r.ok && r.body && Array.isArray(r.body.providers)) ? r.body.providers : [];
+  return authProviders;
+}
+
+function stopAuthPoll(){
+  if(authPoll){ clearTimeout(authPoll); authPoll = null; }
+}
+
+/* Begin a sign-in. The window is opened BEFORE the await wherever a browser
+   allows it, because a popup opened after an await has lost the user gesture
+   and is blocked. If it is blocked anyway — which a sandboxed frame may do
+   regardless — the waiting screen carries a real link to tap instead. */
+async function startSignIn(provider){
+  if(!serverSet()){ toast("No server address set", true); return; }
+  let win = null;
+  try{ win = window.open("", "_blank"); }catch(e){ win = null; }
+
+  authWait = { provider: provider, url: null, state: "starting", error: null };
+  go("awaitauth");
+
+  const r = await api("/v1/auth/" + provider + "/start", { method:"POST" });
+  if(!r.ok || !r.body || !r.body.url){
+    if(win){ try{ win.close(); }catch(e){} }
+    const why = r.body && r.body.error;
+    authWait.state = "error";
+    authWait.error = why === "provider_not_configured" || why === "sign_in_not_configured"
+      ? "This server has no " + providerLabel(provider) + " sign-in configured yet."
+      : "Could not reach the Keyvoria server.";
+    render();
+    return;
+  }
+
+  authWait.url = r.body.url;
+  authWait.state = "waiting";
+  if(win){
+    try{ win.location = r.body.url; }
+    catch(e){ try{ win.close(); }catch(e2){} }
+  }
+  render();
+  pollAuthTicket(r.body.ticket, r.body.pollMs || 1500);
+}
+
+function pollAuthTicket(ticket, everyMs){
+  stopAuthPoll();
+  const started = Date.now();
+  const tick = async () => {
+    /* Ten minutes matches the server's pending-login window. After that the
+       ticket is gone and polling can only ever return nothing. */
+    if(Date.now() - started > 10 * 60000){
+      authWait.state = "error";
+      authWait.error = "That took too long. Try again.";
+      render(); return;
+    }
+    const r = await api("/v1/auth/ticket/" + encodeURIComponent(ticket));
+    if(!r.ok){ authPoll = setTimeout(tick, everyMs * 2); return; }   /* back off, keep trying */
+    const b = r.body || {};
+    if(b.status === "ready"){ await finishSignIn(b); return; }
+    if(b.status === "error"){
+      authWait.state = "error";
+      authWait.error = b.error === "cancelled"
+        ? "Sign-in was cancelled."
+        : "That sign-in could not be completed. Try again.";
+      render(); return;
+    }
+    authPoll = setTimeout(tick, everyMs);
+  };
+  authPoll = setTimeout(tick, everyMs);
+}
+
+async function finishSignIn(payload){
+  stopAuthPoll();
+  S.apiToken = payload.token;
+  const u = payload.user || {};
+  /* Keep a nickname already chosen on this device: the provider's name is
+     what they are called, not what they asked to be called here. */
+  const keptNick = (S.account && S.account.nickname) || "";
+  S.account = {
+    id: u.id || null,
+    provider: u.provider || (authWait && authWait.provider) || "google",
+    name: u.name || "",
+    nickname: keptNick,
+    email: u.email || ""
+  };
+  save();
+  authWait = null;
+  toast("Signed in");
+  /* Pull the account's own progress and plan, merging whatever was played on
+     this device before signing in. */
+  await Promise.all([syncSubscription(), syncProgress()]);
+  go("home");
+}
+
+/* Confirm the stored token still works. A token can expire while the device
+   still believes it is signed in, and the honest thing is to say so rather
+   than to keep showing a name and silently failing every save. */
+async function confirmSession(){
+  if(!apiConfigured()) return false;
+  const r = await api("/v1/me");
+  if(r.status === 401){
+    S.apiToken = ""; S.account = null; save();
+    toast("Signed out — your session expired", true);
+    render();
+    return false;
+  }
+  if(r.ok && r.body){
+    if(r.body.user){
+      S.account = Object.assign({}, S.account, {
+        id: r.body.user.id,
+        provider: r.body.user.provider,
+        name: r.body.user.name || (S.account && S.account.name) || "",
+        email: r.body.user.email || ""
+      });
+      save();
+    } else if(r.body.legacy && !S.account){
+      /* A token from `npm run token`, with no account behind it. It works, so
+         say so rather than showing a blank profile. */
+      S.account = { id: r.body.userId, provider:"token", name:"Keyvoria player", nickname:"", email:"" };
+      save();
+    }
+    return true;
+  }
+  return false;
+}
+
+async function doSignOut(){
+  stopAuthPoll();
+  /* Tell the server, but do not wait on it or depend on it: signing out is
+     about this device letting go of the token, and that must happen even with
+     no network. */
+  if(apiConfigured()) api("/v1/auth/signout", { method:"POST" }).catch(() => {});
+  S.apiToken = "";
+  S.account = null;
+  S.visibility = "private";
+  S.leaderboardOptIn = false;
+  progressDirty = false;
+  if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
+  save();
+  toast("Signed out", true);
+  go("home");
+}
+
+const providerLabel = id =>
+  id === "google" ? "Google" : id === "yahoo" ? "Yahoo" : id === "token" ? "a session token" : id;
 
 /* Pull on connect and merge. The server merges by taking the higher of every
    counter, so a device that has been offline contributes its work instead of
@@ -4546,7 +4821,7 @@ function screenCancel(){
 /* ============================ render ============================ */
 const SCREENS = {
   home:screenMenu,
-  signin:screenSignIn, namesetup:screenNameSetup, account:screenAccount, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
+  signin:screenSignIn, awaitauth:screenAwaitAuth, namesetup:screenNameSetup, account:screenAccount, ladder:screenLadder, earmode:screenEarMode, play:screenPlay, summary:screenSummary,
   library:screenLibrary, freeplay:screenFreeplay, profile:screenProfile,
   paywall:screenPaywall, cancel:screenCancel,
   checkout:screenCheckout, walletsheet:screenWallet, receipt:screenReceipt,
@@ -4565,7 +4840,7 @@ const TAB_OF = { home:"home", ladder:"home", earmode:"home", play:"home", summar
                  uploadgate:"home", compsetup:"home", compmatch:"home", compresult:"home",
                  library:"library", freeplay:"library",
                  profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
-                 signin:"profile", namesetup:"profile", account:"profile",
+                 signin:"profile", awaitauth:"profile", namesetup:"profile", account:"profile",
                  leaderboard:"profile" };
 const SHOW_TABS = { home:1, library:1, profile:1 };
 
@@ -4745,21 +5020,33 @@ document.addEventListener("click", e => {
       else go("checkout");
       break;
     case "apiconnect": {
-      const b = document.getElementById("apiBase"), t = document.getElementById("apiToken");
+      const b = document.getElementById("apiBase");
       S.apiBase = (b ? b.value : "").trim().replace(/\/+$/, "");
-      S.apiToken = (t ? t.value : "").trim();
       save();
-      if(!apiConfigured()){ toast("Both the address and a token are needed", true); render(); break; }
-      syncSubscription({ quiet:false }).then(async plan => {
-        /* Progress first, so the screen that paints already shows it. */
-        await syncProgress();
+      if(!serverSet()){ toast("An address is needed", true); render(); break; }
+      /* Ask what sign-in that server offers, so the Sign in screen is right
+         the first time it is opened rather than after a round trip. */
+      loadAuthProviders().then(async list => {
+        if(apiConfigured()){
+          await confirmSession();
+          await Promise.all([syncSubscription({ quiet:false }), syncProgress()]);
+        } else {
+          apiStatus = list.length
+            ? { state:"ok", detail:"ready to sign in" }
+            : { state:"error", detail:"no sign-in configured on that server" };
+        }
         render();
-        if(plan) toast(plan.entitled ? "Connected · Premium is active" : "Connected · free plan");
+        toast(list.length ? "Connected · sign in to save your progress"
+                          : "Connected, but that server has no sign-in set up", !list.length);
       });
       break;
     }
     case "apidisconnect":
-      S.apiBase = ""; S.apiToken = ""; S.serverPlan = null;
+      /* Forgetting the server drops the token too: it is only meaningful to
+         the server it came from, and leaving it behind would park a stale
+         credential on the device for nothing. */
+      S.apiBase = ""; S.apiToken = ""; S.serverPlan = null; S.account = null;
+      authProviders = null;
       apiStatus = { state:"idle", detail:"" };
       save(); toast("Back to local mode"); render(); break;
     case "checkpay": syncSubscription({quiet:false}).then(p => { if(p && p.entitled) pollForEntitlement(); }); break;
@@ -4914,12 +5201,9 @@ document.addEventListener("click", e => {
       tutStop(); tut.loop = !tut.loop; tut.pos = 0; render(); break;
     case "tutplay": tutPlay(); break;
     case "closetut": tutStop(); go("home"); break;
-    case "signin": {
-      const p2 = el.dataset.p;
-      S.account = { provider:p2, name:"", nickname:"", email:"" };
-      S.visibility = "private"; save();
-      go("namesetup"); break;
-    }
+    case "signin": startSignIn(el.dataset.p); break;
+    case "authcancel":
+      stopAuthPoll(); authWait = null; go(signedIn() ? "profile" : "signin"); break;
     case "saveaccount": {
       const n = document.getElementById("accName"), k = document.getElementById("accNick");
       S.account = Object.assign({}, S.account, {
@@ -4934,12 +5218,11 @@ document.addEventListener("click", e => {
     case "signout":
       askConfirm({
         title: "Sign out?",
-        body: "Your progress stays on this device.",
+        body: signedIn() && apiConfigured()
+          ? "Your progress is saved to your account. Sign back in on any device to pick it up."
+          : "Your progress stays on this device.",
         confirmLabel: "Sign out",
-        onYes: () => {
-          S.account = null; S.visibility = "private"; S.leaderboardOptIn = false;
-          save(); toast("Signed out", true); go("home");
-        }
+        onYes: doSignOut
       });
       break;
     case "competition": go(S.premium ? "compsetup" : "compgate"); break;
@@ -5098,17 +5381,30 @@ function fallbackCopy(text, ok){
 load();
 render();
 
+/* With a server address, find out what sign-in it offers so the Sign in screen
+   is correct the first time it is opened. */
+if(serverSet() && !apiConfigured()){
+  loadAuthProviders().then(() => { if(curScreen === "signin") render(); });
+}
+
 /* If a server is configured, it is the authority on entitlement — check on
    load, and again whenever the page is brought back, which is how the app
    notices a payment completed in the other tab. */
 if(apiConfigured()){
-  Promise.all([syncSubscription(), syncProgress()]).then(() => render());
+  /* The token first: everything after it is pointless if the session has
+     expired, and the app should say so rather than fail every save in
+     silence. */
+  confirmSession().then(ok => {
+    if(!ok) return;
+    return Promise.all([syncSubscription(), syncProgress()]);
+  }).then(() => render());
   document.addEventListener("visibilitychange", () => {
     if(document.hidden){
       /* Leaving the page: flush anything still pending rather than losing it. */
       if(progressDirty) pushProgress();
     } else {
-      Promise.all([syncSubscription(), syncProgress()]).then(() => render());
+      confirmSession().then(ok => ok && Promise.all([syncSubscription(), syncProgress()]))
+        .then(() => render());
     }
   });
   /* Last chance on a real close. keepalive lets it outlive the page. */

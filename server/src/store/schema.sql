@@ -3,11 +3,41 @@
 --
 -- Runs standalone against an empty database: `psql "$DATABASE_URL" -f schema.sql`.
 --
--- `user_id` is text, not a uuid foreign key, because accounts (roadmap M1) are
--- not built yet — today a user id is whatever the session token carries. When
--- M1 lands this becomes `uuid REFERENCES users(id)`; the migration is a cast and
--- a constraint, and doing it now would mean inventing a users table that the
--- rest of the system does not yet use.
+-- `user_id` is text and carries a users.id. It is not yet a foreign key: these
+-- tables predate accounts and already hold rows issued by `npm run token`, so
+-- adding the constraint now would orphan them. The cast and the constraint are
+-- a later migration, once those rows are gone.
+
+-- ------------------------------------------------------------------- accounts
+-- One row per person, created the first time they sign in with Google or Yahoo.
+--
+-- The identity lives here, not in the session token: a token says "whoever
+-- holds this was issued one", and that is not the same as knowing who someone
+-- is. Progress and subscriptions hang off users.id, so signing in on a second
+-- device reaches the same account rather than making a new one.
+--
+-- No password column, and there never will be one. Keyvoria does not see
+-- passwords: the provider authenticates the person and tells us only that it
+-- did, which means there is nothing here worth stealing in that line.
+CREATE TABLE IF NOT EXISTS users (
+  id               text PRIMARY KEY,
+  provider         text NOT NULL CHECK (provider IN ('google','yahoo')),
+  -- The provider's own stable id for this person. NOT the email: people change
+  -- the email on an account, and matching on it would hand someone else's
+  -- progress to whoever inherits a recycled address.
+  provider_user_id text NOT NULL,
+  email            text,
+  email_verified   boolean NOT NULL DEFAULT false,
+  -- What the provider calls them. The display name the player chooses lives in
+  -- their progress payload, so changing it here cannot overwrite that.
+  name             text,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  last_seen_at     timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (provider, provider_user_id)
+);
+
+-- Signing in looks up by identity on every login, so it is the hot path.
+CREATE INDEX IF NOT EXISTS users_email_idx ON users (lower(email)) WHERE email IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),

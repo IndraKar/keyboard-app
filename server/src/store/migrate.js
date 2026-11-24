@@ -4,7 +4,7 @@
  * In JavaScript rather than `psql` because the places that need to run it —
  * a Render container, a CI step, your laptop — all have Node and the `pg`
  * driver already, and most of them do not have the Postgres client installed.
- * Needing a second tool to create four tables is a bad reason for a deploy to
+ * Needing a second tool to create six tables is a bad reason for a deploy to
  * fail.
  *
  * Every statement in schema.sql is CREATE ... IF NOT EXISTS, so running this
@@ -40,10 +40,10 @@ export async function runMigrations({ connectionString, pool, log = console.log 
     const r = await db.query(
       `SELECT count(*)::int AS n FROM information_schema.tables
         WHERE table_schema = 'public'
-          AND table_name IN ('subscriptions','processed_webhook_events',
-                             'competition_matches','competition_entrants')`
+          AND table_name IN ('users','subscriptions','processed_webhook_events',
+                             'user_progress','competition_matches','competition_entrants')`
     );
-    log(`[keyvoria] schema applied — ${r.rows[0].n}/4 tables present`);
+    log(`[keyvoria] schema applied — ${r.rows[0].n}/6 tables present`);
     return r.rows[0].n;
   } catch (err) {
     try { await db.query("ROLLBACK"); } catch { /* already rolled back */ }

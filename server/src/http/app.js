@@ -29,6 +29,8 @@ import { verifyToken, issueToken } from "./tokens.js";
 import { STATUS } from "../billing/subscription.js";
 import { mergeProgress, normaliseProgress, MAX_PROGRESS_BYTES } from "../progress/merge.js";
 import { verifySignature } from "./signature.js";
+import { PROVIDERS as OIDC_PROVIDERS, authorizeUrl, pkcePair } from "../auth/oidc.js";
+import { randomUUID } from "node:crypto";
 
 const MAX_BODY_BYTES = 64 * 1024; // no route here needs more; caps a trivial DoS
 const PROVIDERS = new Set(["stripe", "paypal", "apple_app_store", "google_play"]);
@@ -54,10 +56,26 @@ const SIGNATURE_HEADER = {
 const VERIFIABLE = new Set(["stripe"]);
 const STATUS_CANCEL_PENDING = STATUS.CANCEL_PENDING;
 
-/** Public origin of this request, for Stripe's return URLs behind a proxy. */
+/**
+ * Public origin of this request — for Stripe's return URLs and, more fussily,
+ * for the OAuth redirect URI, which must match what is registered in the
+ * Google and Yahoo consoles character for character.
+ *
+ * Behind a proxy (Render, Fly, a load balancer) the only honest source is
+ * x-forwarded-proto. With no proxy header, the connection itself is the
+ * answer: a plain HTTP socket on localhost is a developer running the server
+ * directly, and telling the provider to come back over https would send them
+ * to a port that is not speaking TLS. Anything else defaults to https, because
+ * a public deployment that is not behind TLS is a problem of its own.
+ */
 function publicBase(req) {
-  const proto = (req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
+  const fwd = req.headers["x-forwarded-proto"];
   const host = (req.headers["x-forwarded-host"] || req.headers.host || "localhost").split(",")[0].trim();
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host);
+  const proto = fwd ? String(fwd).split(",")[0].trim()
+              : req.socket?.encrypted ? "https"
+              : local ? "http"
+              : "https";
   return `${proto}://${host}`;
 }
 const validGame = (g) => (Object.hasOwn(LADDERS, g) ? g : null);
@@ -101,6 +119,50 @@ function readBody(req) {
   });
 }
 
+/** What the client is allowed to know about an account. No provider subject,
+    no verification flags — the app only needs to greet someone by name. */
+function publicUser(u) {
+  if (!u) return null;
+  return { id: u.id, name: u.name, email: u.email, provider: u.provider };
+}
+
+function sendHtml(res, status, html) {
+  res.writeHead(status, {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+    /* This page is the end of an OAuth redirect. It carries no token and needs
+       no scripts; the headers say so, so a stray injection has nothing to work
+       with. */
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'",
+    "referrer-policy": "no-referrer",
+    "x-frame-options": "DENY",
+  });
+  res.end(html);
+}
+
+const escapeHtml = (v) => String(v).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/** The page a person actually sees at the end of a sign-in. */
+function authPage(title, body) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)} \u2014 Keyvoria</title><style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#110f0e;color:#f5f1ec;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:24px}
+.card{max-width:380px;text-align:center}
+h1{font-size:21px;margin:0 0 10px;letter-spacing:-.01em}
+p{color:#a89f96;font-size:14px;margin:0}
+.mark{display:flex;gap:3px;justify-content:center;margin-bottom:18px}
+.k{width:13px;height:44px;background:#f4ece0;border-radius:0 0 3px 3px}
+.k.b{width:9px;height:28px;background:#1c1917}
+.k.o{background:#ff8a3d}
+</style></head><body><div class="card">
+<div class="mark"><div class="k"></div><div class="k b"></div><div class="k"></div>
+<div class="k o"></div><div class="k b"></div><div class="k"></div></div>
+<h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></div></body></html>`;
+}
+
 function parseJson(raw) {
   if (!raw) return {};
   try {
@@ -115,6 +177,8 @@ export function createApp({
   store,
   matchmaker,
   stripe = null,          // createStripe(...) in production; null disables checkout
+  oidc = null,            // createOidc(...) in production; null disables sign-in
+  authFlow = null,        // createAuthFlow(...) — in-flight logins
   config = {},
   now = () => Date.now(),
 } = {}) {
@@ -124,7 +188,19 @@ export function createApp({
     webhookSecrets = {},
     allowUnsignedWebhooks = false,
     allowedOrigin = "*",
+    oauthClients = {},
+    sessionTtlMs = 90 * 864e5,
   } = config;
+
+  /**
+   * Where the provider sends the browser back. It must match what is
+   * registered in the Google and Yahoo consoles EXACTLY, character for
+   * character, so it is derived from the request's public origin rather than
+   * guessed — behind Render's proxy the raw Host header is not the public one.
+   */
+  const redirectUriFor = (req, provider) => `${publicBase(req)}/v1/auth/${provider}/callback`;
+
+  const signInAvailable = () => (oidc && authFlow ? oidc.available() : []);
 
   /**
    * Identify the caller.
@@ -255,10 +331,183 @@ export function createApp({
         });
       }
 
+      // ------------------------------------------------------------ sign-in
+      // All of this is before the auth gate: it is how a caller GETS a token.
+
+      /* Which buttons to draw. A provider with no keys configured is not
+         offered, rather than offered and then failing at the consent screen. */
+      if (method === "GET" && url.pathname === "/v1/auth/providers") {
+        return send(res, 200, {
+          providers: signInAvailable().map((id) => ({ id, label: OIDC_PROVIDERS[id].label })),
+          configured: signInAvailable().length > 0,
+        });
+      }
+
+      /**
+       * Begin a sign-in.
+       *
+       * Returns a URL for the app to OPEN, plus a ticket to poll. The app is
+       * inside a sandboxed cross-origin iframe: it cannot navigate the top
+       * frame, and a postMessage back from the popup is not dependable there.
+       * Polling a ticket works in every case, and is the same shape as the
+       * Stripe checkout flow this app already uses.
+       */
+      if (method === "POST" && seg[0] === "v1" && seg[1] === "auth" && seg[3] === "start") {
+        const provider = seg[2];
+        if (!OIDC_PROVIDERS[provider]) return send(res, 404, { error: "unknown_provider" });
+        if (!oidc || !authFlow) return send(res, 503, { error: "sign_in_not_configured" });
+        if (!oidc.configured(provider)) {
+          return send(res, 503, { error: "provider_not_configured", provider });
+        }
+        const { verifier, challenge } = OIDC_PROVIDERS[provider].pkce ? pkcePair() : {};
+        let begun;
+        try {
+          begun = authFlow.begin({ provider, verifier });
+        } catch {
+          return send(res, 503, { error: "too_many_sign_ins" });
+        }
+        return send(res, 200, {
+          url: authorizeUrl(provider, {
+            clientId: oauthClients[provider].clientId,
+            redirectUri: redirectUriFor(req, provider),
+            state: begun.state,
+            nonce: begun.nonce,
+            challenge,
+          }),
+          ticket: begun.ticket,
+          pollMs: 1500,
+        });
+      }
+
+      /**
+       * The provider sends the browser back here.
+       *
+       * This responds with a human-facing HTML page, not JSON: a person is
+       * looking at it. It never puts the session token in the page — the token
+       * goes to the ticket, which only the app that started the login holds.
+       * Putting it in the URL or the body would leak it into history and logs.
+       */
+      if (method === "GET" && seg[0] === "v1" && seg[1] === "auth" && seg[3] === "callback") {
+        const provider = seg[2];
+        if (!OIDC_PROVIDERS[provider]) return send(res, 404, { error: "unknown_provider" });
+        if (!oidc || !authFlow) return send(res, 503, { error: "sign_in_not_configured" });
+
+        const rec = authFlow.claim(url.searchParams.get("state"));
+        /* No pending record means the state is wrong, replayed or expired.
+           Nothing is fulfilled, because we do not know whose login this is. */
+        if (!rec || rec.provider !== provider) {
+          return sendHtml(res, 400, authPage("Sign-in could not be completed",
+            "This sign-in link has already been used or has expired. Close this window and try again."));
+        }
+
+        const err = url.searchParams.get("error");
+        if (err) {
+          authFlow.reject(rec.ticket, err === "access_denied" ? "cancelled" : "provider_error");
+          return sendHtml(res, 200, authPage("Sign-in cancelled",
+            "You can close this window and go back to Keyvoria."));
+        }
+
+        const code = url.searchParams.get("code");
+        if (!code) {
+          authFlow.reject(rec.ticket, "no_code");
+          return sendHtml(res, 400, authPage("Sign-in could not be completed",
+            "The provider did not return an authorization code. Close this window and try again."));
+        }
+
+        let identity;
+        try {
+          identity = await oidc.exchange(provider, {
+            code,
+            redirectUri: redirectUriFor(req, provider),
+            verifier: rec.verifier,
+            nonce: rec.nonce,
+          });
+        } catch (e) {
+          /* Logged for the operator; the page stays vague, because the detail
+             is about our configuration, not about this person. */
+          console.error("[keyvoria] sign-in failed:", e.message);
+          authFlow.reject(rec.ticket, "verification_failed");
+          return sendHtml(res, 400, authPage("Sign-in could not be completed",
+            "Keyvoria could not verify that sign-in. Close this window and try again."));
+        }
+
+        if (!sessionSecret) {
+          authFlow.reject(rec.ticket, "no_session_secret");
+          return sendHtml(res, 500, authPage("Sign-in could not be completed",
+            "This server has no session secret configured."));
+        }
+
+        const { user, created } = await store.upsertUserByIdentity({
+          id: randomUUID(),
+          provider,
+          providerUserId: identity.subject,
+          email: identity.email,
+          emailVerified: identity.emailVerified,
+          name: identity.name,
+          now: now(),
+        });
+
+        authFlow.fulfil(rec.ticket, {
+          token: issueToken(user.id, sessionSecret, { ttlMs: sessionTtlMs, now: now() }),
+          user: publicUser(user),
+        });
+        return sendHtml(res, 200, authPage(
+          created ? "You\u2019re signed in" : "Welcome back",
+          "Keyvoria has your account. You can close this window \u2014 the app has already picked it up."
+        ));
+      }
+
+      /**
+       * The app polls here while the window is open. Single use: the token is
+       * handed over exactly once, so a ticket that leaks afterwards is spent.
+       */
+      if (method === "GET" && seg[0] === "v1" && seg[1] === "auth" && seg[2] === "ticket" && seg[3]) {
+        if (!authFlow) return send(res, 503, { error: "sign_in_not_configured" });
+        const r = authFlow.collect(seg[3]);
+        if (r.status === "ready") {
+          return send(res, 200, { status: "ready", token: r.token, user: r.user, expiresInMs: sessionTtlMs });
+        }
+        if (r.status === "error") return send(res, 200, { status: "error", error: r.error });
+        return send(res, 200, { status: "pending" });
+      }
+
       // --------------------------------------------------------------- auth
       const auth = authenticate(req);
       if (!auth.ok) return send(res, 401, { error: "unauthorized", reason: auth.reason });
       const userId = auth.userId;
+
+      /* Who the bearer of this token is. The app calls it on load to decide
+         whether it is still signed in, rather than trusting a flag it saved
+         on the device: a token can expire while the device still believes
+         otherwise. */
+      if (method === "GET" && url.pathname === "/v1/me") {
+        const user = store.getUser ? await store.getUser(userId) : null;
+        return send(res, 200, {
+          userId,
+          user: user ? publicUser(user) : null,
+          /* True for a token minted by `npm run token` rather than a real
+             sign-in, so the app can say so instead of showing a blank name. */
+          legacy: !user,
+        });
+      }
+
+      /**
+       * Sign out.
+       *
+       * Honest about what it does: these tokens are stateless HMACs with no
+       * server-side session to destroy, so this revokes nothing. The client
+       * discards the token, which ends the session on that device, and the
+       * response says exactly that rather than implying a revocation that did
+       * not happen. Real revocation needs a denylist keyed on the token's
+       * `jti`, which is a change to verifyToken, not to this route.
+       */
+      if (method === "POST" && url.pathname === "/v1/auth/signout") {
+        return send(res, 200, {
+          ok: true,
+          revoked: false,
+          message: "Discard the token on the device. It stays valid until it expires.",
+        });
+      }
 
       // ------------------------------------------------------ subscriptions
       /**

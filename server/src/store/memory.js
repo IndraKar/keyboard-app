@@ -3,13 +3,15 @@
  *
  * Everything above this line is pure logic, so the whole backend is testable
  * without Postgres. `schema.sql` is the production shape; a `pg` adapter
- * implements the same six methods against it.
+ * implements the same methods against it.
  */
 export function createMemoryStore() {
   const subsByUser = new Map();
   const subsByProviderId = new Map();
   const processedEvents = new Set();
   const progressByUser = new Map();
+  const usersById = new Map();
+  const usersByIdentity = new Map();
 
   const key = (provider, id) => `${provider}:${id}`;
 
@@ -51,6 +53,37 @@ export function createMemoryStore() {
     async deleteProgress(userId) {
       return progressByUser.delete(userId);
     },
-    _reset() { subsByUser.clear(); subsByProviderId.clear(); processedEvents.clear(); progressByUser.clear(); },
+
+    /**
+     * Find the account for a provider identity, or create it. Matching is on
+     * (provider, provider_user_id) only — see schema.sql on why not the email.
+     */
+    async upsertUserByIdentity({ id, provider, providerUserId, email, emailVerified, name, now }) {
+      const k = key(provider, providerUserId);
+      const existing = usersByIdentity.get(k);
+      if (existing) {
+        /* Refresh what the provider now says, but never the id: that is what
+           every other table points at. */
+        existing.email = email ?? existing.email;
+        existing.email_verified = emailVerified ?? existing.email_verified;
+        existing.name = name ?? existing.name;
+        existing.last_seen_at = now;
+        return { user: existing, created: false };
+      }
+      const user = {
+        id, provider, provider_user_id: providerUserId,
+        email: email ?? null, email_verified: !!emailVerified, name: name ?? null,
+        created_at: now, last_seen_at: now,
+      };
+      usersById.set(id, user);
+      usersByIdentity.set(k, user);
+      return { user, created: true };
+    },
+
+    async getUser(userId) {
+      return usersById.get(userId) ?? null;
+    },
+    _reset() { subsByUser.clear(); subsByProviderId.clear(); processedEvents.clear();
+               progressByUser.clear(); usersById.clear(); usersByIdentity.clear(); },
   };
 }

@@ -38,6 +38,21 @@ services:
 
       # Secrets: set these by hand in the dashboard. `sync: false` keeps them
       # out of this file, which is in git.
+      #
+      # Sign-in. Without both halves of a provider, that provider is off and
+      # nobody can create an account with it — so nobody's progress is saved.
+      # The redirect URI registered with each must be exactly
+      #   https://<this-service>.onrender.com/v1/auth/<provider>/callback
+      # See server/DEPLOY.md section 4a.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: YAHOO_CLIENT_ID
+        sync: false
+      - key: YAHOO_CLIENT_SECRET
+        sync: false
+
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PRICE_ID
