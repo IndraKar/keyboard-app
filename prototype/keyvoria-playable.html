@@ -1499,6 +1499,23 @@ function awardCorrectExercise(tierN){
   save();
   return amt;
 }
+/*
+  Is this tier playable RIGHT NOW?
+
+  Unlocking a tier and being entitled to it are two different questions, and
+  only asking the first was a hole: someone could subscribe, spend XP to unlock
+  tier 4, cancel, and keep tier 4 for good. Worse than the lost revenue, the
+  exercise was then unplayable — tier 4 generates notes across the 61-key
+  range, so on a lapsed account's 32-key board several of them had no key to
+  press at all.
+
+  `unlocked` stays the record of what was paid for with XP and is never rolled
+  back, so resubscribing restores tier 4 at once without charging the XP twice.
+*/
+const tierUnlocked = (catKey, tierN) => tierN <= (S.unlocked[catKey] || 1);
+const tierNeedsPremium = tierN => tierN === 4 && !S.premium;
+const tierPlayable = (catKey, tierN) => tierUnlocked(catKey, tierN) && !tierNeedsPremium(tierN);
+
 function tryUnlock(catKey, tierN){
   const cost = TIER_COST[tierN];
   if(tierN === 4 && !S.premium){ go("paywall"); return; }
@@ -1899,6 +1916,13 @@ function genExercise(catKey, tier, mode){
 }
 
 function startSession(catKey, tier, mode){
+  /* The real gate. Every route into an exercise comes through here, so a screen
+     that offers a tier by mistake still cannot start one. Both halves are
+     checked: tier 4 needs a live subscription, and ANY tier needs to have been
+     unlocked — previously only the screens enforced that, which meant the rule
+     lived in the markup rather than in one place. */
+  if(tierNeedsPremium(tier)){ go("paywall"); return; }
+  if(!tierUnlocked(catKey, tier)){ ladderCat = catKey; go("ladder"); return; }
   session = {
     cat:catKey, tier, mode: mode || "interval", idx:0, correct:0, xp:0,
     results:[], ex:genExercise(catKey, tier, mode),
@@ -2326,15 +2350,22 @@ function screenLadder(){
   const u = S.unlocked[ladderCat];
   let rows = "";
   c.tiers.forEach(t => {
-    const done = t.n <= u, next = t.n === u+1;
+    const owned = tierUnlocked(ladderCat, t.n);
+    const needsPremium = tierNeedsPremium(t.n);
+    /* Paid for with XP but on hold because the subscription is not live. The
+       XP stays spent, so it says that rather than asking for it again. */
+    const paused = owned && needsPremium;
+    const done = owned && !needsPremium, next = t.n === u+1;
     const cost = TIER_COST[t.n];
-    const needsPremium = t.n === 4 && !S.premium;
     const afford = S.xp >= cost;
-    let cls = "tier" + (next ? " cur" : "") + (done ? " open" : "");
-    let node = done ? "done" : next ? "cur" : "lock";
+    let cls = "tier" + (next && !paused ? " cur" : "") + (done ? " open" : "");
+    let node = done ? "done" : paused ? "lock" : next ? "cur" : "lock";
     let body = '<div class="tiertitle">Tier '+t.n+' · '+t.title+'</div>'+
                '<div class="tiersub">'+t.sub+'</div>';
-    if(done){
+    if(paused){
+      body += '<div class="unlockrow"><span class="cost short">Unlocked — needs Keyvoria Premium</span>'+
+              '<button class="btn sm gold" data-go="paywall">Get Premium</button></div>';
+    } else if(done){
       body += '<div class="unlockrow"><span class="cost">'+TIER_XP[t.n]+' XP per correct exercise</span>'+
               '<span class="btn sm" style="pointer-events:none">Practise</span></div>';
     } else if(next){
@@ -2506,12 +2537,15 @@ function screenLibrary(){
   Object.keys(CATS).forEach(k => {
     const c = CATS[k], u = S.unlocked[k];
     c.tiers.forEach(t => {
-      const open = t.n <= u;
+      /* Same rule as the ladder: unlocked is not the same as entitled. */
+      const open = tierPlayable(k, t.n);
+      const paused = tierUnlocked(k, t.n) && tierNeedsPremium(t.n);
       rows += '<'+(open?"button":"div")+' class="card'+(open?"":"")+'" style="width:100%;text-align:left;'+(open?"":"opacity:.5")+'"'+
         (open?' data-act="practise" data-cat="'+k+'" data-tier="'+t.n+'"':"")+'>'+
         '<div class="row"><span class="grow"><span class="ttitle" style="display:block">'+c.name+' · Tier '+t.n+'</span>'+
         '<span class="tsub" style="display:block">'+t.sub+'</span></span>'+
         (open ? '<span class="cost tnum">'+TIER_XP[t.n]+' XP</span>'
+              : paused ? '<span class="cost short">Needs Premium</span>'
               : '<span class="cost short">'+TIER_COST[t.n].toLocaleString()+' XP</span>')+
         '</div></'+(open?"button":"div")+'>';
     });
@@ -5117,8 +5151,11 @@ document.addEventListener("click", e => {
       S.noteNames = !S.noteNames; save(); render(); break;
     case "unlock":
       tryUnlock(el.dataset.cat, parseInt(el.dataset.tier,10)); break;
-    case "earmode":
-      earModeTier = parseInt(el.dataset.tier,10); go("earmode"); break;
+    case "earmode": {
+      const et = parseInt(el.dataset.tier,10);
+      if(tierNeedsPremium(et)){ go("paywall"); break; }
+      earModeTier = et; go("earmode"); break;
+    }
     case "practise":
       startSession(el.dataset.cat, parseInt(el.dataset.tier,10), el.dataset.mode); break;
     case "hear":
