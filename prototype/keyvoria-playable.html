@@ -493,6 +493,18 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   display:flex;flex-direction:column;gap:6px}
 .teachscale{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
   font-size:14px;letter-spacing:.06em;color:var(--gold)}
+.avatar.photo{padding:0;overflow:hidden;background:var(--surface-2);}
+.avatar.photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.avatar.preset{font-size:19px;line-height:1;}
+.avatar.lg.preset{font-size:23px;}
+.avatar.xl{width:84px;height:84px;border-radius:26px;font-size:30px;margin:0 auto;display:flex;}
+.avatar.xl.preset{font-size:40px;}
+.avgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.avopt{aspect-ratio:1;border-radius:14px;border:1px solid var(--border);display:flex;
+  align-items:center;justify-content:center;font-size:24px;transition:border-color .14s,transform .08s;}
+.avopt:hover{border-color:var(--accent-deep);}
+.avopt:active{transform:scale(.96);}
+.avopt.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
 .roomcode{font-family:var(--display);font-size:46px;font-weight:700;letter-spacing:.16em;
   color:var(--accent);margin:6px 0 4px;text-indent:.16em}
 .codeinput{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;
@@ -923,6 +935,40 @@ const initials = () => {
   const parts = n.trim().split(/\s+/);
   return ((parts[0][0]||"") + (parts[1] ? parts[1][0] : "")).toUpperCase();
 };
+
+/* ---- avatars ------------------------------------------------------------
+   A picture is a data URL on the account, so it follows the player to any
+   device the way the name does. Presets are drawn rather than stored, so
+   choosing one costs nothing and always looks right in both themes. */
+const AVATAR_PRESETS = [
+  { id:"keys",   glyph:"\u{1F3B9}", bg:"#2a1c10" },
+  { id:"note",   glyph:"\u{1F3B5}", bg:"#10221c" },
+  { id:"star",   glyph:"\u2B50",    bg:"#241e10" },
+  { id:"fire",   glyph:"\u{1F525}", bg:"#2a1410" },
+  { id:"heart",  glyph:"\u{1F49C}", bg:"#201028" },
+  { id:"rocket", glyph:"\u{1F680}", bg:"#101c2a" },
+  { id:"cat",    glyph:"\u{1F431}", bg:"#241a10" },
+  { id:"wave",   glyph:"\u{1F30A}", bg:"#101e2a" }
+];
+const presetById = id => AVATAR_PRESETS.find(a => a.id === id) || null;
+
+/* Only ever a real image. Anything else and we fall back to initials rather
+   than putting an unknown string into an src. */
+const isPhotoAvatar = v => typeof v === "string" && /^data:image\/(png|jpeg|webp);base64,/.test(v);
+
+/** The avatar for the signed-in player, at a given pixel size. */
+function avatarHTML(cls){
+  const a = S.account || {};
+  const v = a.avatar || "";
+  if(isPhotoAvatar(v)){
+    return '<span class="avatar '+(cls||"")+' photo"><img src="'+esc(v)+'" alt=""></span>';
+  }
+  const p = presetById(v);
+  if(p){
+    return '<span class="avatar '+(cls||"")+' preset" style="background:'+p.bg+'">'+p.glyph+'</span>';
+  }
+  return '<span class="avatar '+(cls||"")+'">'+initials()+'</span>';
+}
 
 /* ============================ audio ============================ */
 /*
@@ -2300,7 +2346,7 @@ function screenMenu(){
   };
   const idRow = signedIn()
     ? '<button class="idrow" data-go="account">'+
-        '<span class="avatar">'+initials()+'</span>'+
+        avatarHTML()+
         '<span class="grow"><span class="idname">'+(S.account.nickname||S.account.name||"Keyvoria player")+'</span>'+
         '<span class="idmeta">'+(isPublic()?"Public profile":"Private profile")+'</span></span>'+
         svg(IC.chev,16)+'</button>'
@@ -2617,7 +2663,7 @@ function screenProfile(){
       '<span class="h1 grow" style="margin:0">Profile</span>'+
       '<button class="dangerbtn" data-act="reset">Delete all progress</button></div>'+
     (signedIn()
-      ? '<button class="tile" data-go="account"><span class="avatar lg">'+initials()+'</span>'+
+      ? '<button class="tile" data-go="account">'+avatarHTML("lg")+
         '<span class="grow"><span class="ttitle" style="display:block">'+(S.account.nickname||S.account.name)+'</span>'+
         '<span class="tsub" style="display:block">'+(isPublic()?"Public profile":"Private profile")+
         ' \u00b7 '+(S.premium?"Keyvoria Premium":"Free plan")+'</span></span>'+svg(IC.chev,18)+'</button>'
@@ -3033,20 +3079,62 @@ function screenAccount(){
   if(!signedIn()) return screenSignIn();
   const a = S.account;
   const prov = providerLabel(a.provider);
+  const chosen = (a.nickname || "").trim();
+
+  const presets = AVATAR_PRESETS.map(p =>
+    '<button class="avopt'+(a.avatar===p.id?" on":"")+'" style="background:'+p.bg+'" '+
+      'data-act="avpreset" data-id="'+p.id+'" aria-label="'+p.id+'">'+p.glyph+'</button>').join("");
+
   return '<div class="exhead">'+
       '<button class="iconbtn" data-go="profile" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Account</div><div style="width:34px"></div></div>'+
     '<div class="stack">'+
-      '<div class="card"><div class="row">'+
-        '<span class="avatar lg">'+initials()+'</span>'+
-        '<span class="grow"><span class="ttitle" style="display:block">'+(a.nickname||a.name||"Keyvoria player")+'</span>'+
-        '<span class="tsub" style="display:block">Signed in with '+prov+'</span></span></div></div>'+
-      '<button class="tile" data-go="namesetup"><span class="ticon">\u{270F}\u{FE0F}</span>'+
-        '<span class="grow"><span class="ttitle" style="display:block">Name & nickname</span>'+
-        '<span class="tsub" style="display:block">'+(a.nickname?("Shown as "+a.nickname):(a.name||"Not set"))+'</span></span>'+
-        svg(IC.chev,18)+'</button>'+
+
+      /* Who you are, as everyone else sees you. */
+      '<div class="card center">'+
+        avatarHTML("xl")+
+        '<div class="h2" style="margin-top:10px">'+esc(chosen || a.name || "Keyvoria player")+'</div>'+
+        '<div class="faint">Signed in with '+prov+(a.email ? ' \u00b7 '+esc(a.email) : '')+'</div>'+
+      '</div>'+
+
+      /* ---- the name ---- */
+      '<div class="card">'+
+        '<div class="h2" style="margin-bottom:4px">Your name</div>'+
+        '<div class="faint" style="margin-bottom:10px">This is what other players see in a room '+
+          'and on the leaderboards. It does not have to be your real name.</div>'+
+        '<input class="tinput" id="accNick" value="'+esc(chosen)+'" '+
+          'placeholder="'+esc(a.name || "Pick a name")+'" maxlength="24" '+
+          'autocomplete="off" spellcheck="false">'+
+        '<button class="btn block" style="margin-top:10px" data-act="savenick">Save name</button>'+
+        (chosen ? '' : '<div class="faint" style="margin-top:9px">Right now you appear as <b>'+
+          esc(a.name || "Keyvoria player")+'</b>, the name on your '+prov+' account.</div>')+
+      '</div>'+
+
+      /* ---- the picture ---- */
+      '<div class="card">'+
+        '<div class="h2" style="margin-bottom:4px">Your picture</div>'+
+        '<div class="faint" style="margin-bottom:10px">A photo of you, or anything you like. '+
+          'It is resized on this device before it is saved, so only a small square is sent.</div>'+
+        '<div class="avgrid">'+presets+'</div>'+
+        '<input type="file" id="avFile" accept="image/*" style="display:none">'+
+        '<button class="btn ghost block" style="margin-top:11px" data-act="avupload">Upload a photo</button>'+
+        ((a.avatar) ? '<button class="link" style="margin-top:8px" data-act="avclear">'+
+          'Remove, and go back to my initials</button>' : '')+
+      '</div>'+
+
       visibilityCard()+
-      '<button class="link" data-act="signout">Sign out</button>'+
+
+      /* ---- leaving ---- */
+      '<div class="card">'+
+        '<div class="h2" style="margin-bottom:10px">Signing out and leaving</div>'+
+        '<button class="btn ghost block" data-act="signout">Sign out</button>'+
+        '<div class="faint" style="margin:9px 0 14px">Your progress stays on your account. '+
+          'Sign back in on any device to pick it up.</div>'+
+        '<button class="btn danger block" data-act="delaccount">Delete my account</button>'+
+        '<div class="faint" style="margin-top:9px">Removes your account, your XP, your unlocks '+
+          'and your badges for good. If you have Keyvoria Premium it is cancelled first, so you '+
+          'are not charged again.</div>'+
+      '</div>'+
     '</div>';
 }
 
@@ -4734,7 +4822,8 @@ async function finishSignIn(payload){
     id: u.id || null,
     provider: u.provider || (authWait && authWait.provider) || "google",
     name: u.name || "",
-    nickname: keptNick,
+    nickname: u.hasChosenName ? u.displayName : keptNick,
+    avatar: u.avatar || "",
     email: u.email || ""
   };
   save();
@@ -4760,13 +4849,7 @@ async function confirmSession(){
   }
   if(r.ok && r.body){
     if(r.body.user){
-      S.account = Object.assign({}, S.account, {
-        id: r.body.user.id,
-        provider: r.body.user.provider,
-        name: r.body.user.name || (S.account && S.account.name) || "",
-        email: r.body.user.email || ""
-      });
-      save();
+      applyServerProfile(r.body.user);
     } else if(r.body.legacy && !S.account){
       /* A token from `npm run token`, with no account behind it. It works, so
          say so rather than showing a blank profile. */
@@ -4776,6 +4859,114 @@ async function confirmSession(){
     return true;
   }
   return false;
+}
+
+/* ---- the player's own name and picture ---------------------------------
+   Both live on the account, so they follow the player to any device. */
+const AVATAR_PX = 160;          /* square, enough for a crisp 56px tile at 2x */
+const AVATAR_MAX_BYTES = 32 * 1024;   /* must match the server's own cap */
+
+/*
+  A phone photo is several megabytes and the wrong shape. This crops the middle
+  square and redraws it small, in the browser, BEFORE anything is uploaded —
+  so the thing that crosses the network is a few kilobytes and the original
+  never leaves the device.
+
+  Quality steps down until it fits rather than failing: a picture that is
+  slightly too big should become a slightly softer picture, not an error.
+*/
+function shrinkToAvatar(file){
+  return new Promise((resolve, reject) => {
+    if(!file) return reject(new Error("no file"));
+    if(!/^image\//.test(file.type || "")) return reject(new Error("That file is not an image."));
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+        const c = document.createElement("canvas");
+        c.width = c.height = AVATAR_PX;
+        const g = c.getContext("2d");
+        g.imageSmoothingQuality = "high";
+        g.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_PX, AVATAR_PX);
+        URL.revokeObjectURL(url);
+        for(const q of [0.82, 0.7, 0.58, 0.45, 0.34]){
+          const out = c.toDataURL("image/jpeg", q);
+          const bytes = Math.floor((out.length - out.indexOf(",") - 1) * 3 / 4);
+          if(bytes <= AVATAR_MAX_BYTES) return resolve(out);
+        }
+        reject(new Error("That picture could not be made small enough."));
+      }catch(e){ URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That image could not be read.")); };
+    img.src = url;
+  });
+}
+
+/* Save the name and picture to the account. Local first so the screen reacts
+   at once, then the server; a failure says so and puts the old value back,
+   rather than leaving the app showing something the account does not have. */
+async function saveProfile(patch){
+  if(!apiConfigured()){
+    S.account = Object.assign({}, S.account, patch);
+    save(); return { ok:true, local:true };
+  }
+  const before = Object.assign({}, S.account);
+  S.account = Object.assign({}, S.account, patch);
+  save(); render();
+
+  const body = {};
+  if(patch.nickname !== undefined) body.displayName = patch.nickname;
+  if(patch.avatar !== undefined) body.avatar = patch.avatar || null;
+
+  const r = await api("/v1/profile", { method:"PUT", body });
+  if(!r.ok){
+    S.account = before; save(); render();
+    const m = (r.body && (r.body.message || r.body.error)) || "Could not save that.";
+    toast(m, true);
+    return { ok:false };
+  }
+  applyServerProfile(r.body.profile);
+  return { ok:true };
+}
+
+/* Take the account's own view of the profile. */
+function applyServerProfile(p){
+  if(!p) return;
+  S.account = Object.assign({}, S.account, {
+    id: p.id,
+    provider: p.provider,
+    name: p.name || "",
+    nickname: p.hasChosenName ? p.displayName : ((S.account && S.account.nickname) || ""),
+    avatar: p.avatar || "",
+    email: p.email || ""
+  });
+  save();
+}
+
+async function deleteAccount(){
+  if(!apiConfigured()){
+    /* No server: there is no account to delete, only this device's copy. */
+    S.account = null; S.apiToken = ""; save();
+    toast("Signed out", true); go("home"); return;
+  }
+  const r = await api("/v1/account", { method:"DELETE" });
+  if(!r.ok){
+    const m = (r.body && (r.body.message || r.body.error)) || "Could not delete the account.";
+    toast(m, true);
+    return;
+  }
+  /* Gone on the server, so nothing on this device should outlive it. */
+  const keepBase = S.apiBase;
+  S = Object.assign({}, DEFAULTS, {unlocked:{ear:1,sight:1,keys:1,repeat:1}});
+  S.apiBase = keepBase;
+  authReady = {}; authProviders = null;
+  progressDirty = false;
+  if(progressTimer){ clearTimeout(progressTimer); progressTimer = null; }
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+  toast("Your account has been deleted", true);
+  go("home");
 }
 
 async function doSignOut(){
@@ -5307,6 +5498,30 @@ function renderScreen(){
 
   if(curScreen === "play") wirePlay();
   if(curScreen === "freeplay") wireFreeplay();
+  if(curScreen === "account"){
+    const f = document.getElementById("avFile");
+    if(f) f.addEventListener("change", async e => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";                 /* so the same file can be picked twice */
+      if(!file) return;
+      toast("Resizing\u2026");
+      try{
+        const dataUrl = await shrinkToAvatar(file);
+        const r = await saveProfile({ avatar: dataUrl });
+        if(r.ok) toast("Picture saved");
+      }catch(err){
+        toast(err.message || "That picture could not be used", true);
+      }
+    });
+    const nick = document.getElementById("accNick");
+    if(nick) nick.addEventListener("keydown", ev => {
+      if(ev.key === "Enter"){
+        ev.preventDefault();
+        const b = document.querySelector('[data-act="savenick"]');
+        if(b) b.click();
+      }
+    });
+  }
   if(curScreen === "signin"){
     const sb = document.getElementById("signinBase");
     if(sb) sb.addEventListener("keydown", e => {
@@ -5651,6 +5866,35 @@ document.addEventListener("click", e => {
     /* The link is already navigating to the provider; this only starts the
        poll that notices when they come back. Nothing here may cancel or
        postpone that navigation. */
+    case "savenick": {
+      const inp = document.getElementById("accNick");
+      const v = (inp ? inp.value : "").trim();
+      if(v.length < 2){ toast("At least two characters", true); break; }
+      saveProfile({ nickname: v }).then(r => { if(r.ok) toast("Name saved"); });
+      break;
+    }
+    case "avpreset":
+      saveProfile({ avatar: el.dataset.id });
+      break;
+    case "avclear":
+      saveProfile({ avatar: "" }).then(r => { if(r.ok) toast("Picture removed", true); });
+      break;
+    case "avupload": {
+      const f = document.getElementById("avFile");
+      if(f) f.click();
+      break;
+    }
+    case "delaccount":
+      askConfirm({
+        title: "Delete my account",
+        body: "This removes your account, your XP, your unlocks and your badges for good. "+
+              "It cannot be undone. If you have Keyvoria Premium it is cancelled first, so you "+
+              "are not charged again.",
+        confirmLabel: "Delete account",
+        danger: true,
+        onYes: deleteAccount
+      });
+      break;
     case "signinconnect": {
       const inp = document.getElementById("signinBase");
       const v = (inp ? inp.value : "").trim().replace(/\/+$/, "");

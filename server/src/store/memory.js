@@ -73,6 +73,7 @@ export function createMemoryStore() {
       const user = {
         id, provider, provider_user_id: providerUserId,
         email: email ?? null, email_verified: !!emailVerified, name: name ?? null,
+        display_name: null, avatar: null,
         created_at: now, last_seen_at: now,
       };
       usersById.set(id, user);
@@ -82,6 +83,31 @@ export function createMemoryStore() {
 
     async getUser(userId) {
       return usersById.get(userId) ?? null;
+    },
+
+    /** Only the fields the player owns; identity fields are not settable. */
+    async updateProfile(userId, { displayName, avatar }) {
+      const u = usersById.get(userId);
+      if (!u) return null;
+      if (displayName !== undefined) u.display_name = displayName;
+      if (avatar !== undefined) u.avatar = avatar;
+      return u;
+    },
+
+    async deleteUser(userId) {
+      const u = usersById.get(userId);
+      if (!u) return false;
+      usersById.delete(userId);
+      usersByIdentity.delete(key(u.provider, u.provider_user_id));
+      progressByUser.delete(userId);
+      const sub = subsByUser.get(userId);
+      if (sub) {
+        subsByUser.delete(userId);
+        if (sub.provider_subscription_id) {
+          subsByProviderId.delete(key(sub.provider, sub.provider_subscription_id));
+        }
+      }
+      return true;
     },
     _reset() { subsByUser.clear(); subsByProviderId.clear(); processedEvents.clear();
                progressByUser.clear(); usersById.clear(); usersByIdentity.clear(); },

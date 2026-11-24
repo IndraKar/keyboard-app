@@ -45,6 +45,8 @@ function rowToUser(r) {
     email: r.email,
     email_verified: r.email_verified,
     name: r.name,
+    display_name: r.display_name,
+    avatar: r.avatar,
     created_at: toMs(r.created_at),
     last_seen_at: toMs(r.last_seen_at),
   };
@@ -214,6 +216,46 @@ export async function createPostgresStore({ connectionString, pool } = {}) {
     async getUser(userId) {
       const r = await q(`SELECT * FROM users WHERE id = $1`, [userId]);
       return rowToUser(r.rows[0]);
+    },
+
+    /**
+     * Only the two fields the player owns. COALESCE on the parameter rather
+     * than the column, so passing undefined leaves a field alone while
+     * passing null genuinely clears it (removing an avatar).
+     */
+    async updateProfile(userId, { displayName, avatar }) {
+      const r = await q(
+        `UPDATE users
+            SET display_name = CASE WHEN $2::boolean THEN $3 ELSE display_name END,
+                avatar       = CASE WHEN $4::boolean THEN $5 ELSE avatar END
+          WHERE id = $1
+          RETURNING *`,
+        [userId, displayName !== undefined, displayName ?? null,
+                 avatar !== undefined, avatar ?? null]
+      );
+      return rowToUser(r.rows[0]);
+    },
+
+    /**
+     * Remove the account and everything hanging off it. One transaction: a
+     * half-deleted account is a user who cannot sign in but whose progress and
+     * subscription row are still there.
+     */
+    async deleteUser(userId) {
+      const c = await db.connect();
+      try {
+        await c.query("BEGIN");
+        await c.query(`DELETE FROM user_progress WHERE user_id = $1`, [userId]);
+        await c.query(`DELETE FROM subscriptions WHERE user_id = $1`, [userId]);
+        const r = await c.query(`DELETE FROM users WHERE id = $1`, [userId]);
+        await c.query("COMMIT");
+        return r.rowCount > 0;
+      } catch (err) {
+        try { await c.query("ROLLBACK"); } catch { /* already gone */ }
+        throw err;
+      } finally {
+        c.release();
+      }
     },
 
     async close() { if (db.end) await db.end(); },

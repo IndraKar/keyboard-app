@@ -26,6 +26,8 @@ import { KEY_LEVELS } from "../competition/keys.js";
 import { KEYS as KEY_SIGNATURES, KEY_TIERS, keyLabel } from "../theory/keysignatures.js";
 import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
 import { normaliseCode, CODE_LENGTH } from "../competition/matchmaking.js";
+import { validateDisplayName, validateAvatar, displayNameFor,
+         MAX_AVATAR_BYTES, MAX_DISPLAY_NAME } from "../auth/profile.js";
 import { verifyToken, issueToken } from "./tokens.js";
 import { STATUS } from "../billing/subscription.js";
 import { mergeProgress, normaliseProgress, MAX_PROGRESS_BYTES } from "../progress/merge.js";
@@ -55,6 +57,11 @@ const SIGNATURE_HEADER = {
   google_play: "x-goog-signature",
 };
 const VERIFIABLE = new Set(["stripe"]);
+/** For messages a person reads, not for logic. */
+const PROVIDER_LABELS = {
+  stripe: "Keyvoria", paypal: "PayPal",
+  apple_app_store: "the App Store", google_play: "Google Play",
+};
 const STATUS_CANCEL_PENDING = STATUS.CANCEL_PENDING;
 
 /**
@@ -124,7 +131,15 @@ function readBody(req) {
     no verification flags — the app only needs to greet someone by name. */
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, name: u.name, email: u.email, provider: u.provider };
+  return {
+    id: u.id,
+    name: u.name,                    // what Google or Yahoo calls them
+    displayName: displayNameFor(u),  // what they call themselves here
+    hasChosenName: !!(u.display_name && u.display_name.trim()),
+    avatar: u.avatar || null,
+    email: u.email,
+    provider: u.provider,
+  };
 }
 
 function sendHtml(res, status, html) {
@@ -489,6 +504,91 @@ export function createApp({
           /* True for a token minted by `npm run token` rather than a real
              sign-in, so the app can say so instead of showing a blank name. */
           legacy: !user,
+        });
+      }
+
+      /**
+       * The player's own name and picture.
+       *
+       * Separate from /v1/me because this one is written as well as read, and
+       * because identity (who the provider says you are) and presentation
+       * (what you call yourself here) should not share an endpoint — a bug in
+       * one must not be able to overwrite the other.
+       */
+      if (url.pathname === "/v1/profile" && (method === "GET" || method === "PUT")) {
+        if (!store.getUser) return send(res, 501, { error: "accounts_not_available" });
+        const user = await store.getUser(userId);
+        if (!user) return send(res, 404, { error: "no_account", message: "This token has no account behind it." });
+
+        if (method === "GET") return send(res, 200, { profile: publicUser(user) });
+
+        const body = parseJson(raw);
+        if (body === null) return send(res, 400, { error: "invalid_json" });
+
+        const patch = {};
+        if (body.displayName !== undefined) {
+          const v = validateDisplayName(body.displayName);
+          if (!v.ok) return send(res, 400, { error: v.reason, message: v.message });
+          patch.displayName = v.name;
+        }
+        if (body.avatar !== undefined) {
+          const v = validateAvatar(body.avatar);
+          if (!v.ok) return send(res, 400, { error: v.reason, message: v.message });
+          patch.avatar = v.avatar;
+        }
+        if (!Object.keys(patch).length) return send(res, 400, { error: "nothing_to_change" });
+
+        const updated = await store.updateProfile(userId, patch);
+        return send(res, 200, { profile: publicUser(updated) });
+      }
+
+      /**
+       * Delete the account, and everything attached to it.
+       *
+       * THE SUBSCRIPTION IS CANCELLED FIRST, AND A FAILURE THERE STOPS THE
+       * DELETE. Removing our record of a live subscription does not stop
+       * Stripe charging the card — it only destroys the evidence that it is
+       * happening, leaving someone billed monthly for an account that no
+       * longer exists and no way for us to see it. Better to refuse and say
+       * so than to delete into that state.
+       */
+      if (url.pathname === "/v1/account" && method === "DELETE") {
+        if (!store.deleteUser) return send(res, 501, { error: "accounts_not_available" });
+
+        const sub = await store.getSubscription(userId);
+        if (sub && sub.status !== STATUS.EXPIRED && sub.provider_subscription_id) {
+          if (sub.provider === "stripe") {
+            if (!stripe) {
+              return send(res, 503, {
+                error: "billing_not_configured",
+                message: "This account has a subscription and billing is not reachable, so it cannot be deleted safely yet.",
+              });
+            }
+            try {
+              await stripe.cancelAtPeriodEnd(sub.provider_subscription_id);
+            } catch (err) {
+              return send(res, 502, {
+                error: "cancel_failed",
+                message: "Your subscription could not be cancelled, so nothing was deleted. Try again, or cancel in Keyvoria first.",
+              });
+            }
+          } else {
+            /* Apple and Google own their subscriptions; we cannot cancel one
+               on the user's behalf, so deleting here would leave them paying
+               a store for an account that is gone. */
+            const p = PROVIDER_LABELS[sub.provider] || sub.provider;
+            return send(res, 409, {
+              error: "provider_managed_subscription",
+              message: `Cancel your subscription in ${p} first — otherwise you would keep being charged for an account that no longer exists.`,
+            });
+          }
+        }
+
+        const existed = await store.deleteUser(userId);
+        return send(res, 200, {
+          deleted: existed,
+          subscriptionCancelled: !!(sub && sub.status !== STATUS.EXPIRED),
+          message: "Your account and everything in it has been deleted.",
         });
       }
 

@@ -28,9 +28,14 @@ CREATE TABLE IF NOT EXISTS users (
   provider_user_id text NOT NULL,
   email            text,
   email_verified   boolean NOT NULL DEFAULT false,
-  -- What the provider calls them. The display name the player chooses lives in
-  -- their progress payload, so changing it here cannot overwrite that.
+  -- What the PROVIDER calls them, refreshed on every sign-in.
   name             text,
+  -- What the PLAYER calls themselves — a gamertag, not a legal name. Separate
+  -- from `name` precisely so signing in again cannot overwrite it.
+  display_name     text,
+  -- A small square image as a data URL. Size and type are enforced in
+  -- profile.js before anything reaches this column.
+  avatar           text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   last_seen_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (provider, provider_user_id)
@@ -38,6 +43,14 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Signing in looks up by identity on every login, so it is the hot path.
 CREATE INDEX IF NOT EXISTS users_email_idx ON users (lower(email)) WHERE email IS NOT NULL;
+
+-- Columns added after the table first shipped. CREATE TABLE IF NOT EXISTS does
+-- nothing to a table that already exists, so a server deployed before these
+-- existed would never gain them — every profile save would fail against a
+-- column that is not there. These run on every migration and are no-ops once
+-- applied.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar       text;
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),

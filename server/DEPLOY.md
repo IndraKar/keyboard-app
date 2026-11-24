@@ -294,15 +294,23 @@ Developers → Webhooks. Check there first when a test purchase does not appear.
 - **Apple and Google in-app purchase** are modelled for cancellation and
   renewal, but their receipt verification is not written. You only need them if
   you ship in the app stores, where they are mandatory and take 15–30%.
+- **Account deletion cancels the subscription first, and refuses if it cannot.**
+  `DELETE /v1/account` cancels at Stripe before removing anything, and returns
+  502 without deleting if that call fails. Deleting our record of a live
+  subscription would not stop the card being charged — it would only destroy
+  the evidence that it was happening. A subscription bought through Apple or
+  Google is refused outright with an explanation, because we cannot cancel
+  those on the user's behalf.
 - **Signing out does not revoke a token.** Session tokens are stateless HMACs
   with no server-side record, so signing out ends the session on that device by
   discarding the token — it does not invalidate one already copied elsewhere.
   The token expires on its own after 90 days. Real revocation needs a denylist
   keyed on the token's `jti`, which is a change to `verifyToken`.
-- **Deleting an account** is not built. Deleting *progress* is, from the app.
-  Removing the `users` row and everything hanging off it needs a route, and is
-  a requirement under GDPR and several US state laws if you take money from
-  people in those places.
+- **Deleted data is deleted, not archived.** There is no soft-delete and no
+  recovery window: a deleted account's progress is gone. That is the honest
+  reading of what the button says, and it is what the GDPR and several US state
+  laws ask for, but it does mean support cannot undo it for someone who
+  regrets it.
 - **Tax.** Digital subscriptions are taxable in many US states and carry VAT in
   the EU/UK. Stripe Tax handles calculation; a merchant of record such as Paddle
   handles calculation *and* filing. Neither is wired up here.
