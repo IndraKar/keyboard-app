@@ -2882,19 +2882,37 @@ function screenSignIn(){
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Sign in</div><div style="width:34px"></div></div>';
 
-  /* No server address: sign-in is not a thing this build can do, and saying so
-     plainly beats a button that fails. */
+  /*
+    No server address yet.
+
+    Sign-in cannot be faked from here. The link to Google or Yahoo is built BY
+    the Keyvoria server, signed with its own client credentials and carrying a
+    one-time code that the provider hands back to it. Sending someone to
+    Google's own sign-in page instead would sign them into Google and tell
+    Keyvoria nothing — they would come back with no account and no saved
+    progress, having been shown a button that appeared to work.
+
+    So this screen asks for the one thing that is actually missing, right here
+    rather than sending anyone off to another screen to find it. The moment an
+    address is set, this is replaced by the real Google and Yahoo buttons.
+
+    Ship with DEFAULT_API_BASE filled in and nobody ever sees this.
+  */
   if(!serverSet()){
     return back+
       '<div class="stack" style="justify-content:center;flex:1">'+
-        '<div class="center"><div class="h1">Accounts need the server</div>'+
-          '<div class="sub" style="margin-top:6px">This copy of Keyvoria is not pointed at a '+
-          'Keyvoria server, so there is nowhere to keep an account. Everything in the app still '+
-          'works \u2014 progress just lives on this device, for as long as the browser keeps it.</div></div>'+
-        '<div class="notice"><b>Set the address in Profile \u2192 Server</b> and Google and Yahoo '+
-          'sign-in appear here.</div>'+
-        '<button class="btn block" data-go="profile">Open Server settings</button>'+
+        '<div class="center"><div class="h1">Sign-in isn\u2019t switched on yet</div>'+
+          '<div class="sub" style="margin-top:6px">Google and Yahoo sign-in needs the Keyvoria '+
+          'server \u2014 that is what holds your account and your progress. Enter its address and '+
+          'they appear right here.</div></div>'+
+        '<label class="fld"><span class="fldlab">Keyvoria server address</span>'+
+          '<input class="tinput" id="signinBase" value="'+esc(S.apiBase||"")+'" '+
+          'placeholder="https://keyvoria-api.onrender.com" autocomplete="off" '+
+          'spellcheck="false" inputmode="url"></label>'+
+        '<button class="btn block" data-act="signinconnect">Connect</button>'+
         '<button class="link" data-go="home">Keep playing without an account</button>'+
+        '<div class="faint" style="text-align:center">Everything in Keyvoria still works without '+
+          'this. Your progress just lives on this device, for as long as the browser keeps it.</div>'+
       '</div>';
   }
 
@@ -5289,6 +5307,16 @@ function renderScreen(){
 
   if(curScreen === "play") wirePlay();
   if(curScreen === "freeplay") wireFreeplay();
+  if(curScreen === "signin"){
+    const sb = document.getElementById("signinBase");
+    if(sb) sb.addEventListener("keydown", e => {
+      if(e.key === "Enter"){
+        e.preventDefault();
+        const btn = document.querySelector('[data-act="signinconnect"]');
+        if(btn) btn.click();
+      }
+    });
+  }
   if(curScreen === "roomjoin"){
     const inp = document.getElementById("roomCode");
     if(inp){
@@ -5623,6 +5651,23 @@ document.addEventListener("click", e => {
     /* The link is already navigating to the provider; this only starts the
        poll that notices when they come back. Nothing here may cancel or
        postpone that navigation. */
+    case "signinconnect": {
+      const inp = document.getElementById("signinBase");
+      const v = (inp ? inp.value : "").trim().replace(/\/+$/, "");
+      if(!v){ toast("Enter the server address", true); break; }
+      S.apiBase = v; save();
+      authProviders = null; authReady = {};
+      toast("Connecting\u2026");
+      /* Straight back to this screen, which now shows Google and Yahoo. */
+      loadAuthProviders().then(async list => {
+        if(!list.length){
+          toast("Connected, but that server has no sign-in set up", true);
+        }
+        await prepareAllSignIns();
+        render();
+      });
+      break;
+    }
     case "signingo": {
       const pid = el.dataset.p, r = authReady[pid];
       if(!r || !r.ticket) break;
