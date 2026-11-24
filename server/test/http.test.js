@@ -287,7 +287,7 @@ test("a private lobby is joined by code and started only by its host", async () 
 
     const made = await call("POST", "/v1/competition/private", { token: host, body: { level: 3, displayName: "Host" } });
     assert.equal(made.status, 200);
-    assert.match(made.body.code, /^[BCDFGHJKLMNPQRSTVWXYZ2-9]{5}$/);
+    assert.match(made.body.code, /^[BCDFGHJKLMNPQRSTVWXYZ2-9]{4}$/);
     const code = made.body.code;
 
     assert.equal((await call("POST", "/v1/competition/private/join", { token: guest, body: { code: "ZZZZZ" } })).status, 404);

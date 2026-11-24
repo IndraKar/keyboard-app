@@ -7,7 +7,8 @@ import {
   createMatch, join, start, submitNote, resolve, rank, clampLobbySize,
   isPlausibleClientTime, publicView,
 } from "../src/competition/match.js";
-import { createMatchmaker, DEFAULT_TARGET, MAX_WAIT_MS, makeCode } from "../src/competition/matchmaking.js";
+import { createMatchmaker, DEFAULT_TARGET, MAX_WAIT_MS, makeCode, normaliseCode,
+         JOIN_ATTEMPT_LIMIT } from "../src/competition/matchmaking.js";
 
 const T0 = Date.UTC(2026, 0, 1);
 const FREE_LO = 41, FREE_HI = 72; // the 32-key free keyboard, F2–C5
@@ -293,7 +294,7 @@ test("a queue never forms a match below the minimum", () => {
 test("private lobbies join by code — this is how one room plays together", () => {
   const mm = createMatchmaker({ now: () => T0 });
   const { match, code } = mm.createPrivate("host", "Host", 3);
-  assert.match(code, /^[A-Z0-9]{5}$/);
+  assert.match(code, /^[A-Z0-9]{4}$/);
   assert.equal(match.lobby_kind, "private");
 
   assert.equal(mm.joinPrivate(code, "friend", "Friend").ok, true);
@@ -756,4 +757,91 @@ test("key matches queue separately from the other two games", () => {
   const formed = mm.enqueue("c", "C", 1, 2, "keys");
   assert.equal(formed.match.game, "keys");
   assert.equal(formed.match.passage.answers.length, 10);
+});
+
+/* ---- join codes -------------------------------------------------------- */
+
+test("a join code is four characters a person can read aloud", () => {
+  for (let i = 0; i < 400; i++) {
+    const c = makeCode();
+    assert.match(c, /^[BCDFGHJKLMNPQRSTVWXYZ2-9]{4}$/);
+    // The pairs people mishear or mistype are simply not in the alphabet.
+    assert.ok(!/[AEIOU01]/.test(c), `${c} contains a vowel or an 0/1`);
+  }
+});
+
+test("codes are typed back forgivingly", () => {
+  assert.equal(normaliseCode(" w4hf "), "W4HF");
+  assert.equal(normaliseCode("w4-hf"), "W4HF");
+  assert.equal(normaliseCode("W4HFXX"), "W4HF", "extra characters are ignored");
+  // Someone reading "W4HF" aloud may say "oh" for a zero that was never there;
+  // neither O nor 0 is in the alphabet, so both drop out rather than mismatch.
+  assert.equal(normaliseCode("WO4HF"), "W4HF");
+});
+
+test("a room is reachable by its code however it is typed", () => {
+  const mm = createMatchmaker();
+  const { code } = mm.createPrivate("host", "Host", 1, Math.random, "chords");
+  const variants = [code, code.toLowerCase(), ` ${code} `, code.split("").join("-")];
+  variants.forEach((variant, i) => {
+    const r = mm.joinPrivate(variant, `friend${i}`, "Friend");
+    assert.equal(r.ok, true, `"${variant}" should reach the room`);
+  });
+});
+
+test("guessing at codes is rate limited, but joining the right one never is", () => {
+  const mm = createMatchmaker();
+  const { code } = mm.createPrivate("host", "Host", 1, Math.random, "chords");
+
+  // Eight friends all typing the correct code must never be throttled.
+  for (let i = 0; i < 7; i++) {
+    assert.equal(mm.joinPrivate(code, "friend" + i, "F" + i).ok, true);
+  }
+
+  // A stranger guessing is cut off.
+  let refusedAt = null;
+  for (let i = 0; i < JOIN_ATTEMPT_LIMIT + 2; i++) {
+    const r = mm.joinPrivate("ZZZ" + (i % 9 + 2), "guesser", "G", "1.2.3.4");
+    if (r.reason === "too_many_attempts" && refusedAt === null) refusedAt = i;
+  }
+  assert.equal(refusedAt, JOIN_ATTEMPT_LIMIT,
+    "the limit should bite exactly once the allowance is spent");
+
+  // ...and it is per caller, so one guesser cannot lock anyone else out.
+  assert.notEqual(mm.joinPrivate(code, "late", "Late", "9.9.9.9").reason, "too_many_attempts");
+});
+
+test("a finished room stops accepting joins", () => {
+  const mm = createMatchmaker();
+  const { code, match } = mm.createPrivate("host", "Host", 1, Math.random, "chords");
+  mm.joinPrivate(code, "p2", "Two");
+  mm.startPrivate(code);
+  match.state = "finished";
+  const r = mm.joinPrivate(code, "p3", "Three");
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, "lobby_closed", "joining a game that already ended is a dead wait");
+});
+
+test("polling a lobby does not end it", () => {
+  /* A room is polled continuously while people are joining. resolve() used to
+     fall through to `now >= ends_at` with ends_at still null — and null
+     becomes 0 — so the first poll finished the match as a timeout and the
+     room was dead before anyone could join it. */
+  const mm = createMatchmaker();
+  const { code, match } = mm.createPrivate("host", "Host", 1, Math.random, "chords");
+  assert.equal(match.state, "lobby");
+
+  for (let i = 0; i < 20; i++) resolve(match, Date.now() + i * 1000);
+  assert.equal(match.state, "lobby", "a lobby must survive being polled");
+  assert.equal(match.end_reason, null);
+
+  // People can still join it after all that polling.
+  assert.equal(mm.joinPrivate(code, "p2", "Two").ok, true);
+  assert.equal(mm.startPrivate(code).ok, true);
+  assert.equal(match.state, "running");
+
+  // And once running, the clock is enforced as before.
+  resolve(match, match.ends_at + 1);
+  assert.equal(match.state, "finished");
+  assert.equal(match.end_reason, "timeout");
 });

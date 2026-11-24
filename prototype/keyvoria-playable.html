@@ -493,6 +493,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   display:flex;flex-direction:column;gap:6px}
 .teachscale{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
   font-size:14px;letter-spacing:.06em;color:var(--gold)}
+.roomcode{font-family:var(--display);font-size:46px;font-weight:700;letter-spacing:.16em;
+  color:var(--accent);margin:6px 0 4px;text-indent:.16em}
+.codeinput{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;
+  padding:18px 12px;color:var(--text);font-family:var(--display);font-size:38px;font-weight:700;
+  letter-spacing:.22em;text-align:center;text-transform:uppercase;text-indent:.22em}
+.codeinput::placeholder{color:var(--faint);letter-spacing:.22em}
+.codeinput:focus{outline:none;border-color:var(--accent)}
 .faint.good{color:var(--good);font-weight:600}
 .fpstaff{background:#171310;border:1px solid var(--line);border-radius:12px;padding:4px 6px;}
 .fpstaff svg{display:block}
@@ -2908,10 +2915,18 @@ function screenSignIn(){
       '</div>';
   }
 
-  const btns = list.map(pr =>
-    '<button class="provider '+pr.id+'" data-act="signin" data-p="'+pr.id+'">'+
-      '<span class="pglyph">'+(pr.id==="google"?"G":"Y!")+'</span>'+
-      '<span class="grow">Continue with '+providerLabel(pr.id)+'</span></button>').join("");
+  /* A real <a> wherever the URL is already in hand, so the tap navigates with
+     nothing in front of it. A <button> only while the URL is still being
+     fetched, which is the first moment after the screen opens. */
+  const btns = list.map(pr => {
+    const r = authReady[pr.id];
+    const inner = '<span class="pglyph">'+(pr.id==="google"?"G":"Y!")+'</span>'+
+                  '<span class="grow">Continue with '+providerLabel(pr.id)+'</span>';
+    return r && r.url
+      ? '<a class="provider '+pr.id+'" href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer" '+
+          'data-act="signingo" data-p="'+pr.id+'">'+inner+'</a>'
+      : '<button class="provider '+pr.id+'" data-act="signin" data-p="'+pr.id+'">'+inner+'</button>';
+  }).join("");
 
   return back+
     '<div class="stack" style="justify-content:center;flex:1">'+
@@ -3867,14 +3882,20 @@ function compSuddenDeathLoop(){
   renderCompLive();
   comp.raf = setTimeout(compLoop, 120);
 }
+/* Shared by both kinds of match, so an online win counts the same as a
+   practice win and the stats cannot drift apart. */
+function recordCompResult(won, pos){
+  if(won) S.compWins = (S.compWins||0) + 1;
+  S.compPlayed = (S.compPlayed||0) + 1;
+  if(pos > (S.compBestNotes||0)) S.compBestNotes = pos;
+  save();
+}
+
 function finishComp(winner, reason){
   if(!comp || comp.over) return;
   comp.over = true; comp.winner = winner; comp.endReason = reason || null;
   compStop();
-  if(winner === "you"){ S.compWins = (S.compWins||0) + 1; }
-  S.compPlayed = (S.compPlayed||0) + 1;
-  if(comp.you.pos > (S.compBestNotes||0)) S.compBestNotes = comp.you.pos;
-  save();
+  recordCompResult(winner === "you", comp.you.pos);
   go("compresult");
 }
 /* Only the volatile parts repaint each frame; a full render would fight the keyboard. */
@@ -3927,6 +3948,227 @@ function compRows(total){
     '</div>').join("");
 }
 
+/* ============================ rooms ============================
+   Play with friends in the same room, the way a party game does it: one person
+   hosts, reads a four-character code aloud, everyone else types it in. It all
+   happens in Keyvoria — there is no second screen, no website to visit, no
+   app to install.
+
+   Unlike the practice matches, these are REAL opponents, and the server runs
+   the match: it owns the questions, it decides who is right, and it ranks the
+   finish. The app only draws what it is told and posts what the player pressed.
+   That is also what makes it fair — nobody's device gets a say in the result.
+*/
+let room = null;        /* {code, matchId, host, view, state, error} */
+let roomPollTimer = null;
+
+const ROOM_POLL_MS = 1200;
+
+function roomStop(){
+  if(roomPollTimer){ clearTimeout(roomPollTimer); roomPollTimer = null; }
+}
+
+function roomReset(){
+  roomStop(); room = null;
+}
+
+/* Competition is a paid feature AND needs an account: the match lives on the
+   server, so there has to be someone for it to belong to. */
+function roomPrecheck(){
+  if(!serverSet()){
+    toast("Playing together needs the Keyvoria server", true);
+    go("profile"); return false;
+  }
+  if(!signedIn()){
+    toast("Sign in to play with friends", true);
+    go("signin"); return false;
+  }
+  return true;
+}
+
+async function roomHost(){
+  if(!roomPrecheck()) return;
+  room = { host:true, state:"creating", code:null, matchId:null, view:null, error:null };
+  go("roomlobby");
+  const r = await api("/v1/competition/private", { method:"POST",
+    body:{ game: compGame, level: compLevel, displayName: myCompName() } });
+  if(!r.ok || !r.body || !r.body.code){
+    room.state = "error";
+    room.error = r.status === 402
+      ? "Competition Mode is part of Keyvoria Premium."
+      : "Could not open a room — " + ((r.body && r.body.error) || "the server did not answer");
+    render(); return;
+  }
+  room.code = r.body.code;
+  room.matchId = r.body.match && r.body.match.id;
+  room.view = r.body.match;
+  room.state = "lobby";
+  render();
+  roomPoll();
+}
+
+async function roomJoin(code){
+  if(!roomPrecheck()) return;
+  const c = normaliseRoomCode(code);
+  if(c.length !== ROOM_CODE_LEN){ toast("That code is " + ROOM_CODE_LEN + " characters", true); return; }
+  room = { host:false, state:"joining", code:c, matchId:null, view:null, error:null };
+  go("roomlobby");
+  const r = await api("/v1/competition/private/join", { method:"POST",
+    body:{ code:c, displayName: myCompName() } });
+  if(!r.ok){
+    const why = (r.body && r.body.error) || "";
+    room.state = "error";
+    room.error = why === "no_such_lobby" ? "No room with that code. Check it and try again."
+               : why === "lobby_closed"  ? "That game has already finished."
+               : why === "match_full"    ? "That room is full — eight is the most that can play."
+               : why === "too_many_attempts" ? "Too many wrong codes. Wait a minute and try again."
+               : why === "already_in_match" ? "You are already in that room."
+               : r.status === 402 ? "Competition Mode is part of Keyvoria Premium."
+               : "Could not join — " + (why || "the server did not answer");
+    render(); return;
+  }
+  room.matchId = r.body.match && r.body.match.id;
+  room.view = r.body.match;
+  room.state = "lobby";
+  render();
+  roomPoll();
+}
+
+/* One poll drives both the lobby and the match: the server decides which, and
+   the app follows. That way a player who was looking at the roster when the
+   host pressed Start simply finds themselves playing. */
+function roomPoll(){
+  roomStop();
+  roomPollTimer = setTimeout(async () => {
+    if(!room || !room.matchId) return;
+    const r = await api("/v1/competition/match/" + encodeURIComponent(room.matchId));
+    if(r.ok && r.body && r.body.match){
+      room.view = r.body.match;
+      applyRoomView(r.body.match);
+    } else if(r.status === 404){
+      room.state = "error";
+      room.error = "That room is no longer open.";
+      render(); return;
+    }
+    roomPoll();
+  }, ROOM_POLL_MS);
+}
+
+/* Turn the server's view of the match into the shape the match screens already
+   read, so online and practice matches draw through exactly the same code. */
+function applyRoomView(v){
+  if(v.state === "lobby"){ if(curScreen !== "roomlobby") go("roomlobby"); else render(); return; }
+
+  const me = (v.players || []).find(p => p.you) || { pos:0, out:false, done:false, sdCorrect:0 };
+  const others = (v.players || []).filter(p => !p.you);
+  const sd = v.phase === "sudden_death";
+
+  const prev = comp;
+  comp = {
+    online: true, matchId: v.id,
+    game: v.game, level: v.level,
+    total: v.answerCount || v.noteCount || 0,
+    secs: v.seconds,
+    endsAt: v.endsAt,
+    you: { pos: me.pos, out: me.out, done: me.done, sd: me.sdCorrect || 0,
+           sdPos: (prev && prev.you && prev.you.sdPos) || 0 },
+    bots: others.map(p => ({ name:p.name, pos:p.pos, out:p.out, done:p.done, sd:p.sdCorrect||0 })),
+    sdPlayers: others.map(p => ({ name:p.name, sd:p.sdCorrect||0 })),
+    phase: sd ? "sudden_death" : "main",
+    sdEndsAt: v.suddenDeath ? v.suddenDeath.endsAt : null,
+    sdRound: v.suddenDeath ? v.suddenDeath.round : 0,
+    over: v.state === "finished",
+    winner: null,
+    flash: prev && prev.online ? prev.flash : null,
+    ex: buildRoomEx(v, prev)
+  };
+
+  if(v.state === "finished"){
+    const win = (v.players || []).find(p => p.userId === v.winnerUserId);
+    comp.winner = win ? (win.you ? "You" : win.name) : null;
+    comp.youWon = !!(win && win.you);
+    comp.endReason = v.endReason;
+    roomStop();
+    recordCompResult(!!(win && win.you), me.pos);
+    go("compresult");
+    return;
+  }
+
+  if(curScreen !== "compmatch") go("compmatch"); else render();
+  /* A chord has to be heard. The server says which chord by giving its notes;
+     play it once when it changes rather than on every poll. */
+  if(v.game === "chords" && comp.ex.currentIndex !== (prev && prev.ex && prev.ex.currentIndex)){
+    setTimeout(compHear, 220);
+  }
+}
+
+/* The question the player is on, in the shape the screens expect. The server
+   never sends the answer, so there is nothing here to read it from. */
+function buildRoomEx(v, prev){
+  const round = v.round || v.passage || {};
+  const cur = v.current || null;
+  if(v.game === "chords"){
+    const notes = cur && cur.notes ? cur.notes.slice() : (prev && prev.ex && prev.ex.notes) || [];
+    return { quals: round.qualities || [], notes, currentIndex: cur ? cur.index : -1,
+             chords: [], count: round.count || 0 };
+  }
+  if(v.game === "keys"){
+    const questions = [];
+    if(cur) questions[cur.suddenDeath ? (cur.index || 0) : (cur.index || 0)] = cur;
+    return { questions, count: round.count || 0, currentIndex: cur ? cur.index : -1,
+             sd: !!(cur && cur.suddenDeath) };
+  }
+  /* Reading race: staff positions become pitches through the key signature,
+     exactly as the practice match builds them. */
+  const alter = round.key ? keyAlter(round.key) : {};
+  const notes = (round.dias || []).map(d => diaToMidi(d, alter));
+  return { notes, dias: round.dias || [], clef: round.clef || "treble",
+           key: round.key || "C", bars: round.bars || 1, currentIndex: -1 };
+}
+
+/* Post what the player pressed. The server rules on it; the next poll shows
+   the verdict, so nothing here guesses at the outcome. */
+async function roomAnswer(answer, isNote){
+  if(!room || !room.matchId || !comp || comp.over) return;
+  const path = "/v1/competition/match/" + encodeURIComponent(room.matchId) + (isNote ? "/note" : "/answer");
+  const body = isNote ? { note: answer } : { answer: answer };
+  const started = comp.t0 || Date.now();
+  const r = await api(path, { method:"POST", body: Object.assign(body, { clientElapsedMs: Date.now() - started }) });
+  if(r.ok && r.body){
+    if(r.body.correct === false){ comp.flash = "wrong"; }
+    else if(r.body.correct === true){ comp.flash = "right"; }
+    if(r.body.match){ room.view = r.body.match; applyRoomView(r.body.match); return; }
+  }
+  render();
+}
+
+async function roomStart(){
+  if(!room || !room.host) return;
+  const r = await api("/v1/competition/private/start", { method:"POST", body:{ code: room.code } });
+  if(!r.ok){
+    const why = (r.body && r.body.error) || "";
+    toast(why === "not_enough_players" ? "At least two players are needed"
+        : why === "not_host" ? "Only the host can start"
+        : "Could not start — " + (why || "the server did not answer"), true);
+    return;
+  }
+  if(r.body && r.body.match) applyRoomView(r.body.match);
+}
+
+async function roomLeave(){
+  roomStop();
+  room = null; comp = null;
+  go("compsetup");
+}
+
+const ROOM_CODE_LEN = 4;
+/* Mirrors the server's own forgiveness: people read these aloud. */
+const normaliseRoomCode = v => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
+  .replace(/[OI01]/g, "").slice(0, ROOM_CODE_LEN);
+
+const myCompName = () =>
+  (S.account && (S.account.nickname || S.account.name)) || "Player";
+
 function screenCompSetup(){
   const chords = compGame === "chords";
   const games = [["reading","Reading"],["chords","Chords"],["keys","Key Signatures"]].map(([g,label]) =>
@@ -3961,16 +4203,104 @@ function screenCompSetup(){
       '<button class="iconbtn" data-go="home" aria-label="Back">'+svg(IC.back,15)+'</button>'+
       '<div class="h2">Competition</div><div style="width:34px"></div></div>'+
     '<div class="seg">'+games+'</div>'+
-    '<div class="faint">'+rules+' Opponents are matched from anywhere, not just people near you.</div>'+
+    '<div class="faint">'+rules+'</div>'+
     '<div class="stack">'+rows+'</div>'+
-    '<div class="card"><div class="row"><span class="kvk">Players in this match</span>'+
-      '<span class="kvv tnum" id="cpcount">'+compPlayers+'</span></div>'+
+    '<div class="card"><div class="h2" style="margin-bottom:4px">Play with friends</div>'+
+      '<div class="faint" style="margin-bottom:11px">One of you opens a room and reads out a '+
+        'four-character code. Everyone else types it in here. It all happens in Keyvoria \u2014 '+
+        'no website, nothing to install. Up to '+COMP_MAX_PLAYERS+' of you, on the game and level '+
+        'chosen above.</div>'+
+      '<button class="btn block" data-act="roomhost">Open a room</button>'+
+      '<button class="btn ghost block" style="margin-top:9px" data-act="go-roomjoin">Join a room</button>'+
+      (signedIn() ? "" : '<div class="faint" style="margin-top:9px">Playing together needs an '+
+        'account, so the room knows who you are.</div>')+
+    '</div>'+
+    '<div class="card"><div class="h2" style="margin-bottom:4px">On your own</div>'+
+      '<div class="faint" style="margin-bottom:11px">A practice match against '+
+        (compPlayers-1)+' computer '+(compPlayers-1===1?"opponent":"opponents")+'. '+
+        'Same rules, no waiting for anyone.</div>'+
+      '<div class="row"><span class="kvk">Players</span>'+
+        '<span class="kvv tnum" id="cpcount">'+compPlayers+'</span></div>'+
       '<div class="seg" style="margin-top:10px">'+
         [2,4,6,8].map(n => '<button class="seg-opt'+(compPlayers===n?" active":"")+'" data-act="compcount" data-n="'+n+'">'+n+'</button>').join("")+
       '</div>'+
-      '<div class="faint" style="margin-top:10px">Eight is the cap. Smaller matches start '+
-        'sooner, and everyone stays visible on one screen while you play.</div></div>'+
-    '<button class="btn block" data-act="compstart">Enter match</button>';
+      '<button class="btn ghost block" style="margin-top:11px" data-act="compstart">Practise against the computer</button>'+
+    '</div>';
+}
+
+/* The lobby. One screen for the host and the joiners, because they are looking
+   at the same room — the only difference is who may start it. */
+function screenRoomLobby(){
+  const r = room || { state:"error", error:"That room is gone." };
+
+  if(r.state === "error"){
+    return '<div class="exhead">'+
+        '<button class="iconbtn" data-act="roomleave" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+        '<div class="h2">Play together</div><div style="width:34px"></div></div>'+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="h1">Couldn\u2019t open that room</div>'+
+        '<div class="sub" style="margin-top:6px">'+esc(r.error)+'</div></div>'+
+        '<button class="btn block" data-act="roomleave">Back</button></div>';
+  }
+  if(r.state === "creating" || r.state === "joining"){
+    return '<div class="exhead"><div style="width:34px"></div>'+
+        '<div class="h2">'+(r.host?"Opening a room":"Joining")+'</div><div style="width:34px"></div></div>'+
+      '<div class="stack" style="justify-content:center;flex:1">'+
+        '<div class="center"><div class="sub">One moment\u2026</div></div></div>';
+  }
+
+  const v = r.view || {};
+  const players = v.players || [];
+  const full = players.length >= COMP_MAX_PLAYERS;
+  const label = compGame === "chords" ? "Chord Race"
+              : compGame === "keys" ? "Key Signature Race" : "Reading Race";
+
+  const roster = players.map((p,i) =>
+    '<div class="crow'+(p.you?" me":"")+'">'+
+      '<span class="cname">'+esc(p.name || "Player")+(i===0?" \u00b7 host":"")+'</span>'+
+      '<span class="grow"></span>'+
+      '<span class="cstat">'+(p.you?"you":"ready")+'</span></div>').join("");
+
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-act="roomleave" aria-label="Leave">'+svg(IC.close,13)+'</button>'+
+      '<div class="h2">'+(r.host?"Your room":"In the room")+'</div><div style="width:34px"></div></div>'+
+    '<div class="stack">'+
+      '<div class="card warm center">'+
+        '<div class="eyebrow">Everyone types this code</div>'+
+        '<div class="roomcode tnum">'+esc(r.code || "\u2014")+'</div>'+
+        '<div class="faint">'+label+' \u00b7 Level '+(v.level||compLevel)+'</div>'+
+      '</div>'+
+      '<div class="row"><span class="kvk">In the room</span>'+
+        '<span class="kvv tnum">'+players.length+' of '+COMP_MAX_PLAYERS+'</span></div>'+
+      '<div class="complist">'+roster+'</div>'+
+      (r.host
+        ? '<button class="btn block'+(players.length<2?" off":"")+'" data-act="roomstart">'+
+            (players.length<2 ? "Waiting for one more\u2026" : "Start the match")+'</button>'+
+          '<div class="faint center">Read the code out. Anyone on Keyvoria can type it in '+
+            'under <b>Competition \u2192 Join a room</b>.</div>'
+        : '<div class="notice center">Waiting for the host to start\u2026</div>')+
+      (full ? '<div class="faint center">The room is full.</div>' : '')+
+    '</div>';
+}
+
+/* Typing the code in. Big, forgiving, and nothing else on the screen. */
+function screenRoomJoin(){
+  return '<div class="exhead">'+
+      '<button class="iconbtn" data-go="compsetup" aria-label="Back">'+svg(IC.back,15)+'</button>'+
+      '<div class="h2">Join a room</div><div style="width:34px"></div></div>'+
+    '<div class="stack" style="justify-content:center;flex:1">'+
+      '<div class="center"><div class="h1">Enter the code</div>'+
+        '<div class="sub" style="margin-top:6px">The four characters the host is reading out.</div></div>'+
+      /* No maxlength: the browser applies it to the RAW text, so a code
+         pasted or dictated as " QCV5 " was cut to " QCV" before it could be
+         cleaned up. The input handler caps the length after tidying instead. */
+      '<input class="codeinput tnum" id="roomCode" '+
+        'autocomplete="off" autocapitalize="characters" spellcheck="false" '+
+        'inputmode="text" placeholder="\u2022\u2022\u2022\u2022" aria-label="Room code">'+
+      '<button class="btn block" data-act="roomjoin">Join</button>'+
+      '<div class="faint center">Letters and numbers. There are no O\u2019s or I\u2019s in a '+
+        'code, so if you hear \u201coh\u201d it is a zero that is not there \u2014 just type the rest.</div>'+
+    '</div>';
 }
 
 function screenCompMatch(){
@@ -4274,11 +4604,40 @@ let authWait = null;          /* {provider, url, state} for the waiting screen *
    with no keys is not shown as a button that cannot work. */
 let authProviders = null;     /* null = not asked yet, [] = none configured */
 
+/* A sign-in started ahead of time, per provider: {url, ticket}.
+   The tap has to go STRAIGHT to Google or Yahoo. Asking the server for the
+   authorize URL inside the click handler put an await in front of the
+   navigation, which loses the user gesture — the browser then blocks the new
+   window and the player gets a "tap here to continue" screen instead of the
+   provider. So the URLs are fetched when the sign-in screen opens, and the
+   buttons are real links that go straight there. */
+let authReady = {};
+
 async function loadAuthProviders(){
   if(!serverSet()){ authProviders = []; return authProviders; }
   const r = await api("/v1/auth/providers");
   authProviders = (r.ok && r.body && Array.isArray(r.body.providers)) ? r.body.providers : [];
   return authProviders;
+}
+
+/* Open a sign-in in advance so the button has somewhere to point. Cheap: it is
+   one short-lived pending record on the server, swept after ten minutes. */
+async function prepareSignIn(provider){
+  if(!serverSet()) return null;
+  const r = await api("/v1/auth/" + provider + "/start", { method:"POST" });
+  if(!r.ok || !r.body || !r.body.url){
+    authReady[provider] = { error: (r.body && r.body.error) || "unreachable" };
+    return null;
+  }
+  authReady[provider] = { url: r.body.url, ticket: r.body.ticket, pollMs: r.body.pollMs || 1500 };
+  return authReady[provider];
+}
+
+/* Get both ready, then repaint so the buttons become links. */
+async function prepareAllSignIns(){
+  const list = authProviders === null ? await loadAuthProviders() : authProviders;
+  await Promise.all(list.map(p2 => prepareSignIn(p2.id)));
+  if(curScreen === "signin") render();
 }
 
 function stopAuthPoll(){
@@ -4409,6 +4768,7 @@ async function doSignOut(){
   if(apiConfigured()) api("/v1/auth/signout", { method:"POST" }).catch(() => {});
   S.apiToken = "";
   S.account = null;
+  authReady = {};
   S.visibility = "private";
   S.leaderboardOptIn = false;
   progressDirty = false;
@@ -4863,6 +5223,7 @@ const SCREENS = {
   achievements:screenAchievements, card:screenCard,
   uploadgate:screenUploadGate, compgate:screenCompGate,
   compsetup:screenCompSetup, compmatch:screenCompMatch, compresult:screenCompResult,
+  roomlobby:screenRoomLobby, roomjoin:screenRoomJoin,
   upload:screenUpload, confirm:screenConfirm, processing:screenProcessing,
   result:screenResult, tutorial:screenTutorial,
   master:screenMaster, masterover:screenMasterOver,
@@ -4872,6 +5233,7 @@ const TAB_OF = { home:"home", ladder:"home", earmode:"home", play:"home", summar
                  master:"home", masterover:"home",
                  upload:"home", confirm:"home", processing:"home", result:"home", tutorial:"home",
                  uploadgate:"home", compsetup:"home", compmatch:"home", compresult:"home",
+                 roomlobby:"home", roomjoin:"home",
                  library:"library", freeplay:"library",
                  profile:"profile", cancel:"profile", achievements:"profile", card:"profile",
                  signin:"profile", awaitauth:"profile", namesetup:"profile", account:"profile",
@@ -4927,6 +5289,26 @@ function renderScreen(){
 
   if(curScreen === "play") wirePlay();
   if(curScreen === "freeplay") wireFreeplay();
+  if(curScreen === "roomjoin"){
+    const inp = document.getElementById("roomCode");
+    if(inp){
+      inp.addEventListener("input", () => {
+        const at = inp.selectionStart;
+        inp.value = normaliseRoomCode(inp.value);
+        try{ inp.setSelectionRange(at, at); }catch(e){}
+      });
+      inp.addEventListener("keydown", e => {
+        if(e.key === "Enter"){ e.preventDefault(); roomJoin(inp.value); }
+      });
+      setTimeout(() => { try{ inp.focus(); }catch(e){} }, 60);
+    }
+  }
+  /* Get the authorize URLs in hand so the provider buttons are links, not a
+     round trip the tap has to wait for. */
+  if(curScreen === "signin" && serverSet() && !signedIn()){
+    const want = (authProviders || PROVIDERS).map(p2 => p2.id);
+    if(want.some(id => !authReady[id])) prepareAllSignIns();
+  }
   if(curScreen === "compmatch" && comp && comp.game === "reading"){
     /* Reading race only: it is the one Competition game played on the keyboard.
        Chord Race and the Key Signature Race answer with buttons and have no
@@ -5238,6 +5620,19 @@ document.addEventListener("click", e => {
       tutStop(); tut.loop = !tut.loop; tut.pos = 0; render(); break;
     case "tutplay": tutPlay(); break;
     case "closetut": tutStop(); go("home"); break;
+    /* The link is already navigating to the provider; this only starts the
+       poll that notices when they come back. Nothing here may cancel or
+       postpone that navigation. */
+    case "signingo": {
+      const pid = el.dataset.p, r = authReady[pid];
+      if(!r || !r.ticket) break;
+      authWait = { provider: pid, url: r.url, state: "waiting", error: null };
+      delete authReady[pid];              /* a ticket is single use */
+      pollAuthTicket(r.ticket, r.pollMs);
+      go("awaitauth");
+      break;
+    }
+    /* Fallback for the moment before the URL has arrived. */
     case "signin": startSignIn(el.dataset.p); break;
     case "authcancel":
       stopAuthPoll(); authWait = null; go(signedIn() ? "profile" : "signin"); break;
@@ -5273,10 +5668,27 @@ document.addEventListener("click", e => {
     case "complevel": compLevel = parseInt(el.dataset.l,10); render(); break;
     case "compcount": compPlayers = parseInt(el.dataset.n,10); render(); break;
     case "compstart": startComp(compLevel, compPlayers); break;
-    case "compquit": compStop(); allOff(); comp = null; go("compsetup"); break;
+    case "roomhost": roomHost(); break;
+    case "go-roomjoin": go("roomjoin"); break;
+    case "roomjoin": {
+      const inp = document.getElementById("roomCode");
+      roomJoin(inp ? inp.value : ""); break;
+    }
+    case "roomstart": roomStart(); break;
+    case "roomleave": roomLeave(); break;
+    case "compquit":
+      compStop(); allOff();
+      /* Leaving an online match also leaves the room, or the poll keeps
+         running against a match this player is no longer watching. */
+      if(comp && comp.online) roomReset();
+      comp = null; go("compsetup"); break;
     case "comphear": comp.flash = null; renderCompLive(); compHear(); break;
     case "compkeyans": {
       if(!comp || comp.over || comp.game !== "keys") break;
+      if(comp.online){
+        if(comp.you.out || comp.you.done) break;
+        roomAnswer(el.dataset.q, false); break;
+      }
       const q = el.dataset.q;
 
       if(comp.phase === "sudden_death"){
@@ -5307,6 +5719,8 @@ document.addEventListener("click", e => {
     case "compans": {
       if(!comp || comp.over || comp.game !== "chords") break;
       if(comp.you.out || comp.you.done) break;
+      /* Online, the server rules on it; nothing here decides anything. */
+      if(comp.online){ roomAnswer(el.dataset.q, false); break; }
       const q = el.dataset.q;
       if(q !== comp.ex.answers[comp.you.pos]){
         /* One wrong answer, exactly as specified. No second chance, no partial

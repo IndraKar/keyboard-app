@@ -330,6 +330,16 @@ export function suddenDeathResult(match) {
  */
 export function resolve(match, now = Date.now()) {
   if (match.state === MATCH_STATE.FINISHED) return match;
+  /*
+    A match that has not started has no clock to run out.
+
+    Without this, resolving a LOBBY fell through to `now >= match.ends_at`,
+    where ends_at is still null — and `now >= null` is true, because null
+    becomes 0. So the first poll of a freshly opened room ended it as a
+    timeout. A private lobby is polled the whole time people are joining,
+    which meant a room died the instant the host looked at it.
+  */
+  if (match.state !== MATCH_STATE.RUNNING) return match;
   if (match.phase === PHASE.SUDDEN_DEATH) return resolveSuddenDeath(match, now);
 
   const spec = gameSpec(match.game);

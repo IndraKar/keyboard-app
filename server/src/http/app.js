@@ -25,6 +25,7 @@ import { CHORD_LEVELS, CHORD_LABELS } from "../competition/chords.js";
 import { KEY_LEVELS } from "../competition/keys.js";
 import { KEYS as KEY_SIGNATURES, KEY_TIERS, keyLabel } from "../theory/keysignatures.js";
 import { GAMES, MAX_PLAYERS, MIN_PLAYERS, publicView, resolve, submitAnswer, MATCH_STATE } from "../competition/match.js";
+import { normaliseCode, CODE_LENGTH } from "../competition/matchmaking.js";
 import { verifyToken, issueToken } from "./tokens.js";
 import { STATUS } from "../billing/subscription.js";
 import { mergeProgress, normaliseProgress, MAX_PROGRESS_BYTES } from "../progress/merge.js";
@@ -707,13 +708,21 @@ export function createApp({
           const level = Number(body.level);
           if (!validLevel(game, level)) return send(res, 400, { error: "invalid_level" });
           const r = matchmaker.createPrivate(userId, name, level, Math.random, game);
+          if (!r.ok) return send(res, 503, { error: r.reason });
           return send(res, 200, { code: r.code, match: publicView(r.match, userId) });
         }
 
         if (seg[2] === "private" && seg[3] === "join" && method === "POST") {
-          const r = matchmaker.joinPrivate(body.code, userId, name);
-          if (!r.ok) return send(res, r.reason === "no_such_lobby" ? 404 : 409, { error: r.reason });
-          return send(res, 200, { match: publicView(r.match, userId) });
+          /* Rate-limit on the account, not the socket. A classroom is one
+             network, so limiting per IP would throttle the very case this
+             feature exists for — everyone in one room joining at once. */
+          const r = matchmaker.joinPrivate(body.code, userId, name, userId);
+          if (!r.ok) {
+            const status = r.reason === "no_such_lobby" ? 404
+                         : r.reason === "too_many_attempts" ? 429 : 409;
+            return send(res, status, { error: r.reason });
+          }
+          return send(res, 200, { match: publicView(r.match, userId), code: normaliseCode(body.code) });
         }
 
         if (seg[2] === "private" && seg[3] === "start" && method === "POST") {
